@@ -1,0 +1,9 @@
+# Linux script files should use lf
+/gradlew        text eol=lf
+
+# Windows script files should use crlf
+*.bat           text eol=crlf
+
+# Binary files should be left untouched
+*.jar           binary
+
