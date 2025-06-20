@@ -6,4 +6,5 @@ plugins {
 
 dependencies {
   implementation(libs.asm)
+  implementation(project(":utils"))
 }
