@@ -99,8 +99,11 @@ public final class ClassInjector {
     public MethodVisitor visitMethod(
         int access, String name, String descriptor, String signature, String[] exceptions) {
       MethodVisitor mv = cv.visitMethod(access, name, descriptor, signature, exceptions);
-      // only transform the specific 'loadClass(name)' method we call to retrieve the injected glue
-      if ("loadClass".equals(name) && "(Ljava/lang/String;)Ljava/lang/Class;".equals(descriptor)) {
+      // hook into both forms of the 'loadClass' method to retrieve the injected glue
+      // custom system classloaders will call one of them to fetch bootstrap classes
+      if ((access & ACC_STATIC) == 0
+          && "loadClass".equals(name)
+          && descriptor.startsWith("(Ljava/lang/String;")) {
         return new LoadClassPatch(mv);
       }
       return mv;
