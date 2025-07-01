@@ -20,9 +20,9 @@ import org.objectweb.asm.Type;
  * <p>Uses {@link Instrumentation} to install an access wrapper around {@code Unsafe.defineClass}
  *
  * <ul>
- *   <li>To use this feature, first call <code>ClassInjector.install(instrumentation)</code>
- *   <li>To inject a class, use <code>ClassInjector.injectClass(bytecode, classloader)</code>
- *   <li>Use <code>injectBootClass</code> to inject classes into the bootstrap classloader
+ *   <li>To use this feature, first call {@link #enableClassInjection}
+ *   <li>To inject a class call {@link #injectClass} with the target classloader
+ *   <li>Use {@link #injectBootClass} to inject classes into the bootstrap classloader
  *   <li>The API also supports injecting classes using a custom {@link ProtectionDomain}
  * </ul>
  */
@@ -46,14 +46,14 @@ public final class ClassInjector {
 
   private static BiFunction classDefiner() {
     if (classDefiner == null) {
-      throw new UnsupportedOperationException("ClassInjector is not installed");
+      throw new UnsupportedOperationException("Class injection not enabled");
     }
     return classDefiner;
   }
 
   private static volatile BiFunction classDefiner;
 
-  public static void install(Instrumentation inst) {
+  public static void enableClassInjection(Instrumentation inst) {
     try {
       InjectGlue injectGlue = new InjectGlue();
       try {
@@ -67,7 +67,7 @@ public final class ClassInjector {
         inst.retransformClasses(ClassLoader.class);
       }
     } catch (Throwable e) {
-      throw new UnsupportedOperationException("Unable to install ClassInjector", e);
+      throw new UnsupportedOperationException("Class injection not available", e);
     }
   }
 
