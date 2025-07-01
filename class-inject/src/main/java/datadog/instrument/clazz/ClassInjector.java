@@ -21,8 +21,8 @@ import org.objectweb.asm.Type;
  *
  * <ul>
  *   <li>To use this feature, first call <code>ClassInjector.install(instrumentation)</code>
- *   <li>To inject a class, use <code>ClassInjector.defineClass(bytecode, classloader)</code>
- *   <li>Use <code>defineBootClass</code> to inject classes into the bootstrap classloader
+ *   <li>To inject a class, use <code>ClassInjector.injectClass(bytecode, classloader)</code>
+ *   <li>Use <code>injectBootClass</code> to inject classes into the bootstrap classloader
  *   <li>The API also supports injecting classes using a custom {@link ProtectionDomain}
  * </ul>
  */
