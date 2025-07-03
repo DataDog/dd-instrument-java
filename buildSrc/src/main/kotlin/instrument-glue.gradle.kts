@@ -21,19 +21,16 @@ dependencies {
 }
 
 tasks.register<JavaExec>("generateGlue") {
-  val glueClass: String by project.extra
+  val glue: String by project.extra
 
-  val gluePackage = glueClass.substringBeforeLast('.')
-  val glueName = glueClass.substringAfterLast('.')
-
-  val srcFile = generatedGlueDir.file("${glueClass.replace('.', '/')}.java")
+  val javaFile = generatedGlueDir.file("datadog/instrument/glue/${glue}.java")
 
   group = "Build"
-  description = "Generate glue"
-  mainClass = "datadog.instrument.glue.${glueName}Generator"
+  description = "Generate ${glue}"
+  mainClass = "datadog.instrument.glue.${glue}Generator"
   classpath = sourceSets["glue"].runtimeClasspath
-  args = listOf(srcFile.toString(), gluePackage, glueName)
-  outputs.files(srcFile)
+  args = listOf(javaFile.toString())
+  outputs.files(javaFile)
 }
 
 tasks.compileJava {
@@ -41,9 +38,7 @@ tasks.compileJava {
 }
 
 tasks.jar {
-  val glueClass: String by project.extra
-
   // glue classes only contain large string constants that get inlined into other classes
   // - the inlining means we can safely drop these classes from the final jar to save space
-  excludes.add("${glueClass.replace('.', '/')}.class")
+  excludes.add("datadog/instrument/glue/**")
 }

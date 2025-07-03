@@ -2,6 +2,7 @@ package datadog.instrument.clazz;
 
 import static org.objectweb.asm.Opcodes.*;
 
+import datadog.instrument.glue.DefineClassGlue;
 import datadog.instrument.utils.Platform;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
