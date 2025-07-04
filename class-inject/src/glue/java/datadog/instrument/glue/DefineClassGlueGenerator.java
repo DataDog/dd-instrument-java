@@ -29,7 +29,7 @@ import org.objectweb.asm.MethodVisitor;
  */
 final class DefineClassGlueGenerator {
   // our glue must be located inside the java.lang namespace for accessibility reasons
-  private static final String INJECTED_GLUE_CLASS = "java/lang/$Datadog$DefineClass$Glue$";
+  private static final String DEFINECLASS_GLUE_CLASS = "java/lang/$Datadog$DefineClass$Glue$";
 
   private static final String OBJECT_CLASS = "java/lang/Object";
   private static final String CLASS_CLASS = "java/lang/Class";
@@ -67,7 +67,7 @@ final class DefineClassGlueGenerator {
     cw.visit(
         V1_8,
         ACC_PUBLIC | ACC_FINAL,
-        INJECTED_GLUE_CLASS,
+        DEFINECLASS_GLUE_CLASS,
         null,
         OBJECT_CLASS,
         new String[] {BIFUNCTION_CLASS});
@@ -81,7 +81,7 @@ final class DefineClassGlueGenerator {
     mv = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
     mv.visitCode();
     mv.visitMethodInsn(INVOKESTATIC, unsafeClass, "getUnsafe", "()" + unsafeDescriptor, false);
-    mv.visitFieldInsn(PUTSTATIC, INJECTED_GLUE_CLASS, "UNSAFE", unsafeDescriptor);
+    mv.visitFieldInsn(PUTSTATIC, DEFINECLASS_GLUE_CLASS, "UNSAFE", unsafeDescriptor);
     mv.visitInsn(RETURN);
     mv.visitMaxs(1, 0);
     mv.visitEnd();
@@ -104,7 +104,7 @@ final class DefineClassGlueGenerator {
     // NOTE: the following bytecode makes use of DUP and SWAP to limit loads
 
     // prepare most of the arguments for Unsafe.defineClass
-    mv.visitFieldInsn(GETSTATIC, INJECTED_GLUE_CLASS, "UNSAFE", unsafeDescriptor);
+    mv.visitFieldInsn(GETSTATIC, DEFINECLASS_GLUE_CLASS, "UNSAFE", unsafeDescriptor);
     mv.visitInsn(ACONST_NULL);
     mv.visitVarInsn(ALOAD, 1);
     mv.visitTypeInsn(CHECKCAST, BYTE_ARRAY);
@@ -134,7 +134,7 @@ final class DefineClassGlueGenerator {
     mv.visitFrame(
         F_FULL,
         3,
-        new Object[] {INJECTED_GLUE_CLASS, OBJECT_CLASS, OBJECT_CLASS},
+        new Object[] {DEFINECLASS_GLUE_CLASS, OBJECT_CLASS, OBJECT_CLASS},
         6,
         new Object[] {unsafeClass, NULL, BYTE_ARRAY, INTEGER, INTEGER, OBJECT_CLASS});
 
@@ -146,7 +146,7 @@ final class DefineClassGlueGenerator {
     mv.visitFrame(
         F_FULL,
         3,
-        new Object[] {INJECTED_GLUE_CLASS, OBJECT_CLASS, OBJECT_CLASS},
+        new Object[] {DEFINECLASS_GLUE_CLASS, OBJECT_CLASS, OBJECT_CLASS},
         7,
         new Object[] {
           unsafeClass, NULL, BYTE_ARRAY, INTEGER, INTEGER, CLASSLOADER_CLASS, PROTECTIONDOMAIN_CLASS
@@ -176,7 +176,7 @@ final class DefineClassGlueGenerator {
     String name = file.getName();
     List<String> lines = new ArrayList<>();
     classHeader(lines, name.substring(0, name.length() - 5));
-    lines.add("  String ID = \"" + INJECTED_GLUE_CLASS.replace('/', '.') + "\";");
+    lines.add("  String ID = \"" + DEFINECLASS_GLUE_CLASS.replace('/', '.') + "\";");
     lines.add("  String V8 =");
     packBytecode(lines, generateBytecode("sun/misc"));
     lines.add("  String V9 =");
