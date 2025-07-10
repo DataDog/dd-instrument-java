@@ -21,6 +21,7 @@ java {
 }
 
 dependencies {
+  compileOnly(libs.spotbugs.annotations)
   testImplementation(libs.junit.jupiter)
   testRuntimeOnly(libs.junit.launcher)
 }
