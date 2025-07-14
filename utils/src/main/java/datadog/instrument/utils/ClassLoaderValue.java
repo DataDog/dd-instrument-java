@@ -1,8 +1,9 @@
 package datadog.instrument.utils;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
+import static datadog.instrument.utils.ClassLoaderKey.BOOT_CLASS_LOADER;
+import static datadog.instrument.utils.ClassLoaderKey.SYSTEM_CLASS_LOADER;
+
+import datadog.instrument.utils.ClassLoaderKey.LookupKey;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,15 +14,12 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * value should not have a strong-reference back to its key, as that would keep the class-loader
  * from being unloadable.
  *
- * <p>It is the responsibility of the subclass to decide when to call {@link #removeStaleEntries}.
- * It could be on every access, periodically using a background thread, or some other condition.
+ * <p>It is the caller's responsibility to decide how often to call {@link #removeStaleEntries}. It
+ * may be on every request, periodically using a background thread, or some other condition.
  *
  * <p>Inspired by {@link ClassValue}.
  */
 public abstract class ClassLoaderValue<V> {
-
-  private static final ClassLoader BOOT_CLASS_LOADER = null;
-  private static final ClassLoader SYSTEM_CLASS_LOADER = ClassLoader.getSystemClassLoader();
 
   @SuppressWarnings("rawtypes")
   private static final AtomicReferenceFieldUpdater<ClassLoaderValue, Object> BOOT_VALUE_UPDATER =
@@ -35,11 +33,12 @@ public abstract class ClassLoaderValue<V> {
   private volatile V bootValue;
   private volatile V systemValue;
 
-  private static final int MAX_REMOVALS_PER_CYCLE = 8;
+  // maps other (unloadable) class-loaders to their values
+  private final Map<Object, V> otherValues = new ConcurrentHashMap<>();
 
-  // weak keys permit unloading of class-loaders; call removeStaleEntries to clean up map
-  private final ReferenceQueue<ClassLoader> staleKeys = new ReferenceQueue<>();
-  private final Map<Object, V> values = new ConcurrentHashMap<>();
+  protected ClassLoaderValue() {
+    ClassLoaderKey.registerCleaner(otherValues::remove);
+  }
 
   /**
    * Computes the given class-loaders's derived value for this {@code ClassLoaderValue}.
@@ -78,7 +77,7 @@ public abstract class ClassLoaderValue<V> {
     } else if (cl == SYSTEM_CLASS_LOADER) {
       return getSystemValue();
     } else {
-      return getValue(cl);
+      return getOtherValue(cl);
     }
   }
 
@@ -97,25 +96,18 @@ public abstract class ClassLoaderValue<V> {
     } else if (cl == SYSTEM_CLASS_LOADER) {
       systemValue = null;
     } else {
-      values.remove(new LookupKey(cl));
+      otherValues.remove(new LookupKey(cl));
     }
   }
 
   /**
-   * Removes stale entries from this {@code ClassLoaderValue}.
+   * Removes stale entries from {@code ClassLoaderValue}s, where the class-loader is now unused.
    *
-   * <p>It is the responsibility of the subclass to decide when to call {@code #removeStaleEntries}.
-   * It could be on a computation, periodically using a background thread, or some other condition.
+   * <p>It is the caller's responsibility to decide how often to call {@code #removeStaleEntries}.
+   * It may be periodically with a background thread, on certain requests, or some other condition.
    */
-  public final void removeStaleEntries() {
-    Object ref;
-    int count = 0;
-    while ((ref = staleKeys.poll()) != null) {
-      values.remove(ref);
-      if (++count >= MAX_REMOVALS_PER_CYCLE) {
-        break;
-      }
-    }
+  public static void removeStaleEntries() {
+    ClassLoaderKey.cleanStaleKeys();
   }
 
   /** Lazily associate a computed value with the boot class-loader. */
@@ -143,70 +135,15 @@ public abstract class ClassLoaderValue<V> {
   }
 
   /** Lazily associate a computed value with a custom class-loader. */
-  private V getValue(ClassLoader cl) {
-    V value = values.get(new LookupKey(cl));
+  private V getOtherValue(ClassLoader cl) {
+    V value = otherValues.get(new LookupKey(cl));
     if (value == null) {
       value = computeValue(cl);
-      V existingValue = values.putIfAbsent(new WeakKey(cl, staleKeys), value);
+      V existingValue = otherValues.putIfAbsent(new ClassLoaderKey(cl), value);
       if (existingValue != null) {
         value = existingValue;
       }
     }
     return value;
-  }
-
-  /** Minimal key used for lookup purposes without the reference tracking overhead. */
-  static final class LookupKey {
-    private final ClassLoader cl;
-    private final int hash;
-
-    LookupKey(ClassLoader cl) {
-      this.cl = cl;
-      this.hash = System.identityHashCode(cl);
-    }
-
-    @Override
-    public int hashCode() {
-      return hash;
-    }
-
-    @Override
-    @SuppressFBWarnings("Eq") // this is symmetric because it mirrors WeakKey.equals
-    public boolean equals(Object o) {
-      if (o instanceof WeakKey) {
-        return cl == ((WeakKey) o).get();
-      } else if (o instanceof LookupKey) {
-        return cl == ((LookupKey) o).cl;
-      } else {
-        return false;
-      }
-    }
-  }
-
-  /** Reference key used to weakly associate a class-loader with a computed value. */
-  static final class WeakKey extends WeakReference<ClassLoader> {
-    private final int hash;
-
-    WeakKey(ClassLoader cl, ReferenceQueue<ClassLoader> queue) {
-      super(cl, queue);
-      hash = System.identityHashCode(cl);
-    }
-
-    @Override
-    public int hashCode() {
-      return hash;
-    }
-
-    @Override
-    @SuppressFBWarnings("Eq") // this is symmetric because it mirrors LookupKey.equals
-    public boolean equals(Object o) {
-      if (o instanceof LookupKey) {
-        return get() == ((LookupKey) o).cl;
-      } else if (o instanceof WeakKey) {
-        return get() == ((WeakKey) o).get();
-      } else {
-        return false;
-      }
-    }
   }
 }
