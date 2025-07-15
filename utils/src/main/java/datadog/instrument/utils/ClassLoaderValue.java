@@ -1,5 +1,6 @@
 package datadog.instrument.utils;
 
+import static datadog.instrument.utils.ClassLoaderIndex.getClassLoaderKey;
 import static datadog.instrument.utils.ClassLoaderKey.BOOT_CLASS_LOADER;
 import static datadog.instrument.utils.ClassLoaderKey.SYSTEM_CLASS_LOADER;
 
@@ -139,7 +140,7 @@ public abstract class ClassLoaderValue<V> {
     V value = otherValues.get(new LookupKey(cl));
     if (value == null) {
       value = computeValue(cl);
-      V existingValue = otherValues.putIfAbsent(new ClassLoaderKey(cl), value);
+      V existingValue = otherValues.putIfAbsent(getClassLoaderKey(cl), value);
       if (existingValue != null) {
         value = existingValue;
       }

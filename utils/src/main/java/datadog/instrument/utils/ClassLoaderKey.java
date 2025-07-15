@@ -6,6 +6,7 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /** Reference key used to weakly associate a class-loader with a computed value. */
@@ -13,6 +14,9 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
 
   static final ClassLoader BOOT_CLASS_LOADER = null;
   static final ClassLoader SYSTEM_CLASS_LOADER = ClassLoader.getSystemClassLoader();
+
+  // key-ids 0 and 1 are pre-assigned to the boot and system class-loaders
+  private static final AtomicInteger NEXT_KEY_ID = new AtomicInteger(2);
 
   // stale class-loader keys that are now eligible for collection
   private static final ReferenceQueue<ClassLoader> staleKeys = new ReferenceQueue<>();
@@ -41,11 +45,13 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
     }
   }
 
-  private final int hash;
+  final int hash;
+  final int id;
 
-  ClassLoaderKey(ClassLoader cl) {
+  ClassLoaderKey(ClassLoader cl, int hash) {
     super(cl, staleKeys);
-    hash = System.identityHashCode(cl);
+    this.hash = hash;
+    this.id = NEXT_KEY_ID.getAndIncrement();
   }
 
   @Override
