@@ -47,13 +47,9 @@ public final class ClassLoaderIndex {
   private static ClassLoaderKey index(ClassLoader cl, ClassLoaderKey[] keys, int slotMask) {
     final int hash = System.identityHashCode(cl);
 
-    int h = hash;
-    int slot = h & slotMask;
-
-    final int initialSlot = slot;
-
     // try to find an empty slot or match, rehashing after each attempt
-    for (int i = 1; true; i++) {
+    for (int i = 1, h = hash; true; i++, h = rehash(h)) {
+      int slot = slotMask & h;
       ClassLoaderKey current = keys[slot];
       if (current == null || null == current.get()) {
         // we found an empty slot
@@ -62,11 +58,9 @@ public final class ClassLoaderIndex {
         // we found a matching slot
         return current;
       } else if (i == MAX_HASH_ATTEMPTS) {
-        // timebox the hashing, re-use initial slot
-        return (keys[initialSlot] = new ClassLoaderKey(cl, hash));
+        slot = slotMask & hash; // overwrite original slot
+        return (keys[slot] = new ClassLoaderKey(cl, hash));
       }
-      h = rehash(h);
-      slot = h & slotMask;
     }
   }
 
