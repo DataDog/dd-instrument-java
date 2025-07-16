@@ -1,5 +1,10 @@
 package datadog.instrument.utils;
 
+import static datadog.instrument.utils.ClassLoaderKey.BOOT_CLASS_LOADER;
+import static datadog.instrument.utils.ClassLoaderKey.BOOT_CLASS_LOADER_KEY_ID;
+import static datadog.instrument.utils.ClassLoaderKey.SYSTEM_CLASS_LOADER;
+import static datadog.instrument.utils.ClassLoaderKey.SYSTEM_CLASS_LOADER_KEY_ID;
+
 /**
  * Semi-stable index of {@link ClassLoaderKey}s that guarantees a unique key and id for different
  * class-loaders. A class-loader may have more than one key-id over its life if it is temporarily
@@ -8,7 +13,8 @@ package datadog.instrument.utils;
  */
 public final class ClassLoaderIndex {
 
-  // simple hashtable of known class-loader keys for fast access
+  // fixed-size hashtable of known class-loader keys (table size must be power of 2)
+  // this is sized to support ~500 concurrent class-loaders with minimal collisions
   private static final ClassLoaderKey[] KEYS = new ClassLoaderKey[1024];
   private static final int SLOT_MASK = KEYS.length - 1;
 
@@ -18,11 +24,11 @@ public final class ClassLoaderIndex {
    * Returns the key-id for the given class-loader. The key-id for a specific class-loader may
    * occasionally change over its life, but no two class-loaders will share the same key-id.
    */
-  public static int getClassLoaderId(ClassLoader cl) {
-    if (cl == ClassLoaderKey.BOOT_CLASS_LOADER) {
-      return 0; // pre-assigned
-    } else if (cl == ClassLoaderKey.SYSTEM_CLASS_LOADER) {
-      return 1; // pre-assigned
+  public static int getClassLoaderKeyId(ClassLoader cl) {
+    if (cl == BOOT_CLASS_LOADER) {
+      return BOOT_CLASS_LOADER_KEY_ID;
+    } else if (cl == SYSTEM_CLASS_LOADER) {
+      return SYSTEM_CLASS_LOADER_KEY_ID;
     } else {
       return getClassLoaderKey(cl).id;
     }
@@ -41,15 +47,12 @@ public final class ClassLoaderIndex {
   private static ClassLoaderKey index(ClassLoader cl, ClassLoaderKey[] keys, int slotMask) {
     final int hash = System.identityHashCode(cl);
 
-    // multiply by -127 to improve identityHashCode spread
-    int h = hash - (hash << 7);
-
-    // don't use pre-assigned slots 0 (boot) or 1 (system)
-    int slot = Math.max(2, h & slotMask);
+    int h = hash;
+    int slot = h & slotMask;
 
     final int initialSlot = slot;
 
-    // try to find a slot or a match 5 times
+    // try to find an empty slot or match, rehashing after each attempt
     for (int i = 1; true; i++) {
       ClassLoaderKey current = keys[slot];
       if (current == null || null == current.get()) {
@@ -59,17 +62,15 @@ public final class ClassLoaderIndex {
         // we found a matching slot
         return current;
       } else if (i == MAX_HASH_ATTEMPTS) {
-        // all 5 slots have been taken, re-use the initial one
+        // timebox the hashing, re-use initial slot
         return (keys[initialSlot] = new ClassLoaderKey(cl, hash));
       }
-      h = rehash(h); // try another slot
-      slot = Math.max(2, h & slotMask);
+      h = rehash(h);
+      slot = h & slotMask;
     }
   }
 
-  private static int rehash(int _h) {
-    int h = _h * 0x9e3775cd;
-    h = Integer.reverseBytes(h);
-    return h * 0x9e3775cd;
+  private static int rehash(int oldHash) {
+    return Integer.reverseBytes(oldHash * 0x9e3775cd) * 0x9e3775cd;
   }
 }

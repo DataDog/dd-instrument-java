@@ -15,6 +15,9 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
   static final ClassLoader BOOT_CLASS_LOADER = null;
   static final ClassLoader SYSTEM_CLASS_LOADER = ClassLoader.getSystemClassLoader();
 
+  static final int BOOT_CLASS_LOADER_KEY_ID = 0;
+  static final int SYSTEM_CLASS_LOADER_KEY_ID = 1;
+
   // key-ids 0 and 1 are pre-assigned to the boot and system class-loaders
   private static final AtomicInteger NEXT_KEY_ID = new AtomicInteger(2);
 
