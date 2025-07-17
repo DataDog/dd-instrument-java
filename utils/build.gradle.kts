@@ -2,6 +2,7 @@ import org.gradle.api.JavaVersion.VERSION_1_8
 
 plugins {
   id("java-common")
+  id("me.champeau.jmh")
   id("idea")
 }
 

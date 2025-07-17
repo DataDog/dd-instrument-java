@@ -13,4 +13,5 @@ dependencies {
   implementation(libs.spotless)
   implementation(libs.spotbugs)
   implementation(libs.axion.release)
+  implementation(libs.jmh.plugin)
 }
