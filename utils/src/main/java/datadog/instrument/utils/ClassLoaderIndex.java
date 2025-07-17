@@ -14,10 +14,9 @@ import static datadog.instrument.utils.ClassLoaderKey.SYSTEM_CLASS_LOADER_KEY_ID
 public final class ClassLoaderIndex {
 
   // fixed-size hashtable of known class-loader keys (table size must be power of 2)
-  // this is sized to support ~500 concurrent class-loaders with minimal collisions
+  // this is tuned to support ~700 concurrent class-loaders with minimal collisions
   private static final ClassLoaderKey[] KEYS = new ClassLoaderKey[1024];
   private static final int SLOT_MASK = KEYS.length - 1;
-
   private static final int MAX_HASH_ATTEMPTS = 10;
 
   /**
