@@ -1,0 +1,3 @@
+plugins {
+  id("instrument-module")
+}
