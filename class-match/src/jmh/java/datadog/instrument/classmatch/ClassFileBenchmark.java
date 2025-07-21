@@ -35,7 +35,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(AverageTime)
 @OutputTimeUnit(MICROSECONDS)
 @SuppressWarnings("unused")
-public class ClassOutlineBenchmark {
+public class ClassFileBenchmark {
 
   private List<byte[]> bytecodes;
 
@@ -71,7 +71,19 @@ public class ClassOutlineBenchmark {
   @Benchmark
   @Fork(value = 1)
   @Threads(value = 1)
-  public void testClassReader(Blackhole blackhole) {
+  public void testAsmHeader(Blackhole blackhole) {
+    for (byte[] bytecode : bytecodes) {
+      ClassReader reader = new ClassReader(bytecode);
+      blackhole.consume(reader.getClassName());
+      blackhole.consume(reader.getSuperName());
+      blackhole.consume(reader.getInterfaces());
+    }
+  }
+
+  @Benchmark
+  @Fork(value = 1)
+  @Threads(value = 1)
+  public void testAsmOutline(Blackhole blackhole) {
     for (byte[] bytecode : bytecodes) {
       OutlineVisitor outline = new OutlineVisitor(ASM9);
       new ClassReader(bytecode).accept(outline, SKIP_CODE | SKIP_DEBUG | SKIP_FRAMES);
@@ -88,9 +100,21 @@ public class ClassOutlineBenchmark {
   @Benchmark
   @Fork(value = 1)
   @Threads(value = 1)
+  public void testClassHeader(Blackhole blackhole) {
+    for (byte[] bytecode : bytecodes) {
+      ClassHeader header = ClassFile.header(bytecode);
+      blackhole.consume(header.className);
+      blackhole.consume(header.superName);
+      blackhole.consume(header.interfaces);
+    }
+  }
+
+  @Benchmark
+  @Fork(value = 1)
+  @Threads(value = 1)
   public void testClassOutline(Blackhole blackhole) {
     for (byte[] bytecode : bytecodes) {
-      ClassOutline outline = ClassOutline.parse(bytecode);
+      ClassOutline outline = ClassFile.outline(bytecode);
       blackhole.consume(outline.access);
       blackhole.consume(outline.className);
       blackhole.consume(outline.superName);
