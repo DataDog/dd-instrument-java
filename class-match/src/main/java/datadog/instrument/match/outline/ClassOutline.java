@@ -107,7 +107,7 @@ public final class ClassOutline {
     cursor += 2;
     if (interfacesCount > 0) {
       interfaces = new String[interfacesCount];
-      for (int i = 0, len = interfaces.length; i < len; i++) {
+      for (int i = 0; i < interfacesCount; i++) {
         interfaces[i] = utf(bytecode, cp[cp[u2(bytecode, cursor)]]);
         cursor += 2;
       }
