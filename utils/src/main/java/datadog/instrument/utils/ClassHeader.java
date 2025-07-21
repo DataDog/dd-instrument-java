@@ -4,7 +4,6 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 
 /** Minimal class header that describes the immediate class hierarchy. */
 public final class ClassHeader {
-  private static final String[] NO_INTERFACES = {};
 
   public final String className;
   public final String superName;
@@ -15,6 +14,8 @@ public final class ClassHeader {
     this.superName = superName;
     this.interfaces = interfaces;
   }
+
+  private static final String[] NO_INTERFACES = {};
 
   /** Class-file parser optimized to only extract the class header. */
   public static ClassHeader parse(byte[] bytecode) {
@@ -88,7 +89,7 @@ public final class ClassHeader {
     cursor += 2;
     if (interfacesCount > 0) {
       interfaces = new String[interfacesCount];
-      for (int i = 0, len = interfaces.length; i < len; i++) {
+      for (int i = 0; i < interfacesCount; i++) {
         interfaces[i] = utf(bytecode, cp[cp[u2(bytecode, cursor)]]);
         cursor += 2;
       }
