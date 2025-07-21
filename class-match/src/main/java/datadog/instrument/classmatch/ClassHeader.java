@@ -1,4 +1,4 @@
-package datadog.instrument.utils;
+package datadog.instrument.classmatch;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 

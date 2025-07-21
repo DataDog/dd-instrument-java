@@ -19,9 +19,3 @@ idea {
     jdkName = "11"
   }
 }
-
-jmh {
-  if (!project.file("sample.jar").exists()) {
-    excludes.add("ClassHeaderBenchmark")
-  }
-}

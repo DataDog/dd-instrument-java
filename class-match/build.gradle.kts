@@ -5,6 +5,7 @@ plugins {
 
 jmh {
   if (!project.file("sample.jar").exists()) {
+    excludes.add("ClassHeaderBenchmark")
     excludes.add("ClassOutlineBenchmark")
   }
 }
