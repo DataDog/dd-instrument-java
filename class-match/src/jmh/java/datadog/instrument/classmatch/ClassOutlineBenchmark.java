@@ -1,4 +1,4 @@
-package datadog.instrument.match.outline;
+package datadog.instrument.classmatch;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.stream.Collectors.toList;

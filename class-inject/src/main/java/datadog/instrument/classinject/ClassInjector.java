@@ -1,4 +1,4 @@
-package datadog.instrument.clazz;
+package datadog.instrument.classinject;
 
 import static org.objectweb.asm.Opcodes.*;
 

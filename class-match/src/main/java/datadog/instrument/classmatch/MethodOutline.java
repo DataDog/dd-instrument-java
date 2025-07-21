@@ -1,4 +1,4 @@
-package datadog.instrument.match.outline;
+package datadog.instrument.classmatch;
 
 public final class MethodOutline {
 
