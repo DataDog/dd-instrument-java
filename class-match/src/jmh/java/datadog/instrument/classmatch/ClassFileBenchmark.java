@@ -113,6 +113,8 @@ public class ClassFileBenchmark {
   @Fork(value = 1)
   @Threads(value = 1)
   public void testClassOutline(Blackhole blackhole) {
+    ClassFile.annotationsOfInterest("javax/ws/rs/Path", "jakarta/ws/rs/Path");
+
     for (byte[] bytecode : bytecodes) {
       ClassOutline outline = ClassFile.outline(bytecode);
       blackhole.consume(outline.access);
@@ -126,7 +128,6 @@ public class ClassFileBenchmark {
   }
 
   static final class OutlineVisitor extends ClassVisitor {
-
     private static final String[] NO_ANNOTATIONS = {};
 
     public int access;
@@ -154,27 +155,52 @@ public class ClassFileBenchmark {
       this.className = name;
       this.superName = superName;
       this.interfaces = interfaces;
-      super.visit(version, access, name, signature, superName, interfaces);
     }
 
     @Override
     public FieldVisitor visitField(
         int access, String name, String descriptor, String signature, Object value) {
-      fields.add(new FieldOutline(access, name, descriptor, NO_ANNOTATIONS));
-      return super.visitField(access, name, descriptor, signature, value);
+      return new FieldVisitor(ASM9) {
+        private final List<String> annotations = new ArrayList<>();
+
+        @Override
+        public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+          annotations.add(descriptor);
+          return null;
+        }
+
+        @Override
+        public void visitEnd() {
+          fields.add(
+              new FieldOutline(access, name, descriptor, annotations.toArray(new String[0])));
+        }
+      };
     }
 
     @Override
     public MethodVisitor visitMethod(
         int access, String name, String descriptor, String signature, String[] exceptions) {
-      methods.add(new MethodOutline(access, name, descriptor, NO_ANNOTATIONS));
-      return super.visitMethod(access, name, descriptor, signature, exceptions);
+      return new MethodVisitor(ASM9) {
+        private final List<String> annotations = new ArrayList<>();
+
+        @Override
+        public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+          annotations.add(descriptor);
+          return null;
+        }
+
+        @Override
+        public void visitEnd() {
+          methods.add(
+              new MethodOutline(access, name, descriptor, annotations.toArray(new String[0])));
+        }
+      };
     }
 
     @Override
     public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
       annotations.add(descriptor);
-      return super.visitAnnotation(descriptor, visible);
+      return null;
     }
   }
 }

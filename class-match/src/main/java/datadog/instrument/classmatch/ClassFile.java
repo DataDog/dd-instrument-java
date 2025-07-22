@@ -2,6 +2,10 @@ package datadog.instrument.classmatch;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
 public final class ClassFile {
 
   private static final String[] NO_INTERFACES = {};
@@ -9,12 +13,27 @@ public final class ClassFile {
   private static final MethodOutline[] NO_METHODS = {};
   private static final String[] NO_ANNOTATIONS = {};
 
+  private static final byte[] RUNTIME_ANNOTATIONS = "RuntimeVisibleAnnotations".getBytes(US_ASCII);
+
+  private static volatile Map<UtfKey, String> ANNOTATIONS_OF_INTEREST;
+
   public static ClassHeader header(byte[] bytecode) {
     return parse(bytecode, true);
   }
 
   public static ClassOutline outline(byte[] bytecode) {
     return (ClassOutline) parse(bytecode, false);
+  }
+
+  public static synchronized void annotationsOfInterest(String... annotations) {
+    Map<UtfKey, String> ofInterest = new HashMap<>();
+    if (ANNOTATIONS_OF_INTEREST != null) {
+      ofInterest.putAll(ANNOTATIONS_OF_INTEREST);
+    }
+    for (String annotation : annotations) {
+      ofInterest.put(new UtfKey('L' + annotation + ';'), annotation);
+    }
+    ANNOTATIONS_OF_INTEREST = ofInterest;
   }
 
   private static ClassHeader parse(byte[] bytecode, boolean header) {
@@ -115,19 +134,20 @@ public final class ClassFile {
         String descriptor = utf(bytecode, cp[u2(bytecode, cursor)]);
         cursor += 2;
 
-        String[] annotations;
+        String[] annotations = NO_ANNOTATIONS;
+        Map<UtfKey, String> ofInterest = ANNOTATIONS_OF_INTEREST;
         int attributesCount = u2(bytecode, cursor);
         cursor += 2;
-        if (attributesCount > 0) {
-          annotations = NO_ANNOTATIONS;
-          for (int j = 0; j < attributesCount; j++) {
-            String attributeName = utf(bytecode, cp[u2(bytecode, cursor)]);
-            cursor += 2;
-            int attributeLength = u4(bytecode, cursor);
-            cursor += 4 + attributeLength;
+        for (int j = 0; j < attributesCount; j++) {
+          int nameIndex = u2(bytecode, cursor);
+          cursor += 2;
+          int attributeLength = u4(bytecode, cursor);
+          cursor += 4;
+          if (ofInterest != null && utfEquals(bytecode, cp[nameIndex], RUNTIME_ANNOTATIONS)) {
+            annotations = parseAnnotations(ofInterest, bytecode, cursor, cp);
+            ofInterest = null;
           }
-        } else {
-          annotations = NO_ANNOTATIONS;
+          cursor += attributeLength;
         }
 
         fields[i] = new FieldOutline(fieldAccess, fieldName, descriptor, annotations);
@@ -150,19 +170,20 @@ public final class ClassFile {
         String descriptor = utf(bytecode, cp[u2(bytecode, cursor)]);
         cursor += 2;
 
-        String[] annotations;
+        String[] annotations = NO_ANNOTATIONS;
+        Map<UtfKey, String> ofInterest = ANNOTATIONS_OF_INTEREST;
         int attributesCount = u2(bytecode, cursor);
         cursor += 2;
-        if (attributesCount > 0) {
-          annotations = NO_ANNOTATIONS;
-          for (int j = 0; j < attributesCount; j++) {
-            String attributeName = utf(bytecode, cp[u2(bytecode, cursor)]);
-            cursor += 2;
-            int attributeLength = u4(bytecode, cursor);
-            cursor += 4 + attributeLength;
+        for (int j = 0; j < attributesCount; j++) {
+          int nameIndex = u2(bytecode, cursor);
+          cursor += 2;
+          int attributeLength = u4(bytecode, cursor);
+          cursor += 4;
+          if (ofInterest != null && utfEquals(bytecode, cp[nameIndex], RUNTIME_ANNOTATIONS)) {
+            annotations = parseAnnotations(ofInterest, bytecode, cursor, cp);
+            ofInterest = null;
           }
-        } else {
-          annotations = NO_ANNOTATIONS;
+          cursor += attributeLength;
         }
 
         methods[i] = new MethodOutline(methodAccess, methodName, descriptor, annotations);
@@ -171,19 +192,20 @@ public final class ClassFile {
       methods = NO_METHODS;
     }
 
-    String[] annotations;
+    String[] annotations = NO_ANNOTATIONS;
+    Map<UtfKey, String> ofInterest = ANNOTATIONS_OF_INTEREST;
     int attributesCount = u2(bytecode, cursor);
     cursor += 2;
-    if (attributesCount > 0) {
-      annotations = NO_ANNOTATIONS;
-      for (int j = 0; j < attributesCount; j++) {
-        String attributeName = utf(bytecode, cp[u2(bytecode, cursor)]);
-        cursor += 2;
-        int attributeLength = u4(bytecode, cursor);
-        cursor += 4 + attributeLength;
+    for (int j = 0; j < attributesCount; j++) {
+      int nameIndex = u2(bytecode, cursor);
+      cursor += 2;
+      int attributeLength = u4(bytecode, cursor);
+      cursor += 4;
+      if (ofInterest != null && utfEquals(bytecode, cp[nameIndex], RUNTIME_ANNOTATIONS)) {
+        annotations = parseAnnotations(ofInterest, bytecode, cursor, cp);
+        ofInterest = null;
       }
-    } else {
-      annotations = NO_ANNOTATIONS;
+      cursor += attributeLength;
     }
 
     return new ClassOutline(access, className, superName, interfaces, fields, methods, annotations);
@@ -203,14 +225,15 @@ public final class ClassFile {
   }
 
   /** Decodes "modified-UTF8" bytes to string form. */
-  private static String utf(byte[] bytecode, int utfStart) {
-    int utfLen = u2(bytecode, utfStart);
-    utfStart += 2;
+  private static String utf(byte[] bytecode, int utfOffset) {
+    int utfLen = u2(bytecode, utfOffset);
+    int utfStart = utfOffset + 2;
+    int utfEnd = utfStart + utfLen;
 
     char[] chars = null;
 
     // most class-names will be ASCII, confirm with a quick scan
-    for (int u = utfStart, utfEnd = utfStart + utfLen; u < utfEnd; u++) {
+    for (int u = utfStart; u < utfEnd; u++) {
       if ((bytecode[u] & 0x80) != 0) {
         chars = new char[utfLen];
         break;
@@ -223,7 +246,7 @@ public final class ClassFile {
     }
 
     int charLen = 0;
-    for (int u = utfStart, utfEnd = utfStart + utfLen; u < utfEnd; u++) {
+    for (int u = utfStart; u < utfEnd; u++) {
       int b = bytecode[u];
       int c;
       // "modified-UTF8" does not have built-in charset, must decode it ourselves
@@ -239,5 +262,119 @@ public final class ClassFile {
     }
 
     return new String(chars, 0, charLen);
+  }
+
+  @SuppressWarnings("SameParameterValue")
+  private static boolean utfEquals(byte[] bytecode, int utfOffset, byte[] expected) {
+    int expectedLen = expected.length;
+    if (u2(bytecode, utfOffset) != expectedLen) {
+      return false;
+    }
+    for (int i = 0, u = utfOffset + 2; i < expectedLen; i++, u++) {
+      if (bytecode[u] != expected[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static String[] parseAnnotations(
+      Map<UtfKey, String> ofInterest, byte[] bytecode, int cursor, int[] cp) {
+    int annotationsCount = u2(bytecode, cursor);
+    cursor += 2;
+    String[] annotations = NO_ANNOTATIONS;
+    for (int i = 0; i < annotationsCount; i++) {
+      String annotation = ofInterest.get(new UtfKey(bytecode, cp[u2(bytecode, cursor)]));
+      if (annotation != null) {
+        int oldLen = annotations.length;
+        annotations = Arrays.copyOf(annotations, oldLen + 1);
+        annotations[oldLen] = annotation;
+      }
+      cursor = nextAnnotationOffset(bytecode, cursor);
+    }
+    return annotations;
+  }
+
+  private static int nextAnnotationOffset(byte[] bytecode, int cursor) {
+    cursor += 2;
+    int elementPairCount = u2(bytecode, cursor);
+    cursor += 2;
+    for (int i = 0; i < elementPairCount; i++) {
+      cursor = nextAnnotationElementOffset(bytecode, cursor + 2);
+    }
+    return cursor;
+  }
+
+  private static int nextAnnotationElementOffset(byte[] bytecode, int cursor) {
+    switch (bytecode[cursor++]) {
+      case 'B':
+      case 'C':
+      case 'D':
+      case 'F':
+      case 'I':
+      case 'J':
+      case 'S':
+      case 'Z':
+      case 's':
+      case 'c':
+        return cursor + 2;
+      case 'e':
+        return cursor + 4;
+      case '@':
+        return nextAnnotationOffset(bytecode, cursor);
+      case '[':
+        int elementCount = u2(bytecode, cursor);
+        cursor += 2;
+        for (int i = 0; i < elementCount; i++) {
+          cursor = nextAnnotationElementOffset(bytecode, cursor);
+        }
+        return cursor;
+      default:
+        throw new IllegalArgumentException();
+    }
+  }
+
+  static final class UtfKey {
+    private final byte[] bytes;
+    private final int start;
+    private final int len;
+
+    UtfKey(String utf) {
+      this.bytes = utf.getBytes(US_ASCII);
+      this.start = 0;
+      this.len = bytes.length;
+    }
+
+    UtfKey(byte[] bytes, int utfOffset) {
+      this.bytes = bytes;
+      this.start = utfOffset + 2;
+      this.len = u2(bytes, utfOffset);
+    }
+
+    @Override
+    public int hashCode() {
+      int hashCode = 1;
+      for (int i = start, end = start + len; i < end; i++) {
+        hashCode = 31 * hashCode + bytes[i];
+      }
+      return hashCode;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof UtfKey)) {
+        return false;
+      }
+      UtfKey utf = (UtfKey) obj;
+      if (len != utf.len) {
+        return false;
+      }
+      for (int i = start, end = start + len, j = utf.start; i < end; i++, j++) {
+        if (bytes[i] != utf.bytes[j]) {
+          return false;
+        }
+      }
+      return true;
+    }
   }
 }
