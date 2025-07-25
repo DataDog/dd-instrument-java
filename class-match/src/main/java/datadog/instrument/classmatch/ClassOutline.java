@@ -1,5 +1,6 @@
 package datadog.instrument.classmatch;
 
+/** Outlines a class; immediate class hierarchy, access flags, field, methods, annotations. */
 public final class ClassOutline extends ClassHeader {
 
   public final int access;

@@ -1,5 +1,6 @@
 package datadog.instrument.classmatch;
 
+/** Outlines a field; access flags, field name, descriptor, annotations. */
 public final class FieldOutline {
 
   public final int access;

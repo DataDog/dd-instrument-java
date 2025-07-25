@@ -1,5 +1,6 @@
 package datadog.instrument.classmatch;
 
+/** Outlines a method; access flags, method name, descriptor, annotations. */
 public final class MethodOutline {
 
   public final int access;
