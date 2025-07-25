@@ -270,12 +270,7 @@ public final class ClassFile {
     if (u2(bytecode, utfOffset) != expectedLen) {
       return false;
     }
-    for (int i = 0, u = utfOffset + 2; i < expectedLen; i++, u++) {
-      if (bytecode[u] != expected[i]) {
-        return false;
-      }
-    }
-    return true;
+    return sameBytes(expected, 0, expectedLen, bytecode, utfOffset + 2);
   }
 
   private static String[] parseAnnotations(
@@ -284,7 +279,9 @@ public final class ClassFile {
     cursor += 2;
     String[] annotations = NO_ANNOTATIONS;
     for (int i = 0; i < annotationsCount; i++) {
-      String annotation = ofInterest.get(new UtfKey(bytecode, cp[u2(bytecode, cursor)]));
+      int utfOffset = cp[u2(bytecode, cursor)];
+      int utfLen = u2(bytecode, utfOffset);
+      String annotation = ofInterest.get(new UtfKey(bytecode, utfOffset + 2, utfLen));
       if (annotation != null) {
         int oldLen = annotations.length;
         annotations = Arrays.copyOf(annotations, oldLen + 1);
@@ -335,30 +332,46 @@ public final class ClassFile {
     }
   }
 
+  static boolean sameBytes(byte[] bytes, int start, int end, byte[] otherBytes, int otherStart) {
+    for (int i = start, j = otherStart; i < end; i++, j++) {
+      if (bytes[i] != otherBytes[j]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static int hashBytes(byte[] bytes, int start, int end) {
+    int hash = 1;
+    for (int i = start; i < end; i++) {
+      hash = 31 * hash + bytes[i];
+    }
+    return hash;
+  }
+
   static final class UtfKey {
     private final byte[] bytes;
     private final int start;
     private final int len;
+    private final int hash;
 
     UtfKey(String utf) {
       this.bytes = utf.getBytes(US_ASCII);
       this.start = 0;
       this.len = bytes.length;
+      this.hash = hashBytes(bytes, 0, len);
     }
 
-    UtfKey(byte[] bytes, int utfOffset) {
+    UtfKey(byte[] bytes, int start, int len) {
       this.bytes = bytes;
-      this.start = utfOffset + 2;
-      this.len = u2(bytes, utfOffset);
+      this.start = start;
+      this.len = len;
+      this.hash = hashBytes(bytes, start, start + len);
     }
 
     @Override
     public int hashCode() {
-      int hashCode = 1;
-      for (int i = start, end = start + len; i < end; i++) {
-        hashCode = 31 * hashCode + bytes[i];
-      }
-      return hashCode;
+      return hash;
     }
 
     @Override
@@ -366,16 +379,11 @@ public final class ClassFile {
       if (!(obj instanceof UtfKey)) {
         return false;
       }
-      UtfKey utf = (UtfKey) obj;
-      if (len != utf.len) {
+      UtfKey other = (UtfKey) obj;
+      if (len != other.len) {
         return false;
       }
-      for (int i = start, end = start + len, j = utf.start; i < end; i++, j++) {
-        if (bytes[i] != utf.bytes[j]) {
-          return false;
-        }
-      }
-      return true;
+      return sameBytes(bytes, start, start + len, other.bytes, other.start);
     }
   }
 }

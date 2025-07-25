@@ -81,8 +81,8 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
 
   /** Temporary key used for lookup purposes without the reference tracking overhead. */
   static final class LookupKey {
-    private final ClassLoader cl;
-    private final int hash;
+    final ClassLoader cl;
+    final int hash;
 
     LookupKey(ClassLoader cl) {
       this.cl = cl;
