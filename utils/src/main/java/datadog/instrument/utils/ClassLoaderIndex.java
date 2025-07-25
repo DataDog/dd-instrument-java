@@ -29,7 +29,7 @@ public final class ClassLoaderIndex {
     } else if (cl == SYSTEM_CLASS_LOADER) {
       return SYSTEM_CLASS_LOADER_KEY_ID;
     } else {
-      return getClassLoaderKey(cl).id;
+      return getClassLoaderKey(cl).keyId;
     }
   }
 

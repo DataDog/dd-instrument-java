@@ -300,7 +300,8 @@ public final class ClassFile {
     int elementPairCount = u2(bytecode, cursor);
     cursor += 2;
     for (int i = 0; i < elementPairCount; i++) {
-      cursor = nextAnnotationElementOffset(bytecode, cursor + 2);
+      cursor += 2;
+      cursor = nextAnnotationElementOffset(bytecode, cursor);
     }
     return cursor;
   }

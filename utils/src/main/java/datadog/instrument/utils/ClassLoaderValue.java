@@ -12,8 +12,8 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
  * Lazily associate a computed value with (potentially) every {@link ClassLoader}. The computed
- * value should not have a strong-reference back to its key, as that would keep the class-loader
- * from being unloadable.
+ * value should not have a strong-reference back to the associated class-loader, as that would stop
+ * the class-loader from being unloaded in the future.
  *
  * <p>It is the caller's responsibility to decide how often to call {@link #removeStaleEntries}. It
  * may be on every request, periodically using a background thread, or some other condition.

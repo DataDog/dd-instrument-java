@@ -1,6 +1,7 @@
 package datadog.instrument.utils;
 
-import java.nio.charset.StandardCharsets;
+import static java.nio.charset.StandardCharsets.UTF_16BE;
+
 import java.util.List;
 
 /** Methods for packing glue bytecode into strings that can be stored in the constant pool. */
@@ -47,6 +48,6 @@ public final class Glue {
 
   /** Unpacks a string literal produced by {@link #packBytecode} back into the original bytecode. */
   public static byte[] unpackBytecode(String bytecode) {
-    return bytecode.getBytes(StandardCharsets.UTF_16BE);
+    return bytecode.getBytes(UTF_16BE);
   }
 }

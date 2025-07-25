@@ -9,7 +9,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-/** Reference key used to weakly associate a class-loader with a computed value. */
+/**
+ * Reference key used to weakly associate a class-loader with a computed value.
+ *
+ * <p>Guarantees that different class-loaders will always have different key-ids, but an individual
+ * class-loader may have several key-ids if it has multiple {@code ClassLoaderKey}s over its life,
+ */
 final class ClassLoaderKey extends WeakReference<ClassLoader> {
 
   static final ClassLoader BOOT_CLASS_LOADER = null;
@@ -36,8 +41,8 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
 
   /** Checks for stale class-loader keys; stale keys are cleaned by the registered cleaners. */
   static void cleanStaleKeys() {
-    Reference<?> ref;
     int count = 0;
+    Reference<?> ref;
     while ((ref = staleKeys.poll()) != null) {
       for (Consumer<Reference<?>> cleaner : cleaners) {
         cleaner.accept(ref);
@@ -49,12 +54,12 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
   }
 
   final int hash;
-  final int id;
+  final int keyId;
 
   ClassLoaderKey(ClassLoader cl, int hash) {
     super(cl, staleKeys);
     this.hash = hash;
-    this.id = NEXT_KEY_ID.getAndIncrement();
+    this.keyId = NEXT_KEY_ID.getAndIncrement();
   }
 
   @Override
@@ -74,7 +79,7 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
     }
   }
 
-  /** Minimal key used for lookup purposes without the reference tracking overhead. */
+  /** Temporary key used for lookup purposes without the reference tracking overhead. */
   static final class LookupKey {
     private final ClassLoader cl;
     private final int hash;
