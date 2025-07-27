@@ -6,6 +6,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Parses <a href="https://docs.oracle.com/javase/specs/jvms/se24/html/jvms-4.html">class-file</a>
+ * content into {@link ClassHeader}s or {@link ClassOutline}s, depending on the detail required.
+ */
 public final class ClassFile {
 
   private static final String[] NO_INTERFACES = {};
@@ -13,22 +17,27 @@ public final class ClassFile {
   private static final MethodOutline[] NO_METHODS = {};
   private static final String[] NO_ANNOTATIONS = {};
 
+  // attribute header for annotations that are visible at runtime
   private static final byte[] RUNTIME_ANNOTATIONS = "RuntimeVisibleAnnotations".getBytes(US_ASCII);
 
+  // reduce size of outlines by only extracting interesting annotations
   private static volatile Map<UtfKey, String> ANNOTATIONS_OF_INTEREST;
 
+  /** Extracts a {@link ClassHeader} from the given class-file content. */
   public static ClassHeader header(byte[] bytecode) {
     return parse(bytecode, true);
   }
 
+  /** Extracts a {@link ClassOutline} from the given class-file content. */
   public static ClassOutline outline(byte[] bytecode) {
     return (ClassOutline) parse(bytecode, false);
   }
 
+  /** Flags the given annotations as interesting; to be included in outlines. */
   public static synchronized void annotationsOfInterest(String... annotations) {
     Map<UtfKey, String> ofInterest = new HashMap<>();
     if (ANNOTATIONS_OF_INTEREST != null) {
-      ofInterest.putAll(ANNOTATIONS_OF_INTEREST);
+      ofInterest.putAll(ANNOTATIONS_OF_INTEREST); // copy on write
     }
     for (String annotation : annotations) {
       ofInterest.put(new UtfKey('L' + annotation + ';'), annotation);
@@ -36,7 +45,8 @@ public final class ClassFile {
     ANNOTATIONS_OF_INTEREST = ofInterest;
   }
 
-  private static ClassHeader parse(byte[] bytecode, boolean header) {
+  /** Parse class-file content, skipping over uninteresting sections, */
+  private static ClassHeader parse(byte[] bytecode, boolean onlyHeader) {
     // skip preamble
     int cursor = 8;
 
@@ -116,7 +126,8 @@ public final class ClassFile {
       interfaces = NO_INTERFACES;
     }
 
-    if (header) {
+    if (onlyHeader) {
+      // stop parsing; we don't need fields/methods/annotations
       return new ClassHeader(className, superName, interfaces);
     }
 
@@ -143,11 +154,12 @@ public final class ClassFile {
           cursor += 2;
           int attributeLength = u4(bytecode, cursor);
           cursor += 4;
+          // only interested in the attribute that lists runtime visible annotations
           if (ofInterest != null && utfEquals(bytecode, cp[nameIndex], RUNTIME_ANNOTATIONS)) {
             annotations = parseAnnotations(ofInterest, bytecode, cursor, cp);
-            ofInterest = null;
+            ofInterest = null; // there's at most one of these attributes per-table
           }
-          cursor += attributeLength;
+          cursor += attributeLength; // jump to end of attribute
         }
 
         fields[i] = new FieldOutline(fieldAccess, fieldName, descriptor, annotations);
@@ -179,11 +191,12 @@ public final class ClassFile {
           cursor += 2;
           int attributeLength = u4(bytecode, cursor);
           cursor += 4;
+          // only interested in the attribute that lists runtime visible annotations
           if (ofInterest != null && utfEquals(bytecode, cp[nameIndex], RUNTIME_ANNOTATIONS)) {
             annotations = parseAnnotations(ofInterest, bytecode, cursor, cp);
-            ofInterest = null;
+            ofInterest = null; // there's at most one of these attributes per-table
           }
-          cursor += attributeLength;
+          cursor += attributeLength; // jump to end of attribute
         }
 
         methods[i] = new MethodOutline(methodAccess, methodName, descriptor, annotations);
@@ -201,11 +214,12 @@ public final class ClassFile {
       cursor += 2;
       int attributeLength = u4(bytecode, cursor);
       cursor += 4;
+      // only interested in the attribute that lists runtime visible annotations
       if (ofInterest != null && utfEquals(bytecode, cp[nameIndex], RUNTIME_ANNOTATIONS)) {
         annotations = parseAnnotations(ofInterest, bytecode, cursor, cp);
-        ofInterest = null;
+        ofInterest = null; // there's at most one of these attributes per-table
       }
-      cursor += attributeLength;
+      cursor += attributeLength; // jump to end of attribute
     }
 
     return new ClassOutline(access, className, superName, interfaces, fields, methods, annotations);
