@@ -40,7 +40,9 @@ public final class ClassFile {
       ofInterest.putAll(ANNOTATIONS_OF_INTEREST); // copy on write
     }
     for (String annotation : annotations) {
-      ofInterest.put(new UtfKey('L' + annotation + ';'), annotation);
+      // annotations are recorded in descriptor form in class-files
+      byte[] descriptor = ('L' + annotation + ';').getBytes(US_ASCII);
+      ofInterest.put(new UtfKey(descriptor), annotation);
     }
     ANNOTATIONS_OF_INTEREST = ofInterest;
   }
@@ -238,7 +240,7 @@ public final class ClassFile {
         | (0xFF & bytecode[cursor + 3]);
   }
 
-  /** Decodes "modified-UTF8" bytes to string form. */
+  /** Decodes the "modified-UTF8" at the given offset to string form. */
   private static String utf(byte[] bytecode, int utfOffset) {
     int utfLen = u2(bytecode, utfOffset);
     int utfStart = utfOffset + 2;
@@ -278,63 +280,69 @@ public final class ClassFile {
     return new String(chars, 0, charLen);
   }
 
+  /** Returns {@code true} if the "modified-UTF8" at the offset has the expected content. */
   @SuppressWarnings("SameParameterValue")
   private static boolean utfEquals(byte[] bytecode, int utfOffset, byte[] expected) {
     int expectedLen = expected.length;
-    if (u2(bytecode, utfOffset) != expectedLen) {
-      return false;
+    if (u2(bytecode, utfOffset) == expectedLen) {
+      return sameBytes(expected, 0, expectedLen, bytecode, utfOffset + 2);
     }
-    return sameBytes(expected, 0, expectedLen, bytecode, utfOffset + 2);
+    return false;
   }
 
+  /** Parses interesting annotations from the given attribute location. */
   private static String[] parseAnnotations(
       Map<UtfKey, String> ofInterest, byte[] bytecode, int cursor, int[] cp) {
     int annotationsCount = u2(bytecode, cursor);
     cursor += 2;
     String[] annotations = NO_ANNOTATIONS;
     for (int i = 0; i < annotationsCount; i++) {
+      // first 2 bytes point to the annotation descriptor
       int utfOffset = cp[u2(bytecode, cursor)];
       int utfLen = u2(bytecode, utfOffset);
       String annotation = ofInterest.get(new UtfKey(bytecode, utfOffset + 2, utfLen));
       if (annotation != null) {
+        // grow as needed; it'll be rare to have many annotations at the same location
         int oldLen = annotations.length;
         annotations = Arrays.copyOf(annotations, oldLen + 1);
         annotations[oldLen] = annotation;
       }
-      cursor = nextAnnotationOffset(bytecode, cursor);
+      cursor = nextAnnotationOffset(bytecode, cursor); // jump to the next annotation
     }
     return annotations;
   }
 
+  /** Returns the offset of the next annotation in the attribute. */
   private static int nextAnnotationOffset(byte[] bytecode, int cursor) {
-    cursor += 2;
+    cursor += 2; // skip annotation descriptor
     int elementPairCount = u2(bytecode, cursor);
     cursor += 2;
     for (int i = 0; i < elementPairCount; i++) {
-      cursor += 2;
+      cursor += 2; // skip element name index
       cursor = nextAnnotationElementOffset(bytecode, cursor);
     }
     return cursor;
   }
 
+  /** Returns the offset of the next element in the annotation. */
   private static int nextAnnotationElementOffset(byte[] bytecode, int cursor) {
     switch (bytecode[cursor++]) {
-      case 'B':
-      case 'C':
-      case 'D':
-      case 'F':
-      case 'I':
-      case 'J':
-      case 'S':
-      case 'Z':
-      case 's':
-      case 'c':
+      case 'B': // const_value_index (byte)
+      case 'C': // const_value_index (char)
+      case 'D': // const_value_index (double)
+      case 'F': // const_value_index (float)
+      case 'I': // const_value_index (integer)
+      case 'J': // const_value_index (long)
+      case 'S': // const_value_index (short)
+      case 'Z': // const_value_index (boolean)
+      case 's': // const_value_index (String)
+      case 'c': // class_info_index
         return cursor + 2;
-      case 'e':
+      case 'e': // enum_const_value
         return cursor + 4;
-      case '@':
+      case '@': // annotation_value
         return nextAnnotationOffset(bytecode, cursor);
-      case '[':
+      case '[': // array_value
         int elementCount = u2(bytecode, cursor);
         cursor += 2;
         for (int i = 0; i < elementCount; i++) {
@@ -346,6 +354,7 @@ public final class ClassFile {
     }
   }
 
+  /** Returns {@code true} if the two byte arrays have the same content over a given range. */
   static boolean sameBytes(byte[] bytes, int start, int end, byte[] otherBytes, int otherStart) {
     for (int i = start, j = otherStart; i < end; i++, j++) {
       if (bytes[i] != otherBytes[j]) {
@@ -355,6 +364,7 @@ public final class ClassFile {
     return true;
   }
 
+  /** Returns the hash for a given range of the byte array. */
   static int hashBytes(byte[] bytes, int start, int end) {
     int hash = 1;
     for (int i = start; i < end; i++) {
@@ -363,17 +373,15 @@ public final class ClassFile {
     return hash;
   }
 
+  /** Wraps "modified-UTF8" content so it can be used to lookup associated values. */
   static final class UtfKey {
     private final byte[] bytes;
     private final int start;
     private final int len;
     private final int hash;
 
-    UtfKey(String utf) {
-      this.bytes = utf.getBytes(US_ASCII);
-      this.start = 0;
-      this.len = bytes.length;
-      this.hash = hashBytes(bytes, 0, len);
+    UtfKey(byte[] bytes) {
+      this(bytes, 0, bytes.length);
     }
 
     UtfKey(byte[] bytes, int start, int len) {
@@ -390,14 +398,13 @@ public final class ClassFile {
 
     @Override
     public boolean equals(Object obj) {
-      if (!(obj instanceof UtfKey)) {
-        return false;
+      if (obj instanceof UtfKey) {
+        UtfKey other = (UtfKey) obj;
+        if (len == other.len) {
+          return sameBytes(bytes, start, start + len, other.bytes, other.start);
+        }
       }
-      UtfKey other = (UtfKey) obj;
-      if (len != other.len) {
-        return false;
-      }
-      return sameBytes(bytes, start, start + len, other.bytes, other.start);
+      return false;
     }
   }
 }
