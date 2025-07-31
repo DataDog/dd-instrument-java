@@ -3,8 +3,9 @@ package datadog.instrument.utils;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static org.openjdk.jmh.annotations.Mode.AverageTime;
 
-import java.util.Arrays;
+import java.util.List;
 import java.util.function.ToIntFunction;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -30,7 +31,7 @@ public abstract class AbstractClassLoaderBenchmark {
   @Param({"false", "true"})
   public boolean prefill;
 
-  private ClassLoader[] classLoaders;
+  private List<ClassLoader> classLoaders;
 
   private ToIntFunction<ClassLoader> function;
 
@@ -39,12 +40,12 @@ public abstract class AbstractClassLoaderBenchmark {
     classLoaders =
         IntStream.range(0, classLoaderCount)
             .mapToObj(i -> new ClassLoader() {})
-            .toArray(ClassLoader[]::new);
+            .collect(Collectors.toList());
 
     function = classLoaderFunction();
 
     if (prefill) {
-      Arrays.stream(classLoaders).forEach(function::applyAsInt);
+      classLoaders.forEach(function::applyAsInt);
     }
   }
 
@@ -70,7 +71,7 @@ public abstract class AbstractClassLoaderBenchmark {
   }
 
   private void test(Blackhole blackhole) {
-    blackhole.consume(Arrays.stream(classLoaders).mapToInt(function).sum());
+    blackhole.consume(classLoaders.stream().mapToInt(function).sum());
   }
 
   abstract ToIntFunction<ClassLoader> classLoaderFunction();

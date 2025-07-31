@@ -49,13 +49,13 @@ public final class ClassLoaderIndex {
     // try to find an empty slot or match, rehashing after each attempt
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
       int slot = slotMask & h;
-      ClassLoaderKey current = keys[slot];
-      if (current == null || null == current.get()) {
+      ClassLoaderKey existing = keys[slot];
+      if (existing == null || null == existing.get()) {
         // we found an empty slot
         return (keys[slot] = new ClassLoaderKey(cl, hash));
-      } else if (hash == current.hash && cl == current.get()) {
+      } else if (hash == existing.hash && cl == existing.get()) {
         // we found a matching slot
-        return current;
+        return existing;
       } else if (i == MAX_HASH_ATTEMPTS) {
         slot = slotMask & hash; // overwrite original slot
         return (keys[slot] = new ClassLoaderKey(cl, hash));
