@@ -6,11 +6,11 @@ This repository contains helpers for working with the [Instrumentation](https://
 
 ## Features
 
-* `ClassInjector`
+* [`ClassInjector`](class-inject/src/main/java/datadog/instrument/classinject/ClassInjector.java)
   * Supports injection of auxiliary classes, even in the bootstrap class-loader
-* `ClassFile`
+* [`ClassFile`](class-match/src/main/java/datadog/instrument/classmatch/ClassFile.java)
   * Optimized class-file parser for extracting the header or outline of a class
-* `ClassLoaderValue`
+* [`ClassLoaderValue`](utils/src/main/java/datadog/instrument/utils/ClassLoaderValue.java)
   * Lazily associate a computed value with class-loaders, inspired by `ClassValue`
 
 Optimized field injection and class matching features are currently under development.
