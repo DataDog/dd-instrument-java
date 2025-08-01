@@ -11,7 +11,7 @@ This repository contains helpers for working with the [Instrumentation](https://
 * [`ClassFile`](class-match/src/main/java/datadog/instrument/classmatch/ClassFile.java)
   * Optimized class-file parser for extracting the header or outline of a class
 * [`ClassLoaderValue`](utils/src/main/java/datadog/instrument/utils/ClassLoaderValue.java)
-  * Lazily associate a computed value with class-loaders, inspired by `ClassValue`
+  * Lazily associate a computed value with class-loaders, inspired by [`ClassValue`](https://docs.oracle.com/javase/8/docs/api/java/lang/ClassValue.html)
 
 Optimized field injection and class matching features are currently under development.
 
