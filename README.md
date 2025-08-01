@@ -13,6 +13,8 @@ This repository contains helpers for working with the [Instrumentation](https://
 * `ClassLoaderValue`
   * Lazily associate a computed value with class-loaders, inspired by `ClassValue`
 
+Optimized field injection and class matching features are currently under development.
+
 ## Getting Started
 
 * [How to setup your development environment and build the project](BUILDING.md)
