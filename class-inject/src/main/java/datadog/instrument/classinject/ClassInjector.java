@@ -16,26 +16,26 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
 /**
- * Supports injection of auxiliary classes, even in the bootstrap classloader.
+ * Supports injection of auxiliary classes, even in the bootstrap class-loader.
  *
  * <p>Uses {@link Instrumentation} to install an access wrapper around {@code Unsafe.defineClass}
  *
  * <ul>
  *   <li>To use this feature, first call {@link #enableClassInjection}
- *   <li>To inject a class call {@link #injectClass} with the target classloader
- *   <li>Use {@link #injectBootClass} to inject classes into the bootstrap classloader
+ *   <li>To inject a class call {@link #injectClass} with the target class-loader
+ *   <li>Use {@link #injectBootClass} to inject classes into the bootstrap class-loader
  *   <li>The API also supports injecting classes using a custom {@link ProtectionDomain}
  * </ul>
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public final class ClassInjector {
 
-  /** Injects a class in the bootstrap classloader. */
+  /** Injects a class in the bootstrap class-loader. */
   public static Class<?> injectBootClass(byte[] bytecode) {
     return (Class<?>) classDefiner().apply(bytecode, null);
   }
 
-  /** Injects a class in the specified classloader. */
+  /** Injects a class in the specified class-loader. */
   public static Class<?> injectClass(byte[] bytecode, ClassLoader cl) {
     return (Class<?>) classDefiner().apply(bytecode, cl);
   }
@@ -101,7 +101,7 @@ public final class ClassInjector {
         int access, String name, String descriptor, String signature, String[] exceptions) {
       MethodVisitor mv = cv.visitMethod(access, name, descriptor, signature, exceptions);
       // hook into both forms of the 'loadClass' method to retrieve the injected glue
-      // custom system classloaders will call one of them to fetch bootstrap classes
+      // custom system class-loaders will call one of them to fetch bootstrap classes
       if ((access & ACC_STATIC) == 0
           && "loadClass".equals(name)
           && descriptor.startsWith("(Ljava/lang/String;")) {
