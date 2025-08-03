@@ -20,21 +20,29 @@ public final class ClassInfoCache<T> {
       capacity = MAX_CAPACITY;
     }
     // choose enough slot bits to cover the chosen capacity
-    this.slotMask = 0xFFFFFFFF >>> Integer.numberOfLeadingZeros(capacity - 1);
+    this.slotMask = -1 >>> Integer.numberOfLeadingZeros(capacity - 1);
     this.shared = new SharedInfo[slotMask + 1];
+  }
+
+  public T find(String className) {
+    return find(className, -1);
   }
 
   public T find(String className, ClassLoader cl) {
     return find(className, getClassLoaderKeyId(cl));
   }
 
-  public void share(String className, T info, ClassLoader cl) {
-    share(className, info, getClassLoaderKeyId(cl));
-  }
-
   @SuppressWarnings("unchecked")
   public T find(String className, int classLoaderKeyId) {
     return (T) find(className, classLoaderKeyId, shared, slotMask);
+  }
+
+  public void share(String className, T info) {
+    share(className, info, -1);
+  }
+
+  public void share(String className, T info, ClassLoader cl) {
+    share(className, info, getClassLoaderKeyId(cl));
   }
 
   public void share(String className, T info, int classLoaderKeyId) {
@@ -48,15 +56,17 @@ public final class ClassInfoCache<T> {
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
       int slot = slotMask & h;
       SharedInfo existing = shared[slot];
-      if (existing == null) {
-        return null;
-      } else if (classLoaderKeyId == existing.classLoaderKeyId
-          && className.equals(existing.className)) {
-        existing.usedNanos = System.nanoTime();
-        return existing.classInfo;
-      } else if (i == MAX_HASH_ATTEMPTS) {
-        return null;
+      if (existing != null) {
+        if (className.equals(existing.className)) {
+          if ((classLoaderKeyId ^ existing.classLoaderKeyId) <= 0) {
+            existing.usedNanos = System.nanoTime();
+            return existing.classInfo;
+          }
+        } else if (i < MAX_HASH_ATTEMPTS) {
+          continue;
+        }
       }
+      return null;
     }
   }
 
