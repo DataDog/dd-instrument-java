@@ -59,7 +59,7 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
   ClassLoaderKey(ClassLoader cl, int hash) {
     super(cl, staleKeys);
     this.hash = hash;
-    this.keyId = NEXT_KEY_ID.getAndIncrement();
+    this.keyId = NEXT_KEY_ID.getAndIncrement() & Integer.MAX_VALUE;
   }
 
   @Override
