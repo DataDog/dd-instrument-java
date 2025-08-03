@@ -23,6 +23,8 @@ public final class ClassFile {
   // reduce size of outlines by only extracting interesting annotations
   private static volatile Map<UtfKey, String> ANNOTATIONS_OF_INTEREST;
 
+  private ClassFile() {}
+
   /** Extracts a {@link ClassHeader} from the given class-file content. */
   public static ClassHeader header(byte[] bytecode) {
     return parse(bytecode, true);

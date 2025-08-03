@@ -19,6 +19,8 @@ public final class ClassLoaderIndex {
   private static final int SLOT_MASK = KEYS.length - 1;
   private static final int MAX_HASH_ATTEMPTS = 10;
 
+  private ClassLoaderIndex() {}
+
   /**
    * Returns the key-id for the given class-loader. The key-id for a specific class-loader may
    * occasionally change over its life, but no two class-loaders will share the same key-id.
