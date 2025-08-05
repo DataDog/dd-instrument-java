@@ -19,6 +19,9 @@ public final class ClassInfoCache<T> {
 
   private static final long START_NANOS = System.nanoTime();
 
+  // individual class-loader keys are zero or above
+  private static final int ALL_CLASS_LOADERS = -1;
+
   // fixed-size hashtable indexed by class-name
   private final SharedInfo[] shared;
   private final int slotMask;
@@ -36,7 +39,7 @@ public final class ClassInfoCache<T> {
 
   /** Finds information for the given class-name, across all class-loaders. */
   public T find(String className) {
-    return find(className, -1);
+    return find(className, ALL_CLASS_LOADERS);
   }
 
   /** Finds information for the given class-name, under the given class-loader. */
@@ -44,7 +47,11 @@ public final class ClassInfoCache<T> {
     return find(className, ClassLoaderIndex.getClassLoaderKeyId(cl));
   }
 
-  /** Finds information for the given class-name, under the given class-loader. */
+  /**
+   * Finds information for the given class-name, under the given class-loader key.
+   *
+   * @see ClassLoaderIndex#getClassLoaderKeyId(ClassLoader)
+   */
   @SuppressWarnings("unchecked")
   public T find(String className, int classLoaderKeyId) {
     return (T) find(className, classLoaderKeyId, shared, slotMask);
@@ -52,7 +59,7 @@ public final class ClassInfoCache<T> {
 
   /** Shares information for the given class-name, across all class-loaders. */
   public void share(String className, T info) {
-    share(className, info, -1);
+    share(className, info, ALL_CLASS_LOADERS);
   }
 
   /** Shares information for the given class-name, under the given class-loader. */
@@ -60,7 +67,11 @@ public final class ClassInfoCache<T> {
     share(className, info, ClassLoaderIndex.getClassLoaderKeyId(cl));
   }
 
-  /** Shares information for the given class-name, under the given class-loader. */
+  /**
+   * Shares information for the given class-name, under the given class-loader key.
+   *
+   * @see ClassLoaderIndex#getClassLoaderKeyId(ClassLoader)
+   */
   public void share(String className, T info, int classLoaderKeyId) {
     share(new SharedInfo(className, info, classLoaderKeyId), shared, slotMask);
   }
@@ -75,21 +86,25 @@ public final class ClassInfoCache<T> {
       SharedInfo existing = shared[slot];
       if (existing != null) {
         if (className.equals(existing.className)) {
-          // check same class-loader key, -1 on either side matches all
+          // filter on class-loader, -1 on either side matches all
           if ((classLoaderKeyId ^ existing.classLoaderKeyId) <= 0) {
             existing.usedNanos = System.nanoTime();
             return existing.classInfo;
           }
-          // drop-through; class-name matched but class-loader didn't
+          // fall-through and quit; name matched but class-loader didn't
         } else if (i < MAX_HASH_ATTEMPTS) {
           continue; // collision, rehash and try again
         }
       }
+      // quit search when:
+      // * we found an empty slot
+      // * we found a slot with the same name but different class-loader
+      // * we've exhausted all hash attempts
       return null;
     }
   }
 
-  /** Shares information by class-name, with an optional class-loader filter. */
+  /** Shares class information by class-name. */
   private static void share(SharedInfo info, SharedInfo[] shared, int slotMask) {
     final int hash = info.hashCode();
 
@@ -127,6 +142,8 @@ public final class ClassInfoCache<T> {
   static final class SharedInfo {
     final String className;
     final Object classInfo;
+
+    // optional class-loader key
     final int classLoaderKeyId;
 
     long usedNanos = System.nanoTime();
