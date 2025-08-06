@@ -1,6 +1,7 @@
 package datadog.instrument.classmatch;
 
 import datadog.instrument.utils.ClassLoaderIndex;
+import java.util.Arrays;
 
 /**
  * Shares class information from multiple classloaders in a single cache.
@@ -22,7 +23,7 @@ public final class ClassInfoCache<T> {
   // individual class-loader keys are zero or above
   private static final int ALL_CLASS_LOADERS = -1;
 
-  // fixed-size hashtable indexed by class-name
+  // fixed-size hashtable of shared information, indexed by class-name
   private final SharedInfo[] shared;
   private final int slotMask;
 
@@ -128,6 +129,10 @@ public final class ClassInfoCache<T> {
         leastUsedSlot = slot;
       }
     }
+  }
+
+  public void clear() {
+    Arrays.fill(shared, null);
   }
 
   private static int rehash(int oldHash) {
