@@ -53,14 +53,14 @@ public final class ClassLoaderIndex {
       int slot = slotMask & h;
       ClassLoaderKey existing = keys[slot];
       if (existing == null || null == existing.get()) {
-        // we found an empty slot
+        // we found an empty or stale slot
         return (keys[slot] = new ClassLoaderKey(cl, hash));
       } else if (hash == existing.hash && cl == existing.get()) {
         // we found a matching slot
         return existing;
       } else if (i == MAX_HASH_ATTEMPTS) {
-        slot = slotMask & hash; // overwrite original slot
-        return (keys[slot] = new ClassLoaderKey(cl, hash));
+        // go back and overwrite first slot
+        return (keys[slotMask & hash] = new ClassLoaderKey(cl, hash));
       }
     }
   }
