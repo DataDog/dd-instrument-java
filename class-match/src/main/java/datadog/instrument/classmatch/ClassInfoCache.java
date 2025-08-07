@@ -131,6 +131,7 @@ public final class ClassInfoCache<T> {
     }
   }
 
+  /** Removes all class information from the cache. */
   public void clear() {
     Arrays.fill(shared, null);
   }
