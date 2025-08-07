@@ -3,10 +3,6 @@ package datadog.instrument.classmatch;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static org.openjdk.jmh.annotations.Mode.AverageTime;
 
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -25,33 +21,24 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(AverageTime)
 @OutputTimeUnit(MICROSECONDS)
 @SuppressWarnings("unused")
-public class ClassInfoCacheBenchmark {
+public class ClassNameFilterBenchmark {
 
-  @Param({"64", "256", "1024", "4096", "16384"})
+  @Param({"64", "4096", "16384", "65536", "1048576"})
   public int cacheSize;
 
   private List<String> classNames;
 
-  private ClassLoader cl;
-
-  private ClassInfoCache<Object> cache;
-
-  private Object infoToShare;
+  private ClassNameFilter cache;
 
   @Setup(Level.Trial)
   public void setup() {
-    cl =
-        AccessController.doPrivileged(
-            (PrivilegedAction<ClassLoader>) () -> new URLClassLoader(new URL[0]));
 
     classNames =
         SampleClasses.load().stream()
             .map(bytecode -> ClassFile.header(bytecode).className)
             .collect(Collectors.toList());
 
-    cache = new ClassInfoCache<>(cacheSize);
-
-    infoToShare = new Object();
+    cache = new ClassNameFilter(cacheSize);
   }
 
   @Benchmark
@@ -77,8 +64,8 @@ public class ClassInfoCacheBenchmark {
 
   private void test(Blackhole blackhole) {
     for (String name : classNames) {
-      if (cache.find(name, cl) == null) {
-        cache.share(name, infoToShare, cl);
+      if (!cache.contains(name)) {
+        cache.add(name);
       }
     }
   }

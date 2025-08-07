@@ -13,5 +13,6 @@ jmh {
   if (!project.file("sample.jar").exists()) {
     excludes.add("ClassFileBenchmark")
     excludes.add("ClassInfoCacheBenchmark")
+    excludes.add("ClassNameFilterBenchmark")
   }
 }
