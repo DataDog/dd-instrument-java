@@ -16,8 +16,11 @@ version = rootProject.version
 
 java {
   toolchain {
-    languageVersion = JavaLanguageVersion.of(8)
+    languageVersion = JavaLanguageVersion.of(17)
   }
+}
+tasks.withType<JavaCompile>().configureEach {
+  options.release = 8
 }
 
 dependencies {
