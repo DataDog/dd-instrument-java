@@ -10,12 +10,12 @@ public final class Platform {
     return expectedVersion <= JAVA_VERSION;
   }
 
+  @SuppressWarnings({"Since15", "deprecation", "RedundantSuppression"})
   private static int getMajorJavaVersion() {
     try {
       return parseMajorJavaVersion(System.getProperty("java.version"));
     } catch (Throwable e1) {
       try {
-        //noinspection Since15
         return Runtime.version().major();
       } catch (Throwable e2) {
         return 8; // assume Java 8, given Runtime.version() doesn't exist
