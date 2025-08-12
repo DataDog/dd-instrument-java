@@ -6,6 +6,8 @@ target
 *.class
 *.jar
 
+!**/gradle/wrapper/*
+
 *.idea
 *.iml
 
