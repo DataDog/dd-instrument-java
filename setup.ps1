@@ -43,7 +43,7 @@ function TestJvm {
 
 Write-Host 'ℹ️ Checking required JVM:'
 if (Test-Path 'env:JAVA_HOME') {
-  TestJvm 'JAVA_HOME' '1.8'
+  TestJvm 'JAVA_HOME' '17'
 }
 
 TestJvm 'JAVA_8_HOME' '1.8'

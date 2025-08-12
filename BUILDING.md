@@ -29,7 +29,7 @@ Your output should look something like the following:
 
 ```
 ℹ️ Checking required JVM:
-✅ JAVA_HOME is set to /Users/datadog/.sdkman/candidates/java/8.0.402-zulu.
+✅ JAVA_HOME is set to /Users/datadog/.sdkman/candidates/java/17.0.10-zulu.
 ✅ JAVA_8_HOME is set to /Users/datadog/.sdkman/candidates/java/8.0.402-zulu.
 ✅ JAVA_11_HOME is set to /Users/datadog/.sdkman/candidates/java/11.0.22-zulu.
 ✅ JAVA_17_HOME is set to /Users/datadog/.sdkman/candidates/java/17.0.10-zulu.
@@ -50,8 +50,8 @@ Requirements to build the full project:
 
 * The JDK versions 8, 11, 17 and 21 must be installed.
 * The `JAVA_8_HOME`, `JAVA_11_HOME`, `JAVA_17_HOME`, and `JAVA_21_HOME` must point to their respective JDK location.
-* The JDK 8 `bin` directory must be the only JDK on the PATH (e.g. `$JAVA_8_HOME/bin`).
-* The `JAVA_HOME` environment variable may be unset. If set, it must point to the JDK 8 location (same as `JAVA_8_HOME`).
+* The JDK 17 `bin` directory must be the only JDK on the PATH (e.g. `$JAVA_17_HOME/bin`).
+* The `JAVA_HOME` environment variable may be unset. If set, it must point to the JDK 17 location (same as `JAVA_17_HOME`).
 * The `git` command line must be installed.
 * A container runtime environment must be available to run all tests (e.g. Docker Desktop).
 
@@ -71,7 +71,7 @@ Download and install JDK versions 8, 11, 17 and 21 for your OS.
   export JAVA_11_HOME=/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home
   export JAVA_17_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
   export JAVA_21_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
-  export JAVA_HOME=$JAVA_8_HOME
+  export JAVA_HOME=$JAVA_17_HOME
   ```
 * Restart your shell after applying the changes if you appended the commands to your shell configuration file.
 
@@ -92,7 +92,7 @@ Download and install JDK versions 8, 11, 17 and 21 for your OS.
   export JAVA_11_HOME=/<path to extracted archive>/jdk-11.<current version of JDK 11>
   export JAVA_17_HOME=/<path to extracted archive>/jdk-17.<current version of JDK 17>
   export JAVA_21_HOME=/<path to extracted archive>/jdk-21.<current version of JDK 21>
-  export JAVA_HOME=$JAVA_8_HOME
+  export JAVA_HOME=$JAVA_17_HOME
   ```
 * Restart your shell after applying the changes if you appended the commands to your shell configuration file.
 
@@ -127,8 +127,8 @@ Download and install JDK versions 8, 11, 17 and 21 for your OS.
   [Environment]::SetEnvironmentVariable("JAVA_17_HOME", "C:\Program Files\Eclipse Adoptium\jdk-17.0.12.7-hotspot", [EnvironmentVariableTarget]::User)
   [Environment]::SetEnvironmentVariable("JAVA_21_HOME", "C:\Program Files\Eclipse Adoptium\jdk-21.0.5.11-hotspot", [EnvironmentVariableTarget]::User)
 
-  # JAVA_HOME = JAVA_8_HOME
-  [Environment]::SetEnvironmentVariable("JAVA_HOME",    "C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot", [EnvironmentVariableTarget]::User)
+  # JAVA_HOME = JAVA_17_HOME
+  [Environment]::SetEnvironmentVariable("JAVA_HOME",    "C:\Program Files\Eclipse Adoptium\jdk-17.0.12.7-hotspot", [EnvironmentVariableTarget]::User)
   ```
 
 ### Install git

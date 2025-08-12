@@ -1,11 +1,11 @@
 [versions]
 asm = "9.8"
-shadow = "8.3.6"
-junit-jupiter = "5.12.1"
-spotless = "6.13.0"
-spotbugs = "5.0.14"
+shadow = "9.0.1"
+junit-jupiter = "5.12.2"
+spotless = "7.2.1"
+spotbugs = "6.1.13"
 spotbugs-annotations = "4.8.6"
-axion-release = "1.14.4"
+axion-release = "1.19.1"
 jmh-plugin = "0.7.3"
 
 [libraries]

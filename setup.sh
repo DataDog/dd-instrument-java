@@ -28,9 +28,9 @@ function check-jvm-from-path() {
 
 echo "ℹ️ Checking required JVMs:"
 if [ -e "$JAVA_HOME" ]; then
-    check-jvm "JAVA_HOME" "1.8"
+    check-jvm "JAVA_HOME" "17"
 elif command -v java &> /dev/null; then
-    check-jvm-from-path "1.8"
+    check-jvm-from-path "17"
 fi
 check-jvm "JAVA_8_HOME" "1.8"
 check-jvm "JAVA_11_HOME" "11"
