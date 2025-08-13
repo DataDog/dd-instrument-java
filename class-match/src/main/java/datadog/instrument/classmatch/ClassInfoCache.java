@@ -2,6 +2,7 @@ package datadog.instrument.classmatch;
 
 import datadog.instrument.utils.ClassLoaderIndex;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Shares class information from multiple classloaders in a single cache.
@@ -18,10 +19,11 @@ public final class ClassInfoCache<T> {
   private static final int MIN_CAPACITY = 1 << 4;
   private static final int MAX_HASH_ATTEMPTS = 10;
 
-  private static final long START_NANOS = System.nanoTime();
-
   // individual class-loader keys are zero or above
   private static final int ALL_CLASS_LOADERS = -1;
+
+  // global monotonic counter; cheap way to track aging as info is shared
+  static final AtomicLong TICKS = new AtomicLong();
 
   // fixed-size hashtable of shared information, indexed by class-name
   private final SharedInfo[] shared;
@@ -89,7 +91,9 @@ public final class ClassInfoCache<T> {
         if (className.equals(existing.className)) {
           // filter on class-loader, -1 on either side matches all
           if ((classLoaderKeyId ^ existing.classLoaderKeyId) <= 0) {
-            existing.usedNanos = System.nanoTime();
+            // use global TICKS as a substitute for access time
+            // TICKS is only incremented in 'share' for performance reasons
+            existing.accessed = TICKS.get();
             return existing.classInfo;
           }
           // fall-through and quit; name matched but class-loader didn't
@@ -109,25 +113,32 @@ public final class ClassInfoCache<T> {
   private static void share(SharedInfo info, SharedInfo[] shared, int slotMask) {
     final int hash = info.hashCode();
 
-    long leastUsedNanos = Long.MAX_VALUE;
-    int leastUsedSlot = 0;
+    long oldestTick = Long.MAX_VALUE;
+    int oldestSlot = 0;
 
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
-      long nanos;
       int slot = slotMask & h;
       SharedInfo existing = shared[slot];
-      if (existing == null || existing.equals(info)) {
-        // use first slot that is empty or has the same class-name
-        shared[slot] = info;
-        return;
-      } else if (i == MAX_HASH_ATTEMPTS) {
-        // avoid overwriting slots that were only recently used
-        shared[leastUsedSlot] = info;
-        return;
-      } else if ((nanos = (existing.usedNanos - START_NANOS)) < leastUsedNanos) {
-        leastUsedNanos = nanos;
-        leastUsedSlot = slot;
+      if (existing != null && !existing.equals(info)) {
+        // slot was already taken by a different class
+        if (i < MAX_HASH_ATTEMPTS) {
+          // keep track of the slot with the oldest access tick
+          long tick = existing.accessed;
+          if (tick < oldestTick) {
+            oldestTick = tick;
+            oldestSlot = slot;
+          }
+          continue; // collision, rehash and try again
+        } else {
+          // avoid overwriting slots that were recently accessed
+          slot = oldestSlot;
+        }
       }
+      shared[slot] = info;
+      // increment global TICKS whenever info is shared
+      // avoid incrementing it in 'find' for performance reasons
+      info.accessed = TICKS.getAndIncrement();
+      return;
     }
   }
 
@@ -152,7 +163,7 @@ public final class ClassInfoCache<T> {
     // optional class-loader key
     final int classLoaderKeyId;
 
-    long usedNanos = System.nanoTime();
+    long accessed;
 
     SharedInfo(String className, Object classInfo, int classLoaderKeyId) {
       this.className = className;
