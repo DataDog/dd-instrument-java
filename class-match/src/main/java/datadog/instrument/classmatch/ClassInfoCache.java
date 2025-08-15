@@ -84,6 +84,7 @@ public final class ClassInfoCache<T> {
       String className, int classLoaderKeyId, SharedInfo[] shared, int slotMask) {
     final int hash = className.hashCode();
 
+    // try to find matching slot, rehashing after each attempt
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
       int slot = slotMask & h;
       SharedInfo existing = shared[slot];
@@ -116,6 +117,7 @@ public final class ClassInfoCache<T> {
     long oldestTick = Long.MAX_VALUE;
     int oldestSlot = 0;
 
+    // try to find an empty slot, rehashing after each attempt
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
       int slot = slotMask & h;
       SharedInfo existing = shared[slot];
@@ -130,8 +132,7 @@ public final class ClassInfoCache<T> {
           }
           continue; // collision, rehash and try again
         } else {
-          // avoid overwriting slots that were recently accessed
-          slot = oldestSlot;
+          slot = oldestSlot; // all taken, overwrite least-recently used
         }
       }
       shared[slot] = info;
