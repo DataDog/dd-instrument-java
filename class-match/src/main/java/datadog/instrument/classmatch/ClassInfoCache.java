@@ -45,9 +45,19 @@ public final class ClassInfoCache<T> {
     return find(className, ALL_CLASS_LOADERS);
   }
 
+  /** Shares information for the given class-name, across all class-loaders. */
+  public void share(String className, T info) {
+    share(className, info, ALL_CLASS_LOADERS);
+  }
+
   /** Finds information for the given class-name, under the given class-loader. */
   public T find(String className, ClassLoader cl) {
     return find(className, ClassLoaderIndex.getClassLoaderKeyId(cl));
+  }
+
+  /** Shares information for the given class-name, under the given class-loader. */
+  public void share(String className, T info, ClassLoader cl) {
+    share(className, info, ClassLoaderIndex.getClassLoaderKeyId(cl));
   }
 
   /**
@@ -57,32 +67,9 @@ public final class ClassInfoCache<T> {
    */
   @SuppressWarnings("unchecked")
   public T find(String className, int classLoaderKeyId) {
-    return (T) find(className, classLoaderKeyId, shared, slotMask);
-  }
-
-  /** Shares information for the given class-name, across all class-loaders. */
-  public void share(String className, T info) {
-    share(className, info, ALL_CLASS_LOADERS);
-  }
-
-  /** Shares information for the given class-name, under the given class-loader. */
-  public void share(String className, T info, ClassLoader cl) {
-    share(className, info, ClassLoaderIndex.getClassLoaderKeyId(cl));
-  }
-
-  /**
-   * Shares information for the given class-name, under the given class-loader key.
-   *
-   * @see ClassLoaderIndex#getClassLoaderKeyId(ClassLoader)
-   */
-  public void share(String className, T info, int classLoaderKeyId) {
-    share(new SharedInfo(className, info, classLoaderKeyId), shared, slotMask);
-  }
-
-  /** Finds information by class-name, with an optional class-loader filter. */
-  private static Object find(
-      String className, int classLoaderKeyId, SharedInfo[] shared, int slotMask) {
     final int hash = className.hashCode();
+    final SharedInfo[] shared = this.shared;
+    final int slotMask = this.slotMask;
 
     // try to find matching slot, rehashing after each attempt
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
@@ -95,7 +82,7 @@ public final class ClassInfoCache<T> {
             // use global TICKS as a substitute for access time
             // TICKS is only incremented in 'share' for performance reasons
             existing.accessed = TICKS.get();
-            return existing.classInfo;
+            return (T) existing.classInfo;
           }
           // fall-through and quit; name matched but class-loader didn't
         } else if (i < MAX_HASH_ATTEMPTS) {
@@ -110,9 +97,18 @@ public final class ClassInfoCache<T> {
     }
   }
 
-  /** Shares class information by class-name. */
-  private static void share(SharedInfo info, SharedInfo[] shared, int slotMask) {
-    final int hash = info.hashCode();
+  /**
+   * Shares information for the given class-name, under the given class-loader key.
+   *
+   * @see ClassLoaderIndex#getClassLoaderKeyId(ClassLoader)
+   */
+  public void share(String className, T info, int classLoaderKeyId) {
+    final int hash = className.hashCode();
+    final SharedInfo[] shared = this.shared;
+    final int slotMask = this.slotMask;
+
+    // always wrap info in a new wrapper to avoid consistency issues
+    final SharedInfo update = new SharedInfo(className, info, classLoaderKeyId);
 
     long oldestTick = Long.MAX_VALUE;
     int oldestSlot = 0;
@@ -121,7 +117,7 @@ public final class ClassInfoCache<T> {
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
       int slot = slotMask & h;
       SharedInfo existing = shared[slot];
-      if (existing != null && !existing.equals(info)) {
+      if (existing != null && !existing.equals(update)) {
         // slot was already taken by a different class
         if (i < MAX_HASH_ATTEMPTS) {
           // keep track of the slot with the oldest access tick
@@ -135,10 +131,10 @@ public final class ClassInfoCache<T> {
           slot = oldestSlot; // all taken, overwrite least-recently used
         }
       }
-      shared[slot] = info;
+      shared[slot] = update;
       // increment global TICKS whenever info is shared
       // avoid incrementing it in 'find' for performance reasons
-      info.accessed = TICKS.getAndIncrement();
+      update.accessed = TICKS.getAndIncrement();
       return;
     }
   }

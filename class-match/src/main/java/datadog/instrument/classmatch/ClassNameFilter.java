@@ -34,7 +34,10 @@ public final class ClassNameFilter {
 
   /** Tests whether the given class-name is a member of the filter. */
   public boolean contains(String className) {
-    int hash = className.hashCode();
+    final int hash = className.hashCode();
+    final long[] members = this.members;
+    final int slotMask = this.slotMask;
+
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
       long codeHash = members[slotMask & h];
       if (codeHash == 0) {
@@ -50,7 +53,10 @@ public final class ClassNameFilter {
 
   /** Records the given class-name as a member of the filter. */
   public void add(String className) {
-    int hash = className.hashCode();
+    final int hash = className.hashCode();
+    final long[] members = this.members;
+    final int slotMask = this.slotMask;
+
     // pack class-code and class-name hash into long (make hash easy to check)
     long codeHash = (long) classCode(className) << 32 | 0xFFFFFFFFL & hash;
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {

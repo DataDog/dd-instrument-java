@@ -17,6 +17,7 @@ public final class ClassLoaderIndex {
   // this is tuned to support ~700 concurrent class-loaders with minimal collisions
   private static final ClassLoaderKey[] KEYS = new ClassLoaderKey[1024];
   private static final int SLOT_MASK = KEYS.length - 1;
+
   private static final int MAX_HASH_ATTEMPTS = 10;
 
   private ClassLoaderIndex() {}
@@ -40,13 +41,9 @@ public final class ClassLoaderIndex {
    * occasionally change over its life, but no two class-loaders will share the same key.
    */
   static ClassLoaderKey getClassLoaderKey(ClassLoader cl) {
-    return index(cl, KEYS, SLOT_MASK);
-  }
-
-  /** Searches the hashtable for a {@link ClassLoaderKey} matching the given class-loader. */
-  @SuppressWarnings("SameParameterValue") // pass fields as parameters for performance
-  private static ClassLoaderKey index(ClassLoader cl, ClassLoaderKey[] keys, int slotMask) {
     final int hash = System.identityHashCode(cl);
+    final ClassLoaderKey[] keys = KEYS;
+    final int slotMask = SLOT_MASK;
 
     // try to find an empty slot or match, rehashing after each attempt
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
