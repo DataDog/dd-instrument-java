@@ -26,6 +26,7 @@ tasks.withType<JavaCompile>().configureEach {
 
 dependencies {
   compileOnly(libs.spotbugs.annotations)
+  testCompileOnly(libs.spotbugs.annotations)
   testImplementation(libs.junit.jupiter)
   testRuntimeOnly(libs.junit.launcher)
 }
@@ -43,6 +44,7 @@ for (javaVersion in additionalJavaVersions) {
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform()
+    dependsOn(tasks.test)
   }
   tasks.check { dependsOn(testOnX) }
 }
