@@ -4,14 +4,21 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.JRE;
 
 class PlatformTest {
 
   @Test
+  @SuppressWarnings("Since15")
   void atLeastJava() {
-    assertTrue(Platform.atLeastJava(JRE.currentVersionNumber() - 1));
-    assertTrue(Platform.atLeastJava(JRE.currentVersionNumber()));
-    assertFalse(Platform.atLeastJava(JRE.currentVersionNumber() + 1));
+    int javaVersion;
+    try {
+      javaVersion = Runtime.version().feature();
+    } catch (Throwable e) {
+      javaVersion = 8;
+    }
+
+    assertTrue(Platform.atLeastJava(javaVersion - 1));
+    assertTrue(Platform.atLeastJava(javaVersion));
+    assertFalse(Platform.atLeastJava(javaVersion + 1));
   }
 }

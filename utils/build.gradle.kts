@@ -3,6 +3,6 @@ plugins {
   id("me.champeau.jmh")
 }
 
-tasks.test {
+tasks.withType<Test>().configureEach {
   forkEvery = 1
 }

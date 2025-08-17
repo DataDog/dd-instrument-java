@@ -34,6 +34,24 @@ tasks.named<Test>("test") {
   useJUnitPlatform()
 }
 
+val additionalJavaVersions = listOf(8, 11, 21)
+for (javaVersion in additionalJavaVersions) {
+  val testOnX = tasks.register<Test>("testOn${javaVersion}") {
+    javaLauncher = javaToolchains.launcherFor {
+      languageVersion = JavaLanguageVersion.of(javaVersion)
+    }
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform()
+  }
+  tasks.check { dependsOn(testOnX) }
+}
+
+tasks.jacocoTestReport {
+  executionData.setFrom(fileTree(layout.buildDirectory).include("/jacoco/*.exec"))
+}
+tasks.check { finalizedBy(tasks.jacocoTestReport) }
+
 spotless {
   java {
     target("src/**/*.java")
@@ -48,8 +66,4 @@ spotbugs {
   useJavaToolchains = true
 
   omitVisitors = listOf("FindReturnRef")
-}
-
-tasks.test {
-  finalizedBy(tasks.jacocoTestReport)
 }

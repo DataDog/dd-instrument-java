@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.JRE;
 
 class PlatformFallbackTest {
   static String javaVersion;
@@ -23,6 +22,6 @@ class PlatformFallbackTest {
 
   @Test
   void atLeastJava() {
-    assertTrue(Platform.atLeastJava(JRE.currentVersionNumber()));
+    assertTrue(Platform.atLeastJava(8));
   }
 }
