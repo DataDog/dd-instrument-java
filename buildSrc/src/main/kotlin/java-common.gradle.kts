@@ -2,6 +2,7 @@ val libs = the<org.gradle.accessors.dm.LibrariesForLibs>()
 
 plugins {
   java
+  jacoco
 
   id("com.diffplug.spotless")
   id("com.github.spotbugs")
@@ -47,4 +48,8 @@ spotbugs {
   useJavaToolchains = true
 
   omitVisitors = listOf("FindReturnRef")
+}
+
+tasks.test {
+  finalizedBy(tasks.jacocoTestReport)
 }
