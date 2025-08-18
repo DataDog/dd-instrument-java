@@ -101,6 +101,11 @@ public abstract class ClassLoaderValue<V> {
     }
   }
 
+  /** For testing purposes. */
+  int size() {
+    return (null != bootValue ? 1 : 0) + (null != systemValue ? 1 : 0) + otherValues.size();
+  }
+
   /**
    * Removes stale entries from {@code ClassLoaderValue}s, where the class-loader is now unused.
    *
@@ -115,7 +120,7 @@ public abstract class ClassLoaderValue<V> {
   private V getBootValue() {
     V value;
     while ((value = bootValue) == null) {
-      value = Objects.requireNonNull(computeValue(null));
+      value = Objects.requireNonNull(computeValue(BOOT_CLASS_LOADER));
       if (BOOT_VALUE_UPDATER.compareAndSet(this, null, value)) {
         break;
       }
@@ -127,7 +132,7 @@ public abstract class ClassLoaderValue<V> {
   private V getSystemValue() {
     V value;
     while ((value = systemValue) == null) {
-      value = Objects.requireNonNull(computeValue(null));
+      value = Objects.requireNonNull(computeValue(SYSTEM_CLASS_LOADER));
       if (SYSTEM_VALUE_UPDATER.compareAndSet(this, null, value)) {
         break;
       }
