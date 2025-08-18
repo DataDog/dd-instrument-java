@@ -45,19 +45,26 @@ public final class ClassLoaderIndex {
     final ClassLoaderKey[] keys = KEYS;
     final int slotMask = SLOT_MASK;
 
-    // try to find an empty slot or match, rehashing after each attempt
+    int evictedSlot = -1;
+
+    // look for existing slot or one that can be (re)used
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
       int slot = slotMask & h;
       ClassLoaderKey existing = keys[slot];
-      Object existingCL;
-      if (existing != null && (existingCL = existing.get()) != null) {
-        // slot was already taken and that class-loader is still alive
+      if (existing != null) {
+        // slot was already used
+        Object existingCL = existing.get();
         if (existingCL == cl) {
-          return existing; // same class-loader, re-use existing key
-        } else if (i < MAX_HASH_ATTEMPTS) {
+          return existing; // match found
+        } else if (existingCL == null && evictedSlot < 0) {
+          // slot can be re-used if we don't find a match
+          evictedSlot = slot;
+        }
+        if (i < MAX_HASH_ATTEMPTS) {
           continue; // collision, rehash and try again
         } else {
-          slot = slotMask & hash; // all taken, overwrite first slot
+          // all slots used, re-use first (evicted) slot we found
+          slot = evictedSlot < 0 ? slotMask & hash : evictedSlot;
         }
       }
       return (keys[slot] = new ClassLoaderKey(cl, hash));
