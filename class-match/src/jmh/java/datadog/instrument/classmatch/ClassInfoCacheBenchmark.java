@@ -5,8 +5,6 @@ import static org.openjdk.jmh.annotations.Mode.AverageTime;
 
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -40,9 +38,7 @@ public class ClassInfoCacheBenchmark {
 
   @Setup(Level.Trial)
   public void setup() {
-    cl =
-        AccessController.doPrivileged(
-            (PrivilegedAction<ClassLoader>) () -> new URLClassLoader(new URL[0]));
+    cl = URLClassLoader.newInstance(new URL[0]);
 
     classNames =
         SampleClasses.load().stream()
