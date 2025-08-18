@@ -40,6 +40,7 @@ public final class ClassLoaderIndex {
    * Returns the weak key for the given class-loader. The key for a specific class-loader may
    * occasionally change over its life, but no two class-loaders will share the same key.
    */
+  @SuppressWarnings("StatementWithEmptyBody")
   static ClassLoaderKey getClassLoaderKey(ClassLoader cl) {
     final int hash = System.identityHashCode(cl);
     final ClassLoaderKey[] keys = KEYS;
@@ -47,24 +48,32 @@ public final class ClassLoaderIndex {
 
     int evictedSlot = -1;
 
-    // look for existing slot or one that can be (re)used
+    // search by repeated hashing; stop when we find an empty slot,
+    // a matching slot, or we exhaust all attempts and re-use a slot
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
       int slot = slotMask & h;
       ClassLoaderKey existing = keys[slot];
       if (existing != null) {
-        // slot was already used
+        // slot already used
         Object existingCL = existing.get();
         if (existingCL == cl) {
           return existing; // match found
-        } else if (existingCL == null && evictedSlot < 0) {
-          // slot can be re-used if we don't find a match
-          evictedSlot = slot;
         }
         if (i < MAX_HASH_ATTEMPTS) {
-          continue; // collision, rehash and try again
+          // still more slots to search
+          if (existingCL == null && evictedSlot < 0) {
+            // record first evicted slot for re-use later
+            evictedSlot = slot;
+          }
+          continue; // rehash and try again
+        }
+        // exhausted attempts, pick best slot to re-use
+        if (evictedSlot >= 0) {
+          slot = evictedSlot; // re-use first evicted slot
+        } else if (existingCL == null) {
+          // last hashed slot is itself evicted, re-use it
         } else {
-          // all slots used, re-use first (evicted) slot we found
-          slot = evictedSlot < 0 ? slotMask & hash : evictedSlot;
+          slot = slotMask & hash; // re-use first hashed slot
         }
       }
       return (keys[slot] = new ClassLoaderKey(cl, hash));
