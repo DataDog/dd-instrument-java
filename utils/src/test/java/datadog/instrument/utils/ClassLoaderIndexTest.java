@@ -3,8 +3,6 @@ package datadog.instrument.utils;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.net.URL;
-import java.net.URLClassLoader;
 import org.junit.jupiter.api.Test;
 
 class ClassLoaderIndexTest {
@@ -70,6 +68,8 @@ class ClassLoaderIndexTest {
   }
 
   private static ClassLoader newCL() {
-    return URLClassLoader.newInstance(new URL[0]);
+    return new ClassLoader() {
+      // empty; only used to check class-loader identity
+    };
   }
 }
