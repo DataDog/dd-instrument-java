@@ -2,6 +2,8 @@
 asm = "9.8"
 shadow = "9.0.1"
 junit-jupiter = "5.12.2"
+junit-platform = "1.12.2"
+assertj = "3.27.3"
 spotless = "7.2.1"
 spotbugs = "6.2.4"
 spotbugs-annotations = "4.8.6"
@@ -12,7 +14,8 @@ jmh-plugin = "0.7.3"
 asm = { module = "org.ow2.asm:asm", version.ref = "asm" }
 shadow = { module = "com.gradleup.shadow:shadow-gradle-plugin", version.ref = "shadow" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
-junit-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+junit-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
+assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 spotless = { module = "com.diffplug.spotless:spotless-plugin-gradle", version.ref = "spotless" }
 spotbugs = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugs" }
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs-annotations" }
