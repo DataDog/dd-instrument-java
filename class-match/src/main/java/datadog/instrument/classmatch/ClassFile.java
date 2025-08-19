@@ -16,6 +16,7 @@ public final class ClassFile {
   private static final FieldOutline[] NO_FIELDS = {};
   private static final MethodOutline[] NO_METHODS = {};
   private static final String[] NO_ANNOTATIONS = {};
+  private static final int ACC_MODULE = 0x8000;
 
   // attribute header for annotations that are visible at runtime
   private static final byte[] RUNTIME_ANNOTATIONS = "RuntimeVisibleAnnotations".getBytes(US_ASCII);
@@ -113,7 +114,7 @@ public final class ClassFile {
     String className = utf(bytecode, cp[cp[u2(bytecode, cursor)]]);
     cursor += 2;
 
-    String superName = utf(bytecode, cp[cp[u2(bytecode, cursor)]]);
+    String superName = access != ACC_MODULE ? utf(bytecode, cp[cp[u2(bytecode, cursor)]]) : null;
     cursor += 2;
 
     // optional list of implemented/extended interfaces
