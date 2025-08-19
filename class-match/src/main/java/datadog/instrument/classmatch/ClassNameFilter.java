@@ -38,16 +38,18 @@ public final class ClassNameFilter {
     final long[] members = this.members;
     final int slotMask = this.slotMask;
 
+    // try to find matching slot, rehashing after each attempt
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
-      long codeHash = members[slotMask & h];
-      if (codeHash == 0) {
-        return false;
-      } else if ((int) codeHash == hash) {
+      long codeAndHash = members[slotMask & h];
+      if (codeAndHash != 0) {
         // check hash first as it's cheap, then check class-code
-        return (int) (codeHash >>> 32) == classCode(className);
-      } else if (i == MAX_HASH_ATTEMPTS) {
-        return false;
+        if ((int) codeAndHash == hash) {
+          return checkClassCode(className, (int) (codeAndHash >>> 32));
+        } else if (i < MAX_HASH_ATTEMPTS) {
+          continue; // rehash and try again
+        }
       }
+      return false;
     }
   }
 
@@ -58,18 +60,20 @@ public final class ClassNameFilter {
     final int slotMask = this.slotMask;
 
     // pack class-code and class-name hash into long (make hash easy to check)
-    long codeHash = (long) classCode(className) << 32 | 0xFFFFFFFFL & hash;
+    long codeAndHash = (long) classCode(className) << 32 | 0xFFFFFFFFL & hash;
+
+    // search by repeated hashing
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
       int slot = slotMask & h;
-      if (members[slot] == 0) {
-        // use first slot that is empty
-        members[slot] = codeHash;
-        return;
-      } else if (i == MAX_HASH_ATTEMPTS) {
-        // go back and overwrite first slot
-        members[slotMask & hash] = codeHash;
-        return;
+      if (members[slot] != 0) {
+        // slot already used
+        if (i < MAX_HASH_ATTEMPTS) {
+          continue; // rehash and try again
+        }
+        slot = slotMask & hash; // re-use first hashed slot
       }
+      members[slot] = codeAndHash;
+      return;
     }
   }
 
@@ -85,10 +89,19 @@ public final class ClassNameFilter {
   private static int classCode(String className) {
     int start = className.lastIndexOf('.') + 1;
     int end = className.length() - 1;
-    int code = 0xFF & start;
-    code = (code << 8) | (0xFF & className.charAt(start));
-    code = (code << 8) | (0xFF & className.charAt(end));
-    return (code << 8) | (0xFF & (end - start));
+    return (0xFF & className.charAt(end)) << 24
+        | (0xFF & className.charAt(start)) << 16
+        | (0xFF & (end - start)) << 8
+        | (0xFF & start);
+  }
+
+  /** Checks whether the 32-bit 'class-code' is consistent with the fully-qualified class-name. */
+  private static boolean checkClassCode(String className, int code) {
+    int start = (0xFF & code);
+    int end = className.length() - 1;
+    return end - start == (0xFF & (code >> 8))
+        && className.charAt(start) == (0xFF & (code >> 16))
+        && className.charAt(end) == (0xFF & (code >> 24));
   }
 
   private static int rehash(int oldHash) {
