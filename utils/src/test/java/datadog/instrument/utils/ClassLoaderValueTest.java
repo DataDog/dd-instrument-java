@@ -23,7 +23,7 @@ class ClassLoaderValueTest {
       };
 
   @Test
-  void get() {
+  void basicOperation() {
     ClassLoader cl0 = null;
     ClassLoader cl1 = ClassLoader.getSystemClassLoader();
     ClassLoader cl2 = newCL("CL2");
@@ -49,27 +49,6 @@ class ClassLoaderValueTest {
     assertThat(classLoaderValue.get(cl2)).matches("2=CL2");
     assertThat(classLoaderValue.get(cl1)).matches("1=.*App.*");
     assertThat(classLoaderValue.get(cl0)).isEqualTo("0=null");
-
-    assertEquals(6, classLoaderValue.size());
-  }
-
-  @Test
-  void remove() {
-    ClassLoader cl0 = null;
-    ClassLoader cl1 = ClassLoader.getSystemClassLoader();
-    ClassLoader cl2 = newCL("CL2");
-    ClassLoader cl3 = newCL("CL3");
-    ClassLoader cl4 = newCL("CL4");
-    ClassLoader cl5 = newCL("CL5");
-
-    assertEquals(0, classLoaderValue.size());
-
-    assertThat(classLoaderValue.get(cl0)).isEqualTo("0=null");
-    assertThat(classLoaderValue.get(cl1)).matches("1=.*App.*");
-    assertThat(classLoaderValue.get(cl2)).matches("2=CL2");
-    assertThat(classLoaderValue.get(cl3)).matches("3=CL3");
-    assertThat(classLoaderValue.get(cl4)).matches("4=CL4");
-    assertThat(classLoaderValue.get(cl5)).matches("5=CL5");
 
     assertEquals(6, classLoaderValue.size());
 
