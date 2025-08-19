@@ -65,8 +65,12 @@ public final class ClassNameFilter {
     // search by repeated hashing
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
       int slot = slotMask & h;
-      if (members[slot] != 0) {
+      long existing = members[slot];
+      if (existing != 0) {
         // slot already used
+        if ((int) existing == (int) codeAndHash) {
+          return; // same hash, don't change it
+        }
         if (i < MAX_HASH_ATTEMPTS) {
           continue; // rehash and try again
         }
