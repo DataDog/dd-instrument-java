@@ -86,12 +86,12 @@ public final class ClassInfoCache<T> {
           }
           // fall-through and quit; name matched but class-loader didn't
         } else if (i < MAX_HASH_ATTEMPTS) {
-          continue; // collision, rehash and try again
+          continue; // rehash and try again
         }
       }
       // quit search when:
-      // * we found an empty slot
-      // * we found a slot with the same name but different class-loader
+      // * we find an empty slot (we know there won't be further info)
+      // * we find a slot with the same name but different class-loader
       // * we've exhausted all hash attempts
       return null;
     }
@@ -102,6 +102,7 @@ public final class ClassInfoCache<T> {
    *
    * @see ClassLoaderIndex#getClassLoaderKeyId(ClassLoader)
    */
+  @SuppressWarnings("StatementWithEmptyBody")
   public void share(String className, T info, int classLoaderKeyId) {
     final int hash = className.hashCode();
     final SharedInfo[] shared = this.shared;
@@ -111,24 +112,30 @@ public final class ClassInfoCache<T> {
     final SharedInfo update = new SharedInfo(className, info, classLoaderKeyId);
 
     long oldestTick = Long.MAX_VALUE;
-    int oldestSlot = 0;
+    int oldestSlot = -1;
 
-    // try to find an empty slot, rehashing after each attempt
+    // search by repeated hashing; stop when we find an empty slot,
+    // a matching slot, or we exhaust all attempts and re-use a slot
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
       int slot = slotMask & h;
       SharedInfo existing = shared[slot];
       if (existing != null && !existing.equals(update)) {
-        // slot was already taken by a different class
+        // slot already used by a different class
+        long tick = existing.accessed;
         if (i < MAX_HASH_ATTEMPTS) {
-          // keep track of the slot with the oldest access tick
-          long tick = existing.accessed;
+          // still more slots to search
           if (tick < oldestTick) {
+            // record least-recently-used slot for re-use later
             oldestTick = tick;
             oldestSlot = slot;
           }
-          continue; // collision, rehash and try again
+          continue; // rehash and try again
+        }
+        // exhausted attempts, pick best slot to re-use
+        if (oldestSlot >= 0 && oldestTick <= tick) {
+          slot = oldestSlot; // re-use least-recently-used slot
         } else {
-          slot = oldestSlot; // all taken, overwrite least-recently used
+          // last hashed slot is least-recently-used, re-use it
         }
       }
       shared[slot] = update;
