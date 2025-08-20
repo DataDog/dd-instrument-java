@@ -41,7 +41,7 @@ public class ClassInfoCacheBenchmark {
     cl = URLClassLoader.newInstance(new URL[0]);
 
     classNames =
-        SampleClasses.load().stream()
+        SampleClasses.load("spring-web.jar").stream()
             .map(bytecode -> ClassFile.header(bytecode).className)
             .collect(Collectors.toList());
 
@@ -53,21 +53,14 @@ public class ClassInfoCacheBenchmark {
   @Benchmark
   @Fork(value = 1)
   @Threads(value = 1)
-  public void test1(Blackhole blackhole) {
+  public void singleThreaded(Blackhole blackhole) {
     test(blackhole);
   }
 
   @Benchmark
   @Fork(value = 1)
   @Threads(value = 10)
-  public void test10(Blackhole blackhole) {
-    test(blackhole);
-  }
-
-  @Benchmark
-  @Fork(value = 1)
-  @Threads(value = 100)
-  public void test100(Blackhole blackhole) {
+  public void multiThreaded(Blackhole blackhole) {
     test(blackhole);
   }
 

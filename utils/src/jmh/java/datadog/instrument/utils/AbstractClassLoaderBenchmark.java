@@ -25,11 +25,8 @@ import org.openjdk.jmh.infra.Blackhole;
 @SuppressWarnings("unused")
 public abstract class AbstractClassLoaderBenchmark {
 
-  @Param({"10", "100", "300", "500", "800"})
+  @Param({"10", "300", "800"})
   public int classLoaderCount;
-
-  @Param({"false", "true"})
-  public boolean prefill;
 
   private List<ClassLoader> classLoaders;
 
@@ -43,30 +40,19 @@ public abstract class AbstractClassLoaderBenchmark {
             .collect(Collectors.toList());
 
     function = classLoaderFunction();
-
-    if (prefill) {
-      classLoaders.forEach(function::applyAsInt);
-    }
   }
 
   @Benchmark
   @Fork(value = 1)
   @Threads(value = 1)
-  public void test1(Blackhole blackhole) {
+  public void singleThreaded(Blackhole blackhole) {
     test(blackhole);
   }
 
   @Benchmark
   @Fork(value = 1)
   @Threads(value = 10)
-  public void test10(Blackhole blackhole) {
-    test(blackhole);
-  }
-
-  @Benchmark
-  @Fork(value = 1)
-  @Threads(value = 100)
-  public void test100(Blackhole blackhole) {
+  public void multiThreaded(Blackhole blackhole) {
     test(blackhole);
   }
 

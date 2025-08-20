@@ -11,8 +11,8 @@ import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 
 final class SampleClasses {
-  public static List<byte[]> load() {
-    File sampleJarFile = new File("sample.jar");
+  public static List<byte[]> load(String sampleJar) {
+    File sampleJarFile = new File("build/sampleBytecode/" + sampleJar);
     byte[] buf = new byte[16384];
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     try (JarFile sample = new JarFile(sampleJarFile)) {

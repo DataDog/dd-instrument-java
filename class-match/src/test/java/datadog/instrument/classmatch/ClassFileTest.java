@@ -31,7 +31,7 @@ class ClassFileTest {
 
   @Test
   void header() {
-    testParsing("asm-test-9.8.jar", ClassFile::header);
+    testParsing("asm-test.jar", ClassFile::header);
   }
 
   @Test
@@ -47,7 +47,7 @@ class ClassFileTest {
   void outline() {
     ClassFile.annotationsOfInterest("java/lang/Deprecated");
     ClassFile.annotationsOfInterest("java/lang/FunctionalInterface");
-    testParsing("asm-test-9.8.jar", ClassFile::outline);
+    testParsing("asm-test.jar", ClassFile::outline);
   }
 
   @Test

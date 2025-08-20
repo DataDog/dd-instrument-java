@@ -3,28 +3,25 @@ plugins {
   id("me.champeau.jmh")
 }
 
-// copy sample bytecode jars to a known location
-val sampleBytecode: Configuration by configurations.creating
-sampleBytecode.isTransitive = false
-val copySampleBytecode = tasks.register<Copy>("sampleBytecode") {
-  into(layout.buildDirectory.dir("sampleBytecode"))
-  from(sampleBytecode)
+val sampleBytecode by configurations.creating {
+  isTransitive = false
 }
-tasks.test { dependsOn(copySampleBytecode) }
 
 dependencies {
   implementation(project(":utils"))
 
   sampleBytecode("org.ow2.asm:asm-test:9.8")
+  sampleBytecode("org.springframework:spring-web:6.2.8")
 
   jmh(libs.asm)
 }
 
-jmh {
-  if (!project.file("sample.jar").exists()) {
-    excludes.add("ClassFileBenchmark")
-    excludes.add("ClassInfoCacheBenchmark")
-    excludes.add("ClassNameFilterBenchmark")
-    excludes.add("ClassNameTrieBenchmark")
-  }
+// copy sample bytecode jars to a known location for testing/benchmarking
+val sampleBytecodeDir = layout.buildDirectory.dir("sampleBytecode")
+val copySampleBytecode = tasks.register<Copy>("sampleBytecode") {
+  val versionJarSuffix = "-[0-9.]*\\.jar$".toRegex()
+  rename { name -> name.replace(versionJarSuffix, ".jar") }
+  into(sampleBytecodeDir)
+  from(sampleBytecode)
 }
+tasks.test { dependsOn(copySampleBytecode) }

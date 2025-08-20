@@ -33,7 +33,7 @@ public class ClassNameTrieBenchmark {
   public void setup() {
 
     classNames =
-        SampleClasses.load().stream()
+        SampleClasses.load("spring-web.jar").stream()
             .map(bytecode -> ClassFile.header(bytecode).className.replace('/', '.'))
             .collect(Collectors.toList());
 
@@ -43,42 +43,28 @@ public class ClassNameTrieBenchmark {
   @Benchmark
   @Fork(value = 1)
   @Threads(value = 1)
-  public void testTrie1(Blackhole blackhole) {
+  public void singleThreadedTrie(Blackhole blackhole) {
     testTrie(blackhole);
   }
 
   @Benchmark
   @Fork(value = 1)
   @Threads(value = 10)
-  public void testTrie10(Blackhole blackhole) {
-    testTrie(blackhole);
-  }
-
-  @Benchmark
-  @Fork(value = 1)
-  @Threads(value = 100)
-  public void testTrie100(Blackhole blackhole) {
+  public void multiThreadedTrie(Blackhole blackhole) {
     testTrie(blackhole);
   }
 
   @Benchmark
   @Fork(value = 1)
   @Threads(value = 1)
-  public void testCode1(Blackhole blackhole) {
+  public void singleThreadedCode(Blackhole blackhole) {
     testCode(blackhole);
   }
 
   @Benchmark
   @Fork(value = 1)
   @Threads(value = 10)
-  public void testCode10(Blackhole blackhole) {
-    testCode(blackhole);
-  }
-
-  @Benchmark
-  @Fork(value = 1)
-  @Threads(value = 100)
-  public void testCode100(Blackhole blackhole) {
+  public void multiThreadedCode(Blackhole blackhole) {
     testCode(blackhole);
   }
 

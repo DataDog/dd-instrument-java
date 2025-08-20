@@ -33,7 +33,7 @@ public class ClassFileBenchmark {
 
   @Setup(Level.Trial)
   public void setup() {
-    bytecodes = SampleClasses.load();
+    bytecodes = SampleClasses.load("spring-web.jar");
   }
 
   @Benchmark
