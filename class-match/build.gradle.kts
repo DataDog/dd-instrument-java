@@ -25,5 +25,6 @@ jmh {
     excludes.add("ClassFileBenchmark")
     excludes.add("ClassInfoCacheBenchmark")
     excludes.add("ClassNameFilterBenchmark")
+    excludes.add("ClassNameTrieBenchmark")
   }
 }
