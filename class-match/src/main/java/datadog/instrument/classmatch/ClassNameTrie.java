@@ -799,7 +799,7 @@ public final class ClassNameTrie {
       }
       for (int i = 2; i < args.length; i++) {
         Path triePath = trieDir.resolve(args[i]).normalize();
-        String className = toClassName(triePath.getFileName().toString());
+        String className = toClassName(String.valueOf(triePath.getFileName()));
         Path pkgPath = trieDir.relativize(triePath.getParent());
         String pkgName = pkgPath.toString().replace(File.separatorChar, '.');
         Path javaPath = javaDir.resolve(pkgPath).resolve(className + ".java");
