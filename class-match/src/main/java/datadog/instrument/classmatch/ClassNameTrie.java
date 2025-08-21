@@ -833,7 +833,7 @@ public final class ClassNameTrie {
         lines.add("package " + pkgName + ';');
       }
       lines.add("");
-      lines.add("import datadog.trace.util.ClassNameTrie;");
+      lines.add("import datadog.instrument.classmatch.ClassNameTrie;");
       lines.add("");
       lines.add("// Generated from '" + triePath.getFileName() + "' - DO NOT EDIT!");
       lines.add("public final class " + className + " {");
@@ -858,6 +858,10 @@ public final class ClassNameTrie {
       lines.add("");
       lines.add("  private " + className + "() {}");
       lines.add("}");
+      Path parentDir = javaPath.getParent();
+      if (parentDir != null && Files.notExists(parentDir)) {
+        Files.createDirectories(parentDir);
+      }
       Files.write(javaPath, lines, StandardCharsets.UTF_8);
     }
 
