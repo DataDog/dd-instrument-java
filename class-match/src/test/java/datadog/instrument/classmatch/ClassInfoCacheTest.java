@@ -112,7 +112,7 @@ class ClassInfoCacheTest {
       if (overwritten.contains(i)) {
         assertNull(cache.find("example.MyClass" + i), "rem " + i);
       } else {
-        assertEquals(cache.find("example.MyClass" + i), i, "add " + i);
+        assertEquals(i, cache.find("example.MyClass" + i), "add " + i);
       }
     }
   }
