@@ -1,0 +1,32 @@
+stages:
+  - build
+  - tests
+  - package
+
+default:
+  tags: [ "arch:amd64" ]  # Use runners with the "arch:amd64" tag
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+
+build-job:
+  stage: build
+  script:
+    - echo "Hello " | tr -d "\n" > file1.txt
+    - echo "world" > file2.txt
+    - cat file1.txt file2.txt > compiled.txt
+  artifacts:
+    paths:
+      - compiled.txt
+
+test:
+  stage: tests
+  script: cat compiled.txt | grep -q 'Hello world'
+
+package:
+  stage: package
+  script: cat compiled.txt | gzip > packaged.gz
+  artifacts:
+    paths:
+      - packaged.gz
