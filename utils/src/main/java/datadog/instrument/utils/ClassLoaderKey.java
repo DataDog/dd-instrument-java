@@ -44,8 +44,9 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
     int count = 0;
     Reference<?> ref;
     while ((ref = staleKeys.poll()) != null) {
-      for (Consumer<Reference<?>> cleaner : cleaners) {
-        cleaner.accept(ref);
+      //noinspection ForLoopReplaceableByForEach - indexed loop performs better
+      for (int i = 0, size = cleaners.size(); i < size; i++) {
+        cleaners.get(i).accept(ref);
       }
       if (++count >= MAX_KEYS_CLEANED_PER_CYCLE) {
         break; // limit work done per call
