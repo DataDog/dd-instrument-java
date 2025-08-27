@@ -7,6 +7,8 @@ import datadog.instrument.utils.Platform;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -18,7 +20,7 @@ import org.objectweb.asm.Type;
 /**
  * Supports injection of auxiliary classes, even in the bootstrap class-loader.
  *
- * <p>Uses {@link Instrumentation} to install an access wrapper around {@code Unsafe.defineClass}
+ * <p>Uses {@link Instrumentation} to access {@code ClassLoader.defineClass} without reflection.
  *
  * <ul>
  *   <li>To use this feature, first call {@link #enableClassInjection}
@@ -30,19 +32,19 @@ import org.objectweb.asm.Type;
 @SuppressWarnings({"rawtypes", "unchecked"})
 public final class ClassInjector {
 
-  /** Injects a class in the bootstrap class-loader. */
-  public static Class<?> injectBootClass(byte[] bytecode) {
-    return (Class<?>) classDefiner().apply(bytecode, null);
+  /** Injects classes in the bootstrap class-loader. */
+  public static List<Class<?>> injectBootClass(Map<String, byte[]> bytecode) {
+    return (List<Class<?>>) classDefiner().apply(bytecode, null);
   }
 
-  /** Injects a class in the specified class-loader. */
-  public static Class<?> injectClass(byte[] bytecode, ClassLoader cl) {
-    return (Class<?>) classDefiner().apply(bytecode, cl);
+  /** Injects classes in the specified class-loader. */
+  public static List<Class<?>> injectClass(Map<String, byte[]> bytecode, ClassLoader cl) {
+    return (List<Class<?>>) classDefiner().apply(bytecode, cl);
   }
 
-  /** Injects a class using the given protection domain. */
-  public static Class<?> injectClass(byte[] bytecode, ProtectionDomain pd) {
-    return (Class<?>) classDefiner().apply(bytecode, pd);
+  /** Injects classes using the given protection domain. */
+  public static List<Class<?>> injectClass(Map<String, byte[]> bytecode, ProtectionDomain pd) {
+    return (List<Class<?>>) classDefiner().apply(bytecode, pd);
   }
 
   private static BiFunction classDefiner() {
@@ -55,10 +57,13 @@ public final class ClassInjector {
   private static volatile BiFunction classDefiner;
 
   public static void enableClassInjection(Instrumentation inst) {
+    if (classDefiner != null) {
+      return;
+    }
     try {
       InjectGlue injectGlue = new InjectGlue();
       try {
-        // temporary transformation to install our glue to access Unsafe.defineClass
+        // temporary transformation to install our glue to access ClassLoader.defineClass
         inst.addTransformer(injectGlue, true);
         inst.retransformClasses(ClassLoader.class);
         ClassLoader cl = ClassLoader.getSystemClassLoader();
