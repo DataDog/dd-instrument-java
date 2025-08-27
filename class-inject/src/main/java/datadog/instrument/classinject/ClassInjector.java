@@ -206,5 +206,11 @@ public final class ClassInjector {
       mv.visitLabel(notDatadogGlueRequest);
       mv.visitFrame(F_SAME, 0, null, 0, null);
     }
+
+    @Override
+    public void visitMaxs(int maxStack, int maxLocals) {
+      // ensure we have enough stack allocated for our code
+      mv.visitMaxs(Math.max(maxStack, 4), maxLocals);
+    }
   }
 }
