@@ -1,32 +1,45 @@
 stages:
   - build
   - tests
-  - package
 
 default:
   tags: [ "arch:amd64" ]  # Use runners with the "arch:amd64" tag
 
+variables:
+  BUILDER_IMAGE_VERSION_PREFIX: "v25.07-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
+
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
+## for later, run CI on merge request (PR) or on commit to main
+#   - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+#   - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-build-job:
+.gradle_build: &gradle_build
+  stage: build
+  image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}base
+
+build:
+  extends: .gradle_build
   stage: build
   script:
-    - echo "Hello " | tr -d "\n" > file1.txt
-    - echo "world" > file2.txt
-    - cat file1.txt file2.txt > compiled.txt
+    - export JAVA_HOME=$JAVA_17_HOME
+    - ./gradlew assemble # or ./gradlew :jar since assemble tasks have no actions....
   artifacts:
     paths:
-      - compiled.txt
+      - "build/libs/*.jar"
 
-test:
+check:
+  extends: .gradle_build
   stage: tests
-  script: cat compiled.txt | grep -q 'Hello world'
-
-package:
-  stage: package
-  script: cat compiled.txt | gzip > packaged.gz
+  script:
+    - export JAVA_HOME=$JAVA_17_HOME
+    - ./gradlew check
   artifacts:
     paths:
-      - packaged.gz
+      - ./**/build/test-results/**/**/TEST-*.xml
+      - ./**/build/reports/*
+    when: always
+    reports:
+      junit:
+        - ./**/build/test-results/**/**/TEST-*.xml
