@@ -29,17 +29,31 @@ build:
     paths:
       - "build/libs/*.jar"
 
+test:
+  extends: .gradle_build
+  stage: tests
+  script:
+    - export JAVA_HOME=$JAVA_17_HOME
+    - ./gradlew $TEST_SUITE #for now, we should really do ./gradlew $TEST_SUITE -x test expect when running test....
+
+  parallel:
+    matrix:
+      - TEST_SUITE: ["testOn8", "testOn11", "test", "testOn21"]
+  artifacts:
+    paths:
+      - ./**/build/test-results/**/**/TEST-*.xml
+    when: always
+    reports:
+      junit:
+        - ./**/build/test-results/**/**/TEST-*.xml
+
 check:
   extends: .gradle_build
   stage: tests
   script:
     - export JAVA_HOME=$JAVA_17_HOME
-    - ./gradlew check
+    - ./gradlew check -x testOn8 -x test -x testOn11 -x testOn21
   artifacts:
     paths:
-      - ./**/build/test-results/**/**/TEST-*.xml
       - ./**/build/reports/*
-    when: always
-    reports:
-      junit:
-        - ./**/build/test-results/**/**/TEST-*.xml
+
