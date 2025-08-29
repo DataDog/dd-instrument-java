@@ -9,10 +9,8 @@ variables:
 
 workflow:
   rules:
-    - if: $CI_PIPELINE_SOURCE == "push"
-## for later, run CI on merge request (PR) or on commit to main
-#   - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-#   - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+   - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+   - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 build:
   stage: build
