@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-class PlatformTest {
+class JVMTest {
 
   @Test
   @SuppressWarnings("Since15")
@@ -17,8 +17,8 @@ class PlatformTest {
       javaVersion = 8;
     }
 
-    assertTrue(Platform.atLeastJava(javaVersion - 1));
-    assertTrue(Platform.atLeastJava(javaVersion));
-    assertFalse(Platform.atLeastJava(javaVersion + 1));
+    assertTrue(JVM.atLeastJava(javaVersion - 1));
+    assertTrue(JVM.atLeastJava(javaVersion));
+    assertFalse(JVM.atLeastJava(javaVersion + 1));
   }
 }

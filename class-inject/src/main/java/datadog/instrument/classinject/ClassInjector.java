@@ -3,7 +3,7 @@ package datadog.instrument.classinject;
 import static org.objectweb.asm.Opcodes.*;
 
 import datadog.instrument.glue.DefineClassGlue;
-import datadog.instrument.utils.Platform;
+import datadog.instrument.utils.JVM;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
@@ -134,7 +134,7 @@ public final class ClassInjector {
           INVOKEVIRTUAL, "java/lang/String", "equals", "(Ljava/lang/Object;)Z", false);
       mv.visitJumpInsn(IFEQ, notDatadogGlueRequest);
 
-      if (Platform.atLeastJava(15)) {
+      if (JVM.atLeastJava(15)) {
         // on Java 15+ prepare MethodHandles.lookup()
         mv.visitMethodInsn(
             INVOKESTATIC,
@@ -143,7 +143,7 @@ public final class ClassInjector {
             "()Ljava/lang/invoke/MethodHandles$Lookup;",
             false);
         mv.visitLdcInsn(DefineClassGlue.V9);
-      } else if (Platform.atLeastJava(9)) {
+      } else if (JVM.atLeastJava(9)) {
         // on Java 9+ prepare jdk.internal.misc.Unsafe
         mv.visitMethodInsn(
             INVOKESTATIC,
@@ -167,7 +167,7 @@ public final class ClassInjector {
       mv.visitMethodInsn(
           INVOKEVIRTUAL, "java/lang/String", "getBytes", "(Ljava/nio/charset/Charset;)[B", false);
 
-      if (Platform.atLeastJava(15)) {
+      if (JVM.atLeastJava(15)) {
         // on Java 15+ use MethodHandles.lookup().defineHiddenClass(...)
         mv.visitInsn(ICONST_0);
         mv.visitInsn(ICONST_0);
@@ -185,7 +185,7 @@ public final class ClassInjector {
             "lookupClass",
             "()Ljava/lang/Class;",
             false);
-      } else if (Platform.atLeastJava(9)) {
+      } else if (JVM.atLeastJava(9)) {
         // on Java 9+ use jdk.internal.misc.Unsafe.defineAnonymousClass(...)
         mv.visitInsn(ACONST_NULL);
         mv.visitMethodInsn(
