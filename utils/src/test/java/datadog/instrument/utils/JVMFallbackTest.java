@@ -6,7 +6,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-class PlatformFallbackTest {
+class JVMFallbackTest {
   static String javaVersion;
 
   @BeforeAll
@@ -22,6 +22,6 @@ class PlatformFallbackTest {
 
   @Test
   void atLeastJava() {
-    assertTrue(Platform.atLeastJava(8));
+    assertTrue(JVM.atLeastJava(8));
   }
 }

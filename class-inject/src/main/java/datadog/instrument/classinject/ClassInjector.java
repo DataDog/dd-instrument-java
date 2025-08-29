@@ -3,10 +3,12 @@ package datadog.instrument.classinject;
 import static org.objectweb.asm.Opcodes.*;
 
 import datadog.instrument.glue.DefineClassGlue;
-import datadog.instrument.utils.Platform;
+import datadog.instrument.utils.JVM;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -18,31 +20,31 @@ import org.objectweb.asm.Type;
 /**
  * Supports injection of auxiliary classes, even in the bootstrap class-loader.
  *
- * <p>Uses {@link Instrumentation} to install an access wrapper around {@code Unsafe.defineClass}
+ * <p>Uses {@link Instrumentation} to access {@code ClassLoader.defineClass} without reflection.
  *
  * <ul>
  *   <li>To use this feature, first call {@link #enableClassInjection}
- *   <li>To inject a class call {@link #injectClass} with the target class-loader
- *   <li>Use {@link #injectBootClass} to inject classes into the bootstrap class-loader
+ *   <li>To inject a class call {@link #injectClasses} with the target class-loader
+ *   <li>Use {@link #injectBootClasses} to inject classes into the bootstrap class-loader
  *   <li>The API also supports injecting classes using a custom {@link ProtectionDomain}
  * </ul>
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public final class ClassInjector {
 
-  /** Injects a class in the bootstrap class-loader. */
-  public static Class<?> injectBootClass(byte[] bytecode) {
-    return (Class<?>) classDefiner().apply(bytecode, null);
+  /** Injects classes in the bootstrap class-loader. */
+  public static List<Class<?>> injectBootClasses(Map<String, byte[]> bytecode) {
+    return (List<Class<?>>) classDefiner().apply(bytecode, null);
   }
 
-  /** Injects a class in the specified class-loader. */
-  public static Class<?> injectClass(byte[] bytecode, ClassLoader cl) {
-    return (Class<?>) classDefiner().apply(bytecode, cl);
+  /** Injects classes in the specified class-loader. */
+  public static List<Class<?>> injectClasses(Map<String, byte[]> bytecode, ClassLoader cl) {
+    return (List<Class<?>>) classDefiner().apply(bytecode, cl);
   }
 
-  /** Injects a class using the given protection domain. */
-  public static Class<?> injectClass(byte[] bytecode, ProtectionDomain pd) {
-    return (Class<?>) classDefiner().apply(bytecode, pd);
+  /** Injects classes using the given protection domain. */
+  public static List<Class<?>> injectClasses(Map<String, byte[]> bytecode, ProtectionDomain pd) {
+    return (List<Class<?>>) classDefiner().apply(bytecode, pd);
   }
 
   private static BiFunction classDefiner() {
@@ -55,10 +57,13 @@ public final class ClassInjector {
   private static volatile BiFunction classDefiner;
 
   public static void enableClassInjection(Instrumentation inst) {
+    if (classDefiner != null) {
+      return;
+    }
     try {
       InjectGlue injectGlue = new InjectGlue();
       try {
-        // temporary transformation to install our glue to access Unsafe.defineClass
+        // temporary transformation to install our glue to access ClassLoader.defineClass
         inst.addTransformer(injectGlue, true);
         inst.retransformClasses(ClassLoader.class);
         ClassLoader cl = ClassLoader.getSystemClassLoader();
@@ -129,7 +134,7 @@ public final class ClassInjector {
           INVOKEVIRTUAL, "java/lang/String", "equals", "(Ljava/lang/Object;)Z", false);
       mv.visitJumpInsn(IFEQ, notDatadogGlueRequest);
 
-      if (Platform.atLeastJava(15)) {
+      if (JVM.atLeastJava(15)) {
         // on Java 15+ prepare MethodHandles.lookup()
         mv.visitMethodInsn(
             INVOKESTATIC,
@@ -138,7 +143,7 @@ public final class ClassInjector {
             "()Ljava/lang/invoke/MethodHandles$Lookup;",
             false);
         mv.visitLdcInsn(DefineClassGlue.V9);
-      } else if (Platform.atLeastJava(9)) {
+      } else if (JVM.atLeastJava(9)) {
         // on Java 9+ prepare jdk.internal.misc.Unsafe
         mv.visitMethodInsn(
             INVOKESTATIC,
@@ -162,7 +167,7 @@ public final class ClassInjector {
       mv.visitMethodInsn(
           INVOKEVIRTUAL, "java/lang/String", "getBytes", "(Ljava/nio/charset/Charset;)[B", false);
 
-      if (Platform.atLeastJava(15)) {
+      if (JVM.atLeastJava(15)) {
         // on Java 15+ use MethodHandles.lookup().defineHiddenClass(...)
         mv.visitInsn(ICONST_0);
         mv.visitInsn(ICONST_0);
@@ -180,7 +185,7 @@ public final class ClassInjector {
             "lookupClass",
             "()Ljava/lang/Class;",
             false);
-      } else if (Platform.atLeastJava(9)) {
+      } else if (JVM.atLeastJava(9)) {
         // on Java 9+ use jdk.internal.misc.Unsafe.defineAnonymousClass(...)
         mv.visitInsn(ACONST_NULL);
         mv.visitMethodInsn(

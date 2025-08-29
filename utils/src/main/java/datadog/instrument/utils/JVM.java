@@ -1,10 +1,10 @@
 package datadog.instrument.utils;
 
-/** Provides information about the runtime platform; used to select the best injection approach. */
-public final class Platform {
+/** Provides information about the JVM; used to select the best injection approach. */
+public final class JVM {
   private static final int JAVA_VERSION = getMajorJavaVersion();
 
-  private Platform() {}
+  private JVM() {}
 
   public static boolean atLeastJava(int expectedVersion) {
     return expectedVersion <= JAVA_VERSION;
