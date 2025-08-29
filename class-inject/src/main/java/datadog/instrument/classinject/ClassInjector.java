@@ -24,8 +24,8 @@ import org.objectweb.asm.Type;
  *
  * <ul>
  *   <li>To use this feature, first call {@link #enableClassInjection}
- *   <li>To inject a class call {@link #injectClass} with the target class-loader
- *   <li>Use {@link #injectBootClass} to inject classes into the bootstrap class-loader
+ *   <li>To inject a class call {@link #injectClasses} with the target class-loader
+ *   <li>Use {@link #injectBootClasses} to inject classes into the bootstrap class-loader
  *   <li>The API also supports injecting classes using a custom {@link ProtectionDomain}
  * </ul>
  */
@@ -33,17 +33,17 @@ import org.objectweb.asm.Type;
 public final class ClassInjector {
 
   /** Injects classes in the bootstrap class-loader. */
-  public static List<Class<?>> injectBootClass(Map<String, byte[]> bytecode) {
+  public static List<Class<?>> injectBootClasses(Map<String, byte[]> bytecode) {
     return (List<Class<?>>) classDefiner().apply(bytecode, null);
   }
 
   /** Injects classes in the specified class-loader. */
-  public static List<Class<?>> injectClass(Map<String, byte[]> bytecode, ClassLoader cl) {
+  public static List<Class<?>> injectClasses(Map<String, byte[]> bytecode, ClassLoader cl) {
     return (List<Class<?>>) classDefiner().apply(bytecode, cl);
   }
 
   /** Injects classes using the given protection domain. */
-  public static List<Class<?>> injectClass(Map<String, byte[]> bytecode, ProtectionDomain pd) {
+  public static List<Class<?>> injectClasses(Map<String, byte[]> bytecode, ProtectionDomain pd) {
     return (List<Class<?>>) classDefiner().apply(bytecode, pd);
   }
 
