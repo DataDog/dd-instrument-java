@@ -1,12 +1,28 @@
 package datadog.instrument.classmatch;
 
+import static java.util.Arrays.asList;
+
+import java.util.List;
+
 /** Outlines a class; immediate class hierarchy, access flags, field, methods, annotations. */
 public final class ClassOutline extends ClassHeader {
 
   public final int access;
-  public final FieldOutline[] fields;
-  public final MethodOutline[] methods;
-  public final String[] annotations;
+  final FieldOutline[] fields;
+  final MethodOutline[] methods;
+  final String[] annotations;
+
+  public List<FieldOutline> fields() {
+    return asList(fields);
+  }
+
+  public List<MethodOutline> methods() {
+    return asList(methods);
+  }
+
+  public List<String> annotations() {
+    return asList(annotations);
+  }
 
   ClassOutline(
       int access,
