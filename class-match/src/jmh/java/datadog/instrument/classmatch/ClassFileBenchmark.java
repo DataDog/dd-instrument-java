@@ -1,7 +1,9 @@
 package datadog.instrument.classmatch;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-import static org.objectweb.asm.ClassReader.*;
+import static org.objectweb.asm.ClassReader.SKIP_CODE;
+import static org.objectweb.asm.ClassReader.SKIP_DEBUG;
+import static org.objectweb.asm.ClassReader.SKIP_FRAMES;
 import static org.objectweb.asm.Opcodes.ASM9;
 import static org.openjdk.jmh.annotations.Mode.AverageTime;
 
@@ -128,21 +130,8 @@ public class ClassFileBenchmark {
     @Override
     public FieldVisitor visitField(
         int access, String name, String descriptor, String signature, Object value) {
-      return new FieldVisitor(ASM9) {
-        private final List<String> annotations = new ArrayList<>();
-
-        @Override
-        public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-          annotations.add(descriptor);
-          return null;
-        }
-
-        @Override
-        public void visitEnd() {
-          fields.add(
-              new FieldOutline(access, name, descriptor, annotations.toArray(new String[0])));
-        }
-      };
+      fields.add(new FieldOutline(access, name, descriptor));
+      return null;
     }
 
     @Override

@@ -149,25 +149,16 @@ public final class ClassFile {
         cursor += 2;
         String descriptor = utf(bytecode, cp[u2(bytecode, cursor)]);
         cursor += 2;
-
-        String[] annotations = NO_ANNOTATIONS;
-        Map<UtfKey, String> ofInterest = ANNOTATIONS_OF_INTEREST;
         int attributesCount = u2(bytecode, cursor);
         cursor += 2;
         for (int j = 0; j < attributesCount; j++) {
-          int nameIndex = u2(bytecode, cursor);
           cursor += 2;
           int attributeLength = u4(bytecode, cursor);
           cursor += 4;
-          // only interested in the attribute that lists runtime visible annotations
-          if (ofInterest != null && utfEquals(bytecode, cp[nameIndex], RUNTIME_ANNOTATIONS)) {
-            annotations = parseAnnotations(ofInterest, bytecode, cursor, cp);
-            ofInterest = null; // there's at most one of these attributes per-table
-          }
           cursor += attributeLength; // jump to end of attribute
         }
 
-        fields[i] = new FieldOutline(fieldAccess, fieldName, descriptor, annotations);
+        fields[i] = new FieldOutline(fieldAccess, fieldName, descriptor);
       }
     } else {
       fields = NO_FIELDS;
@@ -186,7 +177,6 @@ public final class ClassFile {
         cursor += 2;
         String descriptor = utf(bytecode, cp[u2(bytecode, cursor)]);
         cursor += 2;
-
         String[] annotations = NO_ANNOTATIONS;
         Map<UtfKey, String> ofInterest = ANNOTATIONS_OF_INTEREST;
         int attributesCount = u2(bytecode, cursor);

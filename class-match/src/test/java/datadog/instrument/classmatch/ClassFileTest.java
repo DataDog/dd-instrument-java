@@ -45,15 +45,15 @@ class ClassFileTest {
 
   @Test
   void outline() {
-    ClassFile.annotationsOfInterest("java/lang/Deprecated");
-    ClassFile.annotationsOfInterest("java/lang/FunctionalInterface");
+    ClassFile.annotationsOfInterest(
+        "java/lang/Deprecated", "java/lang/FunctionalInterface", "java/lang/SafeVarargs");
     testParsing("asm-test.jar", ClassFile::outline);
   }
 
   @Test
   void unicodeOutline() {
-    ClassFile.annotationsOfInterest("java/lang/Deprecated");
-    ClassFile.annotationsOfInterest("java/lang/FunctionalInterface");
+    ClassFile.annotationsOfInterest(
+        "java/lang/Deprecated", "java/lang/FunctionalInterface", "java/lang/SafeVarargs");
 
     ClassOutline outline = ClassFile.outline(sampleUnicodeClass);
 
@@ -63,13 +63,12 @@ class ClassFileTest {
     assertArrayEquals(new String[] {}, outline.annotations);
     assertEquals("実例", outline.fields[0].fieldName);
     assertEquals("Ljava/lang/String;", outline.fields[0].descriptor);
-    assertArrayEquals(new String[] {"java/lang/Deprecated"}, outline.fields[0].annotations);
     assertEquals("<init>", outline.methods[0].methodName);
     assertEquals("()V", outline.methods[0].descriptor);
     assertArrayEquals(new String[] {}, outline.methods[0].annotations);
     assertEquals("何かをする", outline.methods[1].methodName);
     assertEquals("([Ljava/lang/Object;)Ljava/lang/Boolean;", outline.methods[1].descriptor);
-    assertArrayEquals(new String[] {}, outline.methods[1].annotations);
+    assertArrayEquals(new String[] {"java/lang/SafeVarargs"}, outline.methods[1].annotations);
   }
 
   @SuppressWarnings("SameParameterValue")
