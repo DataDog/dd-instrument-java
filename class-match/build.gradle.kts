@@ -25,3 +25,4 @@ val copySampleBytecode = tasks.register<Copy>("sampleBytecode") {
   from(sampleBytecode)
 }
 tasks.test { dependsOn(copySampleBytecode) }
+tasks.jmh { dependsOn(copySampleBytecode) }
