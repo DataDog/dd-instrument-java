@@ -1,6 +1,7 @@
 package datadog.instrument.classmatch;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
+import static java.util.Arrays.asList;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -22,7 +23,8 @@ public final class ClassFile {
   private static final byte[] RUNTIME_ANNOTATIONS = "RuntimeVisibleAnnotations".getBytes(US_ASCII);
 
   // reduce size of outlines by only extracting interesting annotations
-  private static volatile Map<UtfKey, String> ANNOTATIONS_OF_INTEREST;
+  private static final Map<String, UtfKey> annotationKeys = new HashMap<>();
+  private static volatile Map<UtfKey, String> annotationsOfInterest;
 
   private ClassFile() {}
 
@@ -36,18 +38,41 @@ public final class ClassFile {
     return (ClassOutline) parse(bytecode, false);
   }
 
+  /** Flags the given annotation as interesting; to be included in outlines. */
+  public static synchronized void annotationOfInterest(String annotation) {
+    if (annotationKeys.containsKey(annotation)) {
+      return; // already flagged as interesting
+    }
+    Map<UtfKey, String> ofInterest = new HashMap<>();
+    if (annotationsOfInterest != null) {
+      ofInterest.putAll(annotationsOfInterest); // copy on write
+    }
+    ofInterest.put(
+        annotationKeys.computeIfAbsent(annotation, ClassFile::annotationKey), annotation);
+    annotationsOfInterest = ofInterest;
+  }
+
   /** Flags the given annotations as interesting; to be included in outlines. */
   public static synchronized void annotationsOfInterest(String... annotations) {
+    if (annotationKeys.keySet().containsAll(asList(annotations))) {
+      return; // already flagged as interesting
+    }
     Map<UtfKey, String> ofInterest = new HashMap<>();
-    if (ANNOTATIONS_OF_INTEREST != null) {
-      ofInterest.putAll(ANNOTATIONS_OF_INTEREST); // copy on write
+    if (annotationsOfInterest != null) {
+      ofInterest.putAll(annotationsOfInterest); // copy on write
     }
     for (String annotation : annotations) {
-      // annotations are recorded in descriptor form in class-files
-      byte[] descriptor = ('L' + annotation + ';').getBytes(US_ASCII);
-      ofInterest.put(new UtfKey(descriptor), annotation);
+      ofInterest.put(
+          annotationKeys.computeIfAbsent(annotation, ClassFile::annotationKey), annotation);
     }
-    ANNOTATIONS_OF_INTEREST = ofInterest;
+    annotationsOfInterest = ofInterest;
+  }
+
+  /** Create "modified-UTF8" key to make it easier to match annotations. */
+  private static UtfKey annotationKey(String annotation) {
+    // annotations are recorded in descriptor form in class-files
+    byte[] descriptor = ('L' + annotation + ';').getBytes(US_ASCII);
+    return new UtfKey(descriptor);
   }
 
   /** Parse class-file content, skipping over uninteresting sections, */
@@ -178,7 +203,7 @@ public final class ClassFile {
         String descriptor = utf(bytecode, cp[u2(bytecode, cursor)]);
         cursor += 2;
         String[] annotations = NO_ANNOTATIONS;
-        Map<UtfKey, String> ofInterest = ANNOTATIONS_OF_INTEREST;
+        Map<UtfKey, String> ofInterest = annotationsOfInterest;
         int attributesCount = u2(bytecode, cursor);
         cursor += 2;
         for (int j = 0; j < attributesCount; j++) {
@@ -201,7 +226,7 @@ public final class ClassFile {
     }
 
     String[] annotations = NO_ANNOTATIONS;
-    Map<UtfKey, String> ofInterest = ANNOTATIONS_OF_INTEREST;
+    Map<UtfKey, String> ofInterest = annotationsOfInterest;
     int attributesCount = u2(bytecode, cursor);
     cursor += 2;
     for (int j = 0; j < attributesCount; j++) {

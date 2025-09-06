@@ -45,16 +45,13 @@ class ClassFileTest {
 
   @Test
   void outline() {
-    ClassFile.annotationsOfInterest(
-        "java/lang/Deprecated", "java/lang/FunctionalInterface", "java/lang/SafeVarargs");
+    ClassFile.annotationsOfInterest("java/lang/Deprecated", "java/lang/FunctionalInterface");
     testParsing("asm-test.jar", ClassFile::outline);
   }
 
   @Test
   void unicodeOutline() {
-    ClassFile.annotationsOfInterest(
-        "java/lang/Deprecated", "java/lang/FunctionalInterface", "java/lang/SafeVarargs");
-
+    ClassFile.annotationOfInterest("java/lang/SafeVarargs");
     ClassOutline outline = ClassFile.outline(sampleUnicodeClass);
 
     assertEquals("sample/My例クラス", outline.className);
