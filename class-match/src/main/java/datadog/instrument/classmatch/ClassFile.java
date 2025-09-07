@@ -1,9 +1,9 @@
 package datadog.instrument.classmatch;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static java.util.Arrays.asList;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -65,8 +65,8 @@ public final class ClassFile {
    *
    * <p>Example: {@code ClassFile.annotationsOfInterest("javax/ws/rs/Path", "jakarta/ws/rs/Path");}
    */
-  public static synchronized void annotationsOfInterest(String... internalNames) {
-    if (annotationKeys.keySet().containsAll(asList(internalNames))) {
+  public static synchronized void annotationsOfInterest(Collection<String> internalNames) {
+    if (annotationKeys.keySet().containsAll(internalNames)) {
       return; // already flagged as interesting
     }
     Map<UtfKey, String> ofInterest = new HashMap<>();

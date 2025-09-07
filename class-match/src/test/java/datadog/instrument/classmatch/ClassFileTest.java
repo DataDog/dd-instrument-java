@@ -1,5 +1,6 @@
 package datadog.instrument.classmatch;
 
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -45,7 +46,8 @@ class ClassFileTest {
 
   @Test
   void outline() {
-    ClassFile.annotationsOfInterest("java/lang/Deprecated", "java/lang/FunctionalInterface");
+    ClassFile.annotationsOfInterest(
+        asList("java/lang/Deprecated", "java/lang/FunctionalInterface"));
     testParsing("asm-test.jar", ClassFile::outline);
   }
 

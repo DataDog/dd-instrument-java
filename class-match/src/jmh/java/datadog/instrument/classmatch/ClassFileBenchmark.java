@@ -1,5 +1,6 @@
 package datadog.instrument.classmatch;
 
+import static java.util.Arrays.asList;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static org.objectweb.asm.ClassReader.SKIP_CODE;
 import static org.objectweb.asm.ClassReader.SKIP_DEBUG;
@@ -83,7 +84,7 @@ public class ClassFileBenchmark {
   @Fork(value = 1)
   @Threads(value = 1)
   public void testClassOutline(Blackhole blackhole) {
-    ClassFile.annotationsOfInterest("javax/ws/rs/Path", "jakarta/ws/rs/Path");
+    ClassFile.annotationsOfInterest(asList("javax/ws/rs/Path", "jakarta/ws/rs/Path"));
 
     for (byte[] bytecode : bytecodes) {
       ClassOutline outline = ClassFile.outline(bytecode);
