@@ -75,6 +75,8 @@ final class DefineClassGlueGenerator {
           + CLASS_CLASS
           + ";";
 
+  private DefineClassGlueGenerator() {}
+
   private static byte[] generateBytecode(String unsafeNamespace) {
 
     // use Unsafe to define boot classes that have no class-loader

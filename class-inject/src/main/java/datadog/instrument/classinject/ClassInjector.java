@@ -47,6 +47,8 @@ public final class ClassInjector {
     return (List<Class<?>>) classDefiner().apply(bytecode, pd);
   }
 
+  private ClassInjector() {}
+
   private static BiFunction classDefiner() {
     if (classDefiner == null) {
       throw new UnsupportedOperationException("Class injection not enabled");
