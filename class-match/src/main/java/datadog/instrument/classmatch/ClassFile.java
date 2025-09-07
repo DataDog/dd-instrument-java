@@ -10,6 +10,10 @@ import java.util.Map;
 /**
  * Parses <a href="https://docs.oracle.com/javase/specs/jvms/se24/html/jvms-4.html">class-file</a>
  * content into {@link ClassHeader}s or {@link ClassOutline}s, depending on the detail required.
+ *
+ * <p>All class-names and field/method descriptors appear in <a
+ * href="https://docs.oracle.com/javase/specs/jvms/se24/html/jvms-4.html#jvms-4.2.1">internal
+ * form</a>.
  */
 public final class ClassFile {
 
@@ -38,9 +42,13 @@ public final class ClassFile {
     return (ClassOutline) parse(bytecode, false);
   }
 
-  /** Flags the given annotation as interesting; to be included in outlines. */
-  public static synchronized void annotationOfInterest(String annotation) {
-    if (annotationKeys.containsKey(annotation)) {
+  /**
+   * Flags the given annotation as interesting; to be included in outlines.
+   *
+   * <p>Example: {@code ClassFile.annotationOfInterest("javax/ws/rs/Path");}
+   */
+  public static synchronized void annotationOfInterest(String internalName) {
+    if (annotationKeys.containsKey(internalName)) {
       return; // already flagged as interesting
     }
     Map<UtfKey, String> ofInterest = new HashMap<>();
@@ -48,30 +56,34 @@ public final class ClassFile {
       ofInterest.putAll(annotationsOfInterest); // copy on write
     }
     ofInterest.put(
-        annotationKeys.computeIfAbsent(annotation, ClassFile::annotationKey), annotation);
+        annotationKeys.computeIfAbsent(internalName, ClassFile::annotationKey), internalName);
     annotationsOfInterest = ofInterest;
   }
 
-  /** Flags the given annotations as interesting; to be included in outlines. */
-  public static synchronized void annotationsOfInterest(String... annotations) {
-    if (annotationKeys.keySet().containsAll(asList(annotations))) {
+  /**
+   * Flags the given annotations as interesting; to be included in outlines.
+   *
+   * <p>Example: {@code ClassFile.annotationsOfInterest("javax/ws/rs/Path", "jakarta/ws/rs/Path");}
+   */
+  public static synchronized void annotationsOfInterest(String... internalNames) {
+    if (annotationKeys.keySet().containsAll(asList(internalNames))) {
       return; // already flagged as interesting
     }
     Map<UtfKey, String> ofInterest = new HashMap<>();
     if (annotationsOfInterest != null) {
       ofInterest.putAll(annotationsOfInterest); // copy on write
     }
-    for (String annotation : annotations) {
+    for (String internalName : internalNames) {
       ofInterest.put(
-          annotationKeys.computeIfAbsent(annotation, ClassFile::annotationKey), annotation);
+          annotationKeys.computeIfAbsent(internalName, ClassFile::annotationKey), internalName);
     }
     annotationsOfInterest = ofInterest;
   }
 
   /** Create "modified-UTF8" key to make it easier to match annotations. */
-  private static UtfKey annotationKey(String annotation) {
+  private static UtfKey annotationKey(String internalName) {
     // annotations are recorded in descriptor form in class-files
-    byte[] descriptor = ('L' + annotation + ';').getBytes(US_ASCII);
+    byte[] descriptor = ('L' + internalName + ';').getBytes(US_ASCII);
     return new UtfKey(descriptor);
   }
 
