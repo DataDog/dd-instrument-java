@@ -27,6 +27,14 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
     return m -> nameMatcher.test(m.methodName);
   }
 
+  static MethodMatcher constructor() {
+    return m -> "<init>".equals(m.methodName);
+  }
+
+  static MethodMatcher staticInitializer() {
+    return m -> "<clinit>".equals(m.methodName);
+  }
+
   default MethodMatcher withAccess(IntPredicate accessMatcher) {
     return and(m -> accessMatcher.test(m.access));
   }
