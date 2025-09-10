@@ -38,12 +38,12 @@ public final class StandardMatchers {
   }
 
   /** Matches when the target has one of the given names. */
-  public static Predicate<String> named(String... names) {
+  public static Predicate<String> namedOneOf(String... names) {
     return internalNames(asList(names))::contains;
   }
 
   /** Matches when the target has one of the given names. */
-  public static Predicate<String> named(Collection<String> names) {
+  public static Predicate<String> namedOneOf(Collection<String> names) {
     return internalNames(names)::contains;
   }
 
