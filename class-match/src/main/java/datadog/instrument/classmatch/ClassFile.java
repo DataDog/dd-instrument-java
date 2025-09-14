@@ -170,7 +170,7 @@ public final class ClassFile {
 
     if (onlyHeader) {
       // stop parsing; we don't need fields/methods/annotations
-      return new ClassHeader(className, superName, interfaces);
+      return new ClassHeader(access, className, superName, interfaces);
     }
 
     // optional list of fields

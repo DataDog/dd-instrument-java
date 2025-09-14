@@ -4,10 +4,9 @@ import static java.util.Arrays.asList;
 
 import java.util.List;
 
-/** Outlines a class; immediate class hierarchy, access flags, field, methods, annotations. */
+/** Outlines a class; access flags, immediate class hierarchy, field, methods, annotations. */
 public final class ClassOutline extends ClassHeader {
 
-  public final int access;
   final FieldOutline[] fields;
   final MethodOutline[] methods;
   final String[] annotations;
@@ -32,8 +31,7 @@ public final class ClassOutline extends ClassHeader {
       FieldOutline[] fields,
       MethodOutline[] methods,
       String[] annotations) {
-    super(className, superName, interfaces);
-    this.access = access;
+    super(access, className, superName, interfaces);
     this.fields = fields;
     this.methods = methods;
     this.annotations = annotations;
