@@ -40,7 +40,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
   }
 
   default MethodMatcher withParameters(int paramCount) {
-    return and(m -> m.parameterOffsets().length == paramCount);
+    return and(m -> m.descriptorBoundaries().length == paramCount);
   }
 
   default MethodMatcher withParameters(String... paramTypes) {

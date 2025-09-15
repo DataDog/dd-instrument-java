@@ -83,13 +83,13 @@ class ClassFileTest {
   void parameterParsing() {
     ClassOutline outline = ClassFile.outline(sampleParametersClass);
 
-    assertEquals(0, outline.methods().get(0).parameterOffsets().length);
-    assertArrayEquals(new int[0], outline.methods().get(0).parameterOffsets());
+    assertEquals(0, outline.methods().get(0).descriptorBoundaries().length);
+    assertArrayEquals(new int[0], outline.methods().get(0).descriptorBoundaries());
 
-    assertEquals(19, outline.methods().get(1).parameterOffsets().length);
+    assertEquals(19, outline.methods().get(1).descriptorBoundaries().length);
     assertArrayEquals(
-        new int[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 27, 29, 32, 36, 41, 47, 54, 62, 71, 86},
-        outline.methods().get(1).parameterOffsets());
+        new int[] {2, 3, 4, 5, 6, 7, 8, 9, 27, 29, 32, 36, 41, 47, 54, 62, 71, 86, 106},
+        outline.methods().get(1).descriptorBoundaries());
   }
 
   @SuppressWarnings("SameParameterValue")

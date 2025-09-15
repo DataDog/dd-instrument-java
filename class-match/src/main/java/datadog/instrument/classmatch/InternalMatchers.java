@@ -33,10 +33,19 @@ final class InternalMatchers {
 
   /** Returns {@code true} if the parameter declared at the given index has the given descriptor. */
   static boolean declaresParameter(MethodOutline method, int paramIndex, String paramDescriptor) {
-    int[] paramOffsets = method.parameterOffsets();
-    return paramIndex < paramOffsets.length
-        && method.descriptor.regionMatches(
-            paramOffsets[paramIndex], paramDescriptor, 0, paramDescriptor.length());
+    int offset;
+    if (paramIndex > 0) {
+      // boundaries covers start of second parameter, to start of return descriptor
+      int[] boundaries = method.descriptorBoundaries();
+      if (paramIndex >= boundaries.length) {
+        return false; // don't match against the return descriptor boundary
+      }
+      offset = boundaries[paramIndex - 1];
+    } else {
+      // no need to parse method descriptor, just check string at position 1 matches
+      offset = 1;
+    }
+    return method.descriptor.regionMatches(offset, paramDescriptor, 0, paramDescriptor.length());
   }
 
   /** Returns the descriptor for the given type. */

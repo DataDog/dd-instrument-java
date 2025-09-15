@@ -8,14 +8,12 @@ import java.util.List;
 /** Outlines a method; access flags, method name, descriptor, annotations. */
 public final class MethodOutline {
 
-  private static final int[] NO_PARAMETERS = new int[0];
-
   public final int access;
   public final String methodName;
   public final String descriptor;
   final String[] annotations;
 
-  private int[] parameterOffsets;
+  private int[] descriptorBoundaries;
 
   public List<String> annotations() {
     return asList(annotations);
@@ -28,22 +26,28 @@ public final class MethodOutline {
     this.annotations = annotations;
   }
 
-  /** Returns the offsets of each parameter descriptor in the method descriptor string. */
-  int[] parameterOffsets() {
-    if (parameterOffsets == null) {
-      parameterOffsets = parseParameters(descriptor);
+  private static final int[] NO_BOUNDARIES = {};
+
+  /**
+   * Returns the boundaries between each parameter/return descriptor in the method descriptor.
+   *
+   * <p>The number of boundaries is the same as the number of parameters: there is no boundary
+   * before the first parameter, and the return boundary is omitted if there are no parameters.
+   */
+  int[] descriptorBoundaries() {
+    if (descriptorBoundaries == null) {
+      descriptorBoundaries = parseBoundaries(descriptor);
     }
-    return parameterOffsets;
+    return descriptorBoundaries;
   }
 
-  /** Parses the method descriptor string to find the offset of each parameter descriptor. */
-  private static int[] parseParameters(String descriptor) {
+  /** Partitions method descriptor into boundaries between each parameter/return descriptor. */
+  private static int[] parseBoundaries(String descriptor) {
     char c = descriptor.charAt(1);
     if (c == ')') {
-      return NO_PARAMETERS; // no parsing required
+      return NO_BOUNDARIES; // no parsing required
     }
-    BitSet params = new BitSet();
-    params.set(1); // first parameter always starts at offset 1 after the '('
+    BitSet partition = new BitSet();
     try {
       int i = 1;
       while (true) {
@@ -61,19 +65,21 @@ public final class MethodOutline {
         // either reached next parameter or end of parameters
         c = descriptor.charAt(++i);
         if (c == ')') {
+          // record start of return descriptor
+          partition.set(++i);
           break; // end of parameters
         }
-        // record start of next parameter
-        params.set(i);
+        // record start of next parameter descriptor
+        partition.set(i);
       }
     } catch (IndexOutOfBoundsException e) {
       // malformed descriptor; short-circuit parsing
     }
-    // flatten bit-set into primitive array of offsets
-    int[] offsets = new int[params.cardinality()];
-    for (int i = 0, p = 0, len = offsets.length; i < len; i++, p++) {
-      offsets[i] = p = params.nextSetBit(p);
+    // flatten bit-set into primitive array of boundaries
+    int[] boundaries = new int[partition.cardinality()];
+    for (int i = 0, p = 0, len = boundaries.length; i < len; i++, p++) {
+      boundaries[i] = p = partition.nextSetBit(p);
     }
-    return offsets;
+    return boundaries;
   }
 }
