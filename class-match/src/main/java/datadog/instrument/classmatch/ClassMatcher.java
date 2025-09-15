@@ -13,14 +13,6 @@ import java.util.function.Predicate;
 @FunctionalInterface
 public interface ClassMatcher extends Predicate<ClassOutline> {
 
-  static ClassMatcher type(String name) {
-    return m -> name.equals(m.className);
-  }
-
-  static ClassMatcher type(Predicate<String> nameMatcher) {
-    return m -> nameMatcher.test(m.className);
-  }
-
   static ClassMatcher declares(FieldMatcher fieldMatcher) {
     return c -> anyMatch(c.fields, fieldMatcher);
   }
@@ -41,7 +33,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
 
   static ClassMatcher annotatedWith(String annotation) {
     Predicate<String[]> annotationMatcher = declaresAnnotation(annotation);
-    return m -> annotationMatcher.test(m.annotations);
+    return c -> annotationMatcher.test(c.annotations);
   }
 
   static ClassMatcher annotatedWith(String... annotations) {
@@ -50,7 +42,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
 
   static ClassMatcher annotatedWith(Collection<String> annotations) {
     Predicate<String[]> annotationMatcher = declaresAnnotationOneOf(annotations);
-    return m -> annotationMatcher.test(m.annotations);
+    return c -> annotationMatcher.test(c.annotations);
   }
 
   default ClassMatcher and(ClassMatcher other) {
