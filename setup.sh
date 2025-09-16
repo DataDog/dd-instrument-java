@@ -36,7 +36,7 @@ check-jvm "JAVA_8_HOME" "1.8"
 check-jvm "JAVA_11_HOME" "11"
 check-jvm "JAVA_17_HOME" "17"
 check-jvm "JAVA_21_HOME" "21"
-
+check-jvm "JAVA_25_HOME" "25"
 
 #
 # Check git configuration.
@@ -106,7 +106,6 @@ function check-docker-server() {
 echo "ℹ️ Checking Docker environment:"
 check-command "docker"
 check-docker-server
-
 
 #
 # Check shell environment.

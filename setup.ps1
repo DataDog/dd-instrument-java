@@ -50,6 +50,7 @@ TestJvm 'JAVA_8_HOME' '1.8'
 TestJvm 'JAVA_11_HOME' '11'
 TestJvm 'JAVA_17_HOME' '17'
 TestJvm 'JAVA_21_HOME' '21'
+TestJvm 'JAVA_25_HOME' '25'
 
 # Check for required commands (e.g., git, docker)
 function TestCommand {
