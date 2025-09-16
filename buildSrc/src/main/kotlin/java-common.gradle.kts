@@ -44,7 +44,7 @@ tasks.named<Test>("test") {
   useJUnitPlatform()
 }
 
-val additionalJavaVersions = listOf(8, 11, 21)
+val additionalJavaVersions = listOf(8, 11, 21, 25)
 for (javaVersion in additionalJavaVersions) {
   val testOnX = tasks.register<Test>("testOn${javaVersion}") {
     javaLauncher = javaToolchains.launcherFor {
