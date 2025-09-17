@@ -43,6 +43,7 @@ public abstract class ClassLoaderValue<V> {
   // maps other (unloadable) class-loaders to their values
   private final Map<Object, V> otherValues = new ConcurrentHashMap<>();
 
+  /** Register subclass instances for cleaning. */
   protected ClassLoaderValue() {
     ClassLoaderKey.registerCleaner(otherValues::remove);
   }

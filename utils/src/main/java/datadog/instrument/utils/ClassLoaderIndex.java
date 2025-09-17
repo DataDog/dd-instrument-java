@@ -31,6 +31,9 @@ public final class ClassLoaderIndex {
   /**
    * Returns the key-id for the given class-loader. The key-id for a specific class-loader may
    * occasionally change over its life, but no two class-loaders will share the same key-id.
+   *
+   * @param cl the class-loader to index
+   * @return key-id for the class-loader
    */
   public static int getClassLoaderKeyId(ClassLoader cl) {
     if (cl == BOOT_CLASS_LOADER) {

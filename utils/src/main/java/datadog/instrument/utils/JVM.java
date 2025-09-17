@@ -12,6 +12,12 @@ public final class JVM {
 
   private JVM() {}
 
+  /**
+   * Tests whether the Java version is the same or greater than the expected version.
+   *
+   * @param expectedVersion the expected version
+   * @return {@code true} if the Java version is the same or greater than the expected version
+   */
   public static boolean atLeastJava(int expectedVersion) {
     return expectedVersion <= JAVA_VERSION;
   }

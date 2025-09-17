@@ -15,7 +15,12 @@ public final class Glue {
 
   private Glue() {}
 
-  /** Writes the source header of a class to hold the string representation of glue bytecode. */
+  /**
+   * Writes the source header of a class to hold the string representation of glue bytecode.
+   *
+   * @param lines the list collecting the source code
+   * @param className the name of the generated class
+   */
   public static void classHeader(List<String> lines, String className) {
     lines.add("package datadog.instrument.glue;");
     lines.add("");
@@ -27,6 +32,9 @@ public final class Glue {
    * Packs the given glue bytecode as a string literal and writes it out in source code form.
    *
    * <p>The bytecode must be padded to have even length, as this simplifies the encoding/decoding.
+   *
+   * @param lines the list collecting the source code
+   * @param bytecode the bytecode to pack
    */
   public static void packBytecode(List<String> lines, byte[] bytecode) {
     if ((bytecode.length & 0x01) == 1) {
@@ -52,7 +60,12 @@ public final class Glue {
     lines.add(buf + "\";");
   }
 
-  /** Unpacks a string literal produced by {@link #packBytecode} back into the original bytecode. */
+  /**
+   * Unpacks a string literal produced by {@link #packBytecode} back into the original bytecode.
+   *
+   * @param bytecode the packed bytecode
+   * @return the unpacked bytecode
+   */
   public static byte[] unpackBytecode(String bytecode) {
     return bytecode.getBytes(UTF_16BE);
   }
