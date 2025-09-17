@@ -10,6 +10,11 @@ repositories {
   mavenCentral()
 }
 
+java {
+  withJavadocJar()
+  withSourcesJar()
+}
+
 val embed by configurations.creating {
   isTransitive = false
 }
@@ -24,4 +29,16 @@ dependencies {
 tasks.jar {
   dependsOn(embed)
   from(embed.map { zipTree(it) })
+}
+tasks.javadoc {
+  dependsOn(embed)
+  setSource(subprojects.map { it.sourceSets.main.get().allSource })
+  classpath = files(subprojects.flatMap { it.sourceSets.main.get().compileClasspath })
+  if (JavaVersion.current().isJava9Compatible) {
+    (options as StandardJavadocDocletOptions).addBooleanOption("html5", true)
+  }
+}
+tasks.named<Jar>("sourcesJar") {
+  dependsOn(embed)
+  from(subprojects.map { it.sourceSets.main.get().allSource })
 }

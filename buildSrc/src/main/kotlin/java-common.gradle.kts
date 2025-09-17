@@ -19,9 +19,17 @@ java {
   toolchain {
     languageVersion = JavaLanguageVersion.of(17)
   }
+  withJavadocJar()
+  withSourcesJar()
 }
 tasks.withType<JavaCompile>().configureEach {
   options.release = 8
+}
+
+tasks.javadoc {
+  if (JavaVersion.current().isJava9Compatible) {
+    (options as StandardJavadocDocletOptions).addBooleanOption("html5", true)
+  }
 }
 
 dependencies {

@@ -36,6 +36,9 @@ tasks.register<JavaExec>("generateGlue") {
 tasks.compileJava {
   dependsOn(tasks.named("generateGlue"))
 }
+tasks.named("sourcesJar") {
+  dependsOn(tasks.named("generateGlue"))
+}
 
 tasks.jar {
   // glue classes only contain large string constants that get inlined into other classes
