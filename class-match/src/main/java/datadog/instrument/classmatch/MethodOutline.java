@@ -14,13 +14,23 @@ import java.util.List;
 /** Outlines a method; access flags, method name, descriptor, annotations. */
 public final class MethodOutline {
 
+  /** Access modifiers for this method. */
   public final int access;
+
+  /** Name of this method. */
   public final String methodName;
+
+  /** Descriptor containing the raw parameter types and return type. */
   public final String descriptor;
+
+  /** Internal names of annotations declared on this method. */
   final String[] annotations;
 
   private int[] descriptorBoundaries;
 
+  /**
+   * @return internal names of annotations declared on this method
+   */
   public List<String> annotations() {
     return asList(annotations);
   }

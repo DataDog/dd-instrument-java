@@ -13,11 +13,21 @@ import java.util.List;
 /** Minimal class header that describes its access flags and immediate class hierarchy. */
 public class ClassHeader {
 
+  /** Access modifiers for this class. */
   public final int access;
+
+  /** Internal name of this class. */
   public final String className;
+
+  /** Internal name of the super-class declared by this class. */
   public final String superName;
+
+  /** Internal names of the interfaces declared by this class. */
   final String[] interfaces;
 
+  /**
+   * @return internal names of the interfaces declared by this class.
+   */
   public List<String> interfaces() {
     return asList(interfaces);
   }

@@ -38,12 +38,22 @@ public final class ClassFile {
 
   private ClassFile() {}
 
-  /** Extracts a {@link ClassHeader} from the given class-file content. */
+  /**
+   * Extracts a {@link ClassHeader} from the given class-file content.
+   *
+   * @param bytecode the class-file content to parse
+   * @return class header containing class-name, super-name, interfaces
+   */
   public static ClassHeader header(byte[] bytecode) {
     return parse(bytecode, true);
   }
 
-  /** Extracts a {@link ClassOutline} from the given class-file content. */
+  /**
+   * Extracts a {@link ClassOutline} from the given class-file content.
+   *
+   * @param bytecode the class-file content to parse
+   * @return class outline containing header, fields, methods, annotations
+   */
   public static ClassOutline outline(byte[] bytecode) {
     return (ClassOutline) parse(bytecode, false);
   }
@@ -52,6 +62,8 @@ public final class ClassFile {
    * Flags the given annotation as interesting; to be included in outlines.
    *
    * <p>Example: {@code ClassFile.annotationOfInterest("javax/ws/rs/Path");}
+   *
+   * @param internalName the name of the annotation type in internal form
    */
   public static synchronized void annotationOfInterest(String internalName) {
     if (annotationKeys.containsKey(internalName)) {
@@ -70,6 +82,8 @@ public final class ClassFile {
    * Flags the given annotations as interesting; to be included in outlines.
    *
    * <p>Example: {@code ClassFile.annotationsOfInterest("javax/ws/rs/Path", "jakarta/ws/rs/Path");}
+   *
+   * @param internalNames the names of the annotation types in internal form
    */
   public static synchronized void annotationsOfInterest(Collection<String> internalNames) {
     if (annotationKeys.keySet().containsAll(internalNames)) {

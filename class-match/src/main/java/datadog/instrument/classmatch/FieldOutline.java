@@ -9,8 +9,13 @@ package datadog.instrument.classmatch;
 /** Outlines a field; access flags, field name, descriptor. */
 public final class FieldOutline {
 
+  /** Access modifiers for this field. */
   public final int access;
+
+  /** Name of this field. */
   public final String fieldName;
+
+  /** Descriptor containing the raw field type. */
   public final String descriptor;
 
   FieldOutline(int access, String fieldName, String descriptor) {
