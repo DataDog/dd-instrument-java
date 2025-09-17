@@ -24,31 +24,48 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
 /**
- * Supports injection of auxiliary classes, even in the bootstrap class-loader.
+ * Supports injection of auxiliary classes, even on the bootstrap classpath.
  *
  * <p>Uses {@link Instrumentation} to access {@code ClassLoader.defineClass} without reflection.
  *
  * <ul>
  *   <li>To use this feature, first call {@link #enableClassInjection}
- *   <li>To inject a class call {@link #injectClasses} with the target class-loader
- *   <li>Use {@link #injectBootClasses} to inject classes into the bootstrap class-loader
+ *   <li>To inject classes call {@link #injectClasses} with the target class-loader
+ *   <li>Use {@link #injectBootClasses} to inject classes on the bootstrap classpath
  *   <li>The API also supports injecting classes using a custom {@link ProtectionDomain}
  * </ul>
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public final class ClassInjector {
 
-  /** Injects classes in the bootstrap class-loader. */
+  /**
+   * Injects classes on the bootstrap classpath.
+   *
+   * @param bytecode the named bytecode to inject
+   * @return list of injected classes
+   */
   public static List<Class<?>> injectBootClasses(Map<String, byte[]> bytecode) {
     return (List<Class<?>>) classDefiner().apply(bytecode, null);
   }
 
-  /** Injects classes in the specified class-loader. */
+  /**
+   * Injects classes using the specified class-loader.
+   *
+   * @param bytecode the named bytecode to inject
+   * @param cl the class-loader to use
+   * @return list of injected classes
+   */
   public static List<Class<?>> injectClasses(Map<String, byte[]> bytecode, ClassLoader cl) {
     return (List<Class<?>>) classDefiner().apply(bytecode, cl);
   }
 
-  /** Injects classes using the given protection domain. */
+  /**
+   * Injects classes using the given protection domain.
+   *
+   * @param bytecode the named bytecode to inject
+   * @param pd the protection domain to use
+   * @return list of injected classes
+   */
   public static List<Class<?>> injectClasses(Map<String, byte[]> bytecode, ProtectionDomain pd) {
     return (List<Class<?>>) classDefiner().apply(bytecode, pd);
   }
@@ -64,6 +81,11 @@ public final class ClassInjector {
 
   private static volatile BiFunction classDefiner;
 
+  /**
+   * Enables class injection via {@link Instrumentation}.
+   *
+   * @param inst the instrumentation instance
+   */
   public static void enableClassInjection(Instrumentation inst) {
     if (classDefiner != null) {
       return;

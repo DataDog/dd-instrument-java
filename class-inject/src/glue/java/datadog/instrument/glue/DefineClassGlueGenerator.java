@@ -329,9 +329,12 @@ final class DefineClassGlueGenerator {
     String name = file.getName();
     List<String> lines = new ArrayList<>();
     classHeader(lines, name.substring(0, name.length() - 5));
+    lines.add("  /** Glue Id */");
     lines.add("  String ID = \"" + DEFINECLASS_GLUE_CLASS.replace('/', '.') + "\";");
+    lines.add("  /** Packed Java 8 bytecode */");
     lines.add("  String V8 =");
     packBytecode(lines, generateBytecode("sun/misc"));
+    lines.add("  /** Packed Java 9+ bytecode */");
     lines.add("  String V9 =");
     packBytecode(lines, generateBytecode("jdk/internal/misc"));
     lines.add("}");
