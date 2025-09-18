@@ -56,6 +56,7 @@ public final class StandardMatchers {
   /**
    * Syntactic sugar around {@link Predicate#negate()}.
    *
+   * @param <T> the predicate's target type
    * @param predicate the predicate to negate
    * @return negated predicate
    */
