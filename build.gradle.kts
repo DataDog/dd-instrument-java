@@ -23,6 +23,9 @@ dependencies {
   embed(project(":utils"))
   embed(project(":class-inject"))
   embed(project(":class-match"))
+
+  compileOnly(libs.asm)
+  compileOnly(libs.spotbugs.annotations)
 }
 
 // collect all subproject output into a single jar
@@ -33,7 +36,6 @@ tasks.jar {
 tasks.javadoc {
   dependsOn(embed)
   setSource(subprojects.map { it.sourceSets.main.get().allSource })
-  classpath = files(subprojects.flatMap { it.sourceSets.main.get().compileClasspath })
   if (JavaVersion.current().isJava9Compatible) {
     (options as StandardJavadocDocletOptions).addBooleanOption("html5", true)
   }
