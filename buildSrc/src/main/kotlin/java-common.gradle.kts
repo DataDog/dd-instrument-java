@@ -61,6 +61,7 @@ for (javaVersion in additionalJavaVersions) {
 tasks.jacocoTestReport {
   executionData.setFrom(fileTree(layout.buildDirectory).include("/jacoco/*.exec"))
   reports {
+    csv.required = true
     xml.required = true
   }
 }
