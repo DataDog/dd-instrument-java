@@ -27,6 +27,11 @@ public final class ClassNameFilter {
   private final long[] members;
   private final int slotMask;
 
+  /**
+   * Creates a new class-name filter with the given capacity.
+   *
+   * @param capacity the filter capacity
+   */
   public ClassNameFilter(int capacity) {
     if (capacity < MIN_CAPACITY) {
       capacity = MIN_CAPACITY;
@@ -38,7 +43,12 @@ public final class ClassNameFilter {
     members = new long[slotMask + 1];
   }
 
-  /** Tests whether the given class-name is a member of the filter. */
+  /**
+   * Tests whether the given class-name is a member of the filter.
+   *
+   * @param className the class-name to test
+   * @return {@code true} if the class-name is in the filter; otherwise {@code false}
+   */
   public boolean contains(String className) {
     final int hash = className.hashCode();
     final long[] members = this.members;
@@ -59,7 +69,11 @@ public final class ClassNameFilter {
     }
   }
 
-  /** Records the given class-name as a member of the filter. */
+  /**
+   * Records the given class-name as a member of the filter.
+   *
+   * @param className the class-name to add
+   */
   public void add(String className) {
     final int hash = className.hashCode();
     final long[] members = this.members;
