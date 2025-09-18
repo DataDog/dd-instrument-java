@@ -18,6 +18,15 @@ build:
   before_script:
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
+  cache:
+    key:
+      files:
+        - gradle/wrapper/gradle-wrapper.properties
+    paths:
+      - .gradle/wrapper/
+      - .gradle/notifications/
+      - .gradle/caches/
+      - .gradle/configuration-cache/
   script:
     - export JAVA_HOME=$JAVA_17_HOME
     - ./gradlew build
@@ -26,7 +35,7 @@ build:
   artifacts:
     name: "dd-instrument-java-$CI_COMMIT_SHORT_SHA"
     paths:
-      - ./build/libs/dd-instrument-java*
+      - build/libs/dd-instrument-java*
       - ./*/build/test-results/*/TEST-*.xml
       - ./*/build/reports/*
     when: always
