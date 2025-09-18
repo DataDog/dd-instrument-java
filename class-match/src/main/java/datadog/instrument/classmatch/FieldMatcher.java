@@ -57,6 +57,17 @@ public interface FieldMatcher extends Predicate<FieldOutline> {
   }
 
   /**
+   * Matches fields of the given type.
+   *
+   * @param type the type name
+   * @return matcher of fields of the same type
+   */
+  default FieldMatcher ofType(Class<?> type) {
+    String descriptor = descriptor(type);
+    return and(f -> descriptor.equals(f.descriptor));
+  }
+
+  /**
    * Conjunction of this matcher AND another.
    *
    * @param other the other matcher

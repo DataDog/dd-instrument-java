@@ -21,19 +21,19 @@ final class InternalMatchers {
 
   /** Matches when at least one annotation has the given name. */
   static Predicate<String[]> declaresAnnotation(String name) {
-    String annotationName = internalName(name);
-    ClassFile.annotationOfInterest(annotationName);
+    String internalName = internalName(name);
+    ClassFile.annotationOfInterest(internalName);
     // performance tip: capture this method-ref outside the lambda
-    Predicate<String> annotationNamed = annotationName::equals;
+    Predicate<String> annotationNamed = internalName::equals;
     return annotations -> anyMatch(annotations, annotationNamed);
   }
 
   /** Matches when at least one annotation has one of the given names. */
   static Predicate<String[]> declaresAnnotationOneOf(Collection<String> names) {
-    Set<String> annotationNames = internalNames(names);
-    ClassFile.annotationsOfInterest(annotationNames);
+    Set<String> internalNames = internalNames(names);
+    ClassFile.annotationsOfInterest(internalNames);
     // performance tip: capture this method-ref outside the lambda
-    Predicate<String> annotationNamedOneOf = annotationNames::contains;
+    Predicate<String> annotationNamedOneOf = internalNames::contains;
     return annotations -> anyMatch(annotations, annotationNamedOneOf);
   }
 
