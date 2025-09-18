@@ -119,18 +119,48 @@ public final class ClassNameTrie {
   /** Long jump offsets. */
   private final int[] longJumps;
 
+  /**
+   * Returns the number in the trie the given class-name maps to.
+   *
+   * @param key the class-name key
+   * @return the number the class-name maps to; {@code -1} if not mapped
+   */
   public int apply(String key) {
     return apply(trieData, longJumps, key);
   }
 
+  /**
+   * Returns the number in the trie the partial class-name maps to.
+   *
+   * @param key the class-name key
+   * @param fromIndex the index in the class-name to start matching from
+   * @return the number the class-name maps to; {@code -1} if not mapped
+   */
   public int apply(String key, int fromIndex) {
     return apply(trieData, longJumps, key, fromIndex);
   }
 
+  /**
+   * Returns the number in the given trie the class-name maps to.
+   *
+   * @param data the encoded trie data
+   * @param longJumps the long-jumps table
+   * @param key the class-name key
+   * @return the number the class-name maps to; {@code -1} if not mapped
+   */
   public static int apply(char[] data, int[] longJumps, String key) {
     return apply(data, longJumps, key, 0);
   }
 
+  /**
+   * Returns the number in the given trie the class-name maps to.
+   *
+   * @param data the encoded trie data
+   * @param longJumps the long-jumps table
+   * @param key the class-name key
+   * @param fromIndex the index in the class-name to start matching from
+   * @return the number the class-name maps to; {@code -1} if not mapped
+   */
   public static int apply(char[] data, int[] longJumps, String key, int fromIndex) {
     int keyLength = key.length();
     int keyIndex = fromIndex;
@@ -205,7 +235,13 @@ public final class ClassNameTrie {
     return result; // no more characters left to match in the key
   }
 
-  /** Reads trie content from an external resource. */
+  /**
+   * Reads trie content from an external resource.
+   *
+   * @param in the serialized trie content
+   * @return deserialized class-name trie
+   * @throws IOException if the content cannot be read
+   */
   public static ClassNameTrie readFrom(DataInput in) throws IOException {
     int magic = in.readInt();
     if (magic != FILE_MAGIC) {
@@ -248,6 +284,8 @@ public final class ClassNameTrie {
 
   /** Builds an in-memory trie that represents a mapping of {class-name} to {number}. */
   public static class Builder {
+
+    /** Constant representing an empty class-name trie. */
     public static final ClassNameTrie EMPTY_TRIE = new ClassNameTrie(new char[] {0x0000}, null);
 
     private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*(?:([0-9]+)\\s+)?([^\\s#]+)");
@@ -257,8 +295,14 @@ public final class ClassNameTrie {
     private int[] longJumps;
     private int longJumpCount;
 
+    /** Empty {@link ClassNameTrie} builder. */
     public Builder() {}
 
+    /**
+     * {@link ClassNameTrie} builder populated with content from an existing trie.
+     *
+     * @param trie existing trie
+     */
     public Builder(ClassNameTrie trie) {
       trieData = trie.trieData;
       trieLength = trieData.length;
@@ -266,15 +310,26 @@ public final class ClassNameTrie {
       longJumpCount = null != longJumps ? longJumps.length : 0;
     }
 
+    /**
+     * @return {@code true} if the trie is empty; otherwise {@code false}
+     */
     public boolean isEmpty() {
       return trieLength == 0;
     }
 
-    /** Allow querying while the class-name trie is being built. */
+    /**
+     * Allow querying while the class-name trie is being built.
+     *
+     * @param key class-name key
+     * @return the number the class-name maps to; {@code -1} if not mapped
+     */
     public int apply(String key) {
       return trieLength > 0 ? ClassNameTrie.apply(trieData, longJumps, key) : -1;
     }
 
+    /**
+     * @return trie built from the registered mappings
+     */
     public ClassNameTrie buildTrie() {
       if (trieLength == 0) {
         return EMPTY_TRIE;
@@ -289,7 +344,12 @@ public final class ClassNameTrie {
       return new ClassNameTrie(trieData, longJumps);
     }
 
-    /** Writes trie content to an external resource. */
+    /**
+     * Writes trie content to an external resource.
+     *
+     * @param out where to write the serialized trie
+     * @throws IOException if the content cannot be written
+     */
     public void writeTo(DataOutput out) throws IOException {
       out.writeInt(FILE_MAGIC);
       out.writeInt(trieLength);
@@ -315,7 +375,12 @@ public final class ClassNameTrie {
       }
     }
 
-    /** Reads a class-name mapping file into the current builder */
+    /**
+     * Reads a class-name mapping file into the current builder.
+     *
+     * @param triePath path to the class-name mapping file
+     * @throws IOException if the mapping cannot be read
+     */
     public void readClassNameMapping(Path triePath) throws IOException {
       for (String l : Files.readAllLines(triePath, StandardCharsets.UTF_8)) {
         Matcher m = MAPPING_LINE.matcher(l);
@@ -325,7 +390,12 @@ public final class ClassNameTrie {
       }
     }
 
-    /** Merges a new class-name mapping into the current builder */
+    /**
+     * Merges a new class-name mapping into the current builder.
+     *
+     * @param className the class-name key
+     * @param number the number to map to
+     */
     public void put(String className, int number) {
       if (null == className || className.isEmpty()) {
         throw new IllegalArgumentException("Null or empty class name");
@@ -791,6 +861,13 @@ public final class ClassNameTrie {
 
   /** Generates Java source for a trie described as a series of "{number} {class-name}" lines. */
   public static class JavaGenerator {
+
+    /**
+     * Process the command line arguments: trie-dir java-dir [file.trie ...]
+     *
+     * @param args the command-line arguments
+     * @throws IOException if the file cannot be written
+     */
     public static void main(String[] args) throws IOException {
       if (args.length < 2) {
         throw new IllegalArgumentException("Expected: trie-dir java-dir [file.trie ...]");
@@ -871,7 +948,14 @@ public final class ClassNameTrie {
       Files.write(javaPath, lines, StandardCharsets.UTF_8);
     }
 
-    /** Writes the Java form of the trie as a series of lines. */
+    /**
+     * Writes the Java form of the trie as a series of Java constants.
+     *
+     * @param lines the list collecting the source code
+     * @param prefix the prefix to add to the Java constants
+     * @param trie the trie to encode as Java constants
+     * @return {@code true} if the trie has a long jump table
+     */
     public static boolean generateJavaTrie(
         List<String> lines, String prefix, ClassNameTrie.Builder trie) {
       boolean hasLongJumps = trie.longJumpCount > 0;
