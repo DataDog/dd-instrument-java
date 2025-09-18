@@ -60,6 +60,9 @@ for (javaVersion in additionalJavaVersions) {
 
 tasks.jacocoTestReport {
   executionData.setFrom(fileTree(layout.buildDirectory).include("/jacoco/*.exec"))
+  reports {
+    xml.required = true
+  }
 }
 tasks.check { finalizedBy(tasks.jacocoTestReport) }
 
