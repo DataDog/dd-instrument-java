@@ -35,6 +35,11 @@ public final class ClassInfoCache<T> {
   private final SharedInfo[] shared;
   private final int slotMask;
 
+  /**
+   * Creates a new class-info cache with the given capacity.
+   *
+   * @param capacity the cache capacity
+   */
   public ClassInfoCache(int capacity) {
     if (capacity < MIN_CAPACITY) {
       capacity = MIN_CAPACITY;
@@ -46,22 +51,44 @@ public final class ClassInfoCache<T> {
     this.shared = new SharedInfo[slotMask + 1];
   }
 
-  /** Finds information for the given class-name, across all class-loaders. */
+  /**
+   * Finds information for the given class-name, across all class-loaders.
+   *
+   * @param className the class-name
+   * @return information shared under the class-name
+   */
   public T find(String className) {
     return find(className, ALL_CLASS_LOADERS);
   }
 
-  /** Shares information for the given class-name, across all class-loaders. */
+  /**
+   * Shares information for the given class-name, across all class-loaders.
+   *
+   * @param className the class-name
+   * @param info the information to share under the class-name
+   */
   public void share(String className, T info) {
     share(className, info, ALL_CLASS_LOADERS);
   }
 
-  /** Finds information for the given class-name, under the given class-loader. */
+  /**
+   * Finds information for the given class-name, under the given class-loader.
+   *
+   * @param className the class-name
+   * @param cl the class-loader
+   * @return information shared under the class-name and class-loader
+   */
   public T find(String className, ClassLoader cl) {
     return find(className, ClassLoaderIndex.getClassLoaderKeyId(cl));
   }
 
-  /** Shares information for the given class-name, under the given class-loader. */
+  /**
+   * Shares information for the given class-name, under the given class-loader.
+   *
+   * @param className the class-name
+   * @param info the information to share under the class-name and class-loader
+   * @param cl limit the information to this class-loader
+   */
   public void share(String className, T info, ClassLoader cl) {
     share(className, info, ClassLoaderIndex.getClassLoaderKeyId(cl));
   }
@@ -69,6 +96,9 @@ public final class ClassInfoCache<T> {
   /**
    * Finds information for the given class-name, under the given class-loader key.
    *
+   * @param className the class-name
+   * @param classLoaderKeyId the class-loader's key-id
+   * @return information shared under the class-name and class-loader
    * @see ClassLoaderIndex#getClassLoaderKeyId(ClassLoader)
    */
   @SuppressWarnings("unchecked")
@@ -106,6 +136,9 @@ public final class ClassInfoCache<T> {
   /**
    * Shares information for the given class-name, under the given class-loader key.
    *
+   * @param className the class-name
+   * @param info the information to share under the class-name and class-loader
+   * @param classLoaderKeyId limit the information to this class-loader key-id
    * @see ClassLoaderIndex#getClassLoaderKeyId(ClassLoader)
    */
   @SuppressWarnings("StatementWithEmptyBody")
