@@ -15,16 +15,22 @@ workflow:
 build:
   stage: build
   image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}base
+  before_script:
+    - mkdir -p .gradle
+    - export GRADLE_USER_HOME=$(pwd)/.gradle
   script:
     - export JAVA_HOME=$JAVA_17_HOME
     - ./gradlew build
   artifacts:
+    name: "dd-instrument-java-$CI_COMMIT_SHORT_SHA"
     paths:
-      - build/libs/*.jar
-      - ./**/build/test-results/**/**/TEST-*.xml
-      - ./**/build/reports/*
+      - ./build/libs/dd-instrument-java*
+      - ./*/build/test-results/*/TEST-*.xml
+      - ./*/build/reports/*
     when: always
     reports:
-      junit:
-        - ./**/build/test-results/**/**/TEST-*.xml
+      junit: ./*/build/test-results/*/TEST-*.xml
+      coverage_report:
+        coverage_format: jacoco
+        path: ./*/build/reports/jacoco/*/jacocoTestReport.xml
 
