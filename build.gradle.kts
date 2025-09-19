@@ -31,7 +31,8 @@ dependencies {
   embed(project(":class-inject"))
   embed(project(":class-match"))
 
-  compileOnly(libs.asm)
+  implementation(libs.asm)
+
   compileOnly(libs.spotbugs.annotations)
 }
 
