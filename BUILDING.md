@@ -225,11 +225,16 @@ After everything is properly set up, you can move on to the next section to star
 
 To build the project without running tests, run:
 ```shell
-./gradlew clean assemble
+./gradlew assemble
 ```
 
 To build the entire project with tests, run:
 ```shell
-./gradlew clean build
+./gradlew build
+```
+
+To install the project into your local Maven repository, run:
+```shell
+./gradlew publishToMavenLocal
 ```
 
