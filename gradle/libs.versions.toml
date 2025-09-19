@@ -1,12 +1,12 @@
 [versions]
 asm = "9.8"
-junit-jupiter = "5.12.2"
-junit-platform = "1.12.2"
-assertj = "3.27.3"
+junit-jupiter = "5.13.4"
+junit-platform = "1.13.4"
+assertj = "3.27.5"
 spotless = "7.2.1"
-spotbugs = "6.2.4"
-spotbugs-annotations = "4.8.6"
-axion-release = "1.19.1"
+spotbugs = "6.4.2"
+spotbugs-annotations = "4.9.6"
+axion-release = "1.20.1"
 nexus-publish = "2.0.0"
 jmh-plugin = "0.7.3"
 
