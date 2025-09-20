@@ -15,7 +15,7 @@ import java.util.Collection;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 
-/** Standard matchers, part of the class-match API. */
+/** Standard matchers, part of the public API. */
 public final class StandardMatchers {
 
   /** Matches public access. */

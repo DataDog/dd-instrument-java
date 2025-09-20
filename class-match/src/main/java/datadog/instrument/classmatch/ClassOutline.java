@@ -10,7 +10,7 @@ import static java.util.Arrays.asList;
 
 import java.util.List;
 
-/** Outlines a class; access flags, immediate class hierarchy, field, methods, annotations. */
+/** Outlines a class; access modifiers, immediate class hierarchy, field, methods, annotations. */
 public final class ClassOutline extends ClassHeader {
 
   /** Outlines of fields declared by this class. */

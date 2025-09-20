@@ -11,7 +11,7 @@ import static java.util.Arrays.asList;
 import java.util.BitSet;
 import java.util.List;
 
-/** Outlines a method; access flags, method name, descriptor, annotations. */
+/** Outlines a method; access modifiers, method name, descriptor, annotations. */
 public final class MethodOutline {
 
   /** Access modifiers for this method. */
@@ -26,6 +26,7 @@ public final class MethodOutline {
   /** Internal names of annotations declared on this method. */
   final String[] annotations;
 
+  /** Lazy cache of boundaries between each parameter/return descriptor. */
   private int[] descriptorBoundaries;
 
   /**
@@ -49,6 +50,8 @@ public final class MethodOutline {
    *
    * <p>The number of boundaries is the same as the number of parameters: there is no boundary
    * before the first parameter, and the return boundary is omitted if there are no parameters.
+   * (This is to save space - the first parameter always starts at index 1; and if there are no
+   * parameters then the return descriptor always starts at index 2.)
    */
   int[] descriptorBoundaries() {
     if (descriptorBoundaries == null) {

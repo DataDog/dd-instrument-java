@@ -10,7 +10,7 @@ import static java.util.Arrays.asList;
 
 import java.util.List;
 
-/** Minimal class header that describes its access flags and immediate class hierarchy. */
+/** Minimal class header that describes its access modifiers and immediate class hierarchy. */
 public class ClassHeader {
 
   /** Access modifiers for this class. */

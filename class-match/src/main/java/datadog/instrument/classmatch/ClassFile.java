@@ -301,6 +301,7 @@ public final class ClassFile {
     // most class-names will be ASCII, confirm with a quick scan
     for (int u = utfStart; u < utfEnd; u++) {
       if ((bytecode[u] & 0x80) != 0) {
+        // found non-ASCII byte, prepare char array for decoding
         chars = new char[utfLen];
         break;
       }

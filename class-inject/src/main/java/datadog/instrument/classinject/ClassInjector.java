@@ -49,7 +49,7 @@ public final class ClassInjector {
   }
 
   /**
-   * Injects classes using the specified class-loader.
+   * Injects classes using the given class-loader.
    *
    * @param bytecode the named bytecode to inject
    * @param cl the class-loader to use

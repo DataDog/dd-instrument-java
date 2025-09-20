@@ -33,8 +33,8 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
   /**
    * Matches methods with the given name.
    *
-   * @param name the expected name
-   * @return matcher of methods that have the same name
+   * @param name the method name
+   * @return matcher of methods with the same name
    */
   static MethodMatcher method(String name) {
     return m -> name.equals(m.methodName);
@@ -43,8 +43,8 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
   /**
    * Matches methods with names matching the given criteria.
    *
-   * @param nameMatcher the name matcher
-   * @return matcher of methods whose name matches tbe criteria
+   * @param nameMatcher the method name matcher
+   * @return matcher of methods with a matching name
    */
   static MethodMatcher method(Predicate<String> nameMatcher) {
     return m -> nameMatcher.test(m.methodName);
@@ -69,10 +69,10 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
   }
 
   /**
-   * Matches methods with access flags matching the given criteria.
+   * Matches methods with access modifiers matching the given criteria.
    *
-   * @param accessMatcher the access flag matcher
-   * @return matcher of methods whose access flags match tbe criteria
+   * @param accessMatcher the access matcher
+   * @return matcher of methods with matching access
    */
   default MethodMatcher withAccess(IntPredicate accessMatcher) {
     return and(m -> accessMatcher.test(m.access));
@@ -81,7 +81,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
   /**
    * Matches methods with the given parameter count.
    *
-   * @param paramCount the expected parameter count
+   * @param paramCount the parameter count
    * @return matcher of methods with the same parameter count
    */
   default MethodMatcher withParameters(int paramCount) {
@@ -91,7 +91,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
   /**
    * Matches methods with the given parameter types.
    *
-   * @param paramTypes the expected parameter types
+   * @param paramTypes the parameter types
    * @return matcher of methods with the same parameter types
    */
   default MethodMatcher withParameters(String... paramTypes) {
@@ -106,7 +106,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
   /**
    * Matches methods with the given parameter types.
    *
-   * @param paramTypes the expected parameter types
+   * @param paramTypes the parameter types
    * @return matcher of methods with the same parameter types
    */
   default MethodMatcher withParameters(Class<?>... paramTypes) {
@@ -121,8 +121,8 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
   /**
    * Matches methods with the given parameter type at the given position.
    *
-   * @param paramIndex the expected parameter index
-   * @param paramType the expected parameter type
+   * @param paramIndex the parameter index
+   * @param paramType the parameter type
    * @return matcher of methods with the same parameter type at the same position
    */
   default MethodMatcher withParameter(int paramIndex, String paramType) {
@@ -133,8 +133,8 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
   /**
    * Matches methods with the given parameter type at the given position.
    *
-   * @param paramIndex the expected parameter index
-   * @param paramType the expected parameter type
+   * @param paramIndex the parameter index
+   * @param paramType the parameter type
    * @return matcher of methods with the same parameter type at the same position
    */
   default MethodMatcher withParameter(int paramIndex, Class<?> paramType) {
@@ -145,7 +145,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
   /**
    * Matches methods returning the given type.
    *
-   * @param returnType the expected return type
+   * @param returnType the return type
    * @return matcher of methods returning the same type
    */
   default MethodMatcher returning(String returnType) {
@@ -156,7 +156,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
   /**
    * Matches methods returning the given type.
    *
-   * @param returnType the expected return type
+   * @param returnType the return type
    * @return matcher of methods returning the same type
    */
   default MethodMatcher returning(Class<?> returnType) {
@@ -167,32 +167,32 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
   /**
    * Matches methods annotated with the given type.
    *
-   * @param annotation the expected annotation type
+   * @param annotationType the annotation type
    * @return matcher of methods annotated with the same type
    */
-  default MethodMatcher annotatedWith(String annotation) {
-    Predicate<String[]> annotationMatcher = declaresAnnotation(annotation);
+  default MethodMatcher annotatedWith(String annotationType) {
+    Predicate<String[]> annotationMatcher = declaresAnnotation(annotationType);
     return and(m -> annotationMatcher.test(m.annotations));
   }
 
   /**
    * Matches methods annotated with one of the given types.
    *
-   * @param annotations the expected annotation types
+   * @param annotationTypes the annotation types
    * @return matcher of methods annotated with one of the types
    */
-  default MethodMatcher annotatedWith(String... annotations) {
-    return annotatedWith(asList(annotations));
+  default MethodMatcher annotatedWith(String... annotationTypes) {
+    return annotatedWith(asList(annotationTypes));
   }
 
   /**
    * Matches methods annotated with one of the given types.
    *
-   * @param annotations the expected annotation types
+   * @param annotationTypes the annotation types
    * @return matcher of methods annotated with one of the types
    */
-  default MethodMatcher annotatedWith(Collection<String> annotations) {
-    Predicate<String[]> annotationMatcher = declaresAnnotationOneOf(annotations);
+  default MethodMatcher annotatedWith(Collection<String> annotationTypes) {
+    Predicate<String[]> annotationMatcher = declaresAnnotationOneOf(annotationTypes);
     return and(m -> annotationMatcher.test(m.annotations));
   }
 

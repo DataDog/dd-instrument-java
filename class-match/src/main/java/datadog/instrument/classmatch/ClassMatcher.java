@@ -23,7 +23,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * Matches classes that declare a field matching the given criteria.
    *
    * @param fieldMatcher the field matcher
-   * @return matcher of classes with a field matching tbe criteria
+   * @return matcher of classes with a matching field
    */
   static ClassMatcher declares(FieldMatcher fieldMatcher) {
     return c -> anyMatch(c.fields, fieldMatcher);
@@ -32,12 +32,12 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
   /**
    * Matches classes that declare a field matching the given criteria.
    *
-   * @param accessMatcher the access flags matcher
+   * @param accessMatcher the access matcher
    * @param fieldMatcher the field matcher
-   * @return matcher of classes with a field matching tbe criteria
+   * @return matcher of classes with a matching field
    */
   static ClassMatcher declares(IntPredicate accessMatcher, FieldMatcher fieldMatcher) {
-    FieldMatcher combinedMatcher = fieldMatcher.withAccess(accessMatcher);
+    FieldMatcher combinedMatcher = fieldMatcher.access(accessMatcher);
     return c -> anyMatch(c.fields, combinedMatcher);
   }
 
@@ -45,7 +45,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * Matches classes that declare a method matching the given criteria.
    *
    * @param methodMatcher the method matcher
-   * @return matcher of classes with a method matching tbe criteria
+   * @return matcher of classes with a matching method
    */
   static ClassMatcher declares(MethodMatcher methodMatcher) {
     return c -> anyMatch(c.methods, methodMatcher);
@@ -54,44 +54,44 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
   /**
    * Matches classes that declare a method matching the given criteria.
    *
-   * @param accessMatcher the access flags matcher
+   * @param accessMatcher the access matcher
    * @param methodMatcher the method matcher
-   * @return matcher of classes with a method matching tbe criteria
+   * @return matcher of classes with a matching method
    */
   static ClassMatcher declares(IntPredicate accessMatcher, MethodMatcher methodMatcher) {
-    MethodMatcher combinedMatcher = methodMatcher.withAccess(accessMatcher);
+    MethodMatcher combinedMatcher = methodMatcher.access(accessMatcher);
     return c -> anyMatch(c.methods, combinedMatcher);
   }
 
   /**
-   * Matches methods annotated with the given type.
+   * Matches classes annotated with the given type.
    *
-   * @param annotation the expected annotation type
-   * @return matcher of methods annotated with the same type
+   * @param annotationType the annotation type
+   * @return matcher of classes annotated with the type
    */
-  static ClassMatcher annotatedWith(String annotation) {
-    Predicate<String[]> annotationMatcher = declaresAnnotation(annotation);
+  static ClassMatcher annotatedWith(String annotationType) {
+    Predicate<String[]> annotationMatcher = declaresAnnotation(annotationType);
     return c -> annotationMatcher.test(c.annotations);
   }
 
   /**
    * Matches classes annotated with one of the given types.
    *
-   * @param annotations the expected annotation types
-   * @return matcher of methods annotated with one of the types
+   * @param annotationTypes the annotation types
+   * @return matcher of classes annotated with one of the types
    */
-  static ClassMatcher annotatedWith(String... annotations) {
-    return annotatedWith(asList(annotations));
+  static ClassMatcher annotatedWith(String... annotationTypes) {
+    return annotatedWith(asList(annotationTypes));
   }
 
   /**
    * Matches classes annotated with one of the given types.
    *
-   * @param annotations the expected annotation types
-   * @return matcher of methods annotated with one of the types
+   * @param annotationTypes the annotation types
+   * @return matcher of classes annotated with one of the types
    */
-  static ClassMatcher annotatedWith(Collection<String> annotations) {
-    Predicate<String[]> annotationMatcher = declaresAnnotationOneOf(annotations);
+  static ClassMatcher annotatedWith(Collection<String> annotationTypes) {
+    Predicate<String[]> annotationMatcher = declaresAnnotationOneOf(annotationTypes);
     return c -> annotationMatcher.test(c.annotations);
   }
 
