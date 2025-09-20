@@ -122,87 +122,110 @@ final class DefineClassGlueGenerator {
     mv.visitMaxs(1, 1);
     mv.visitEnd();
 
-    // main function which accepts a map of class-names to bytecode and returns the defined classes
+    // main function that accepts a map of class-names to bytecode as well as
+    // a class-loader or protection-domain, and returns the defined classes
     mv = cw.visitMethod(ACC_PUBLIC, "apply", BIFUNCTION_APPLY_DESCRIPTOR, null, null);
 
-    Label skipProtectionDomain = new Label();
-    Label checkBootClassLoader = new Label();
-    Label hasNextNonBootClass = new Label();
-    Label classLoaderLocked = new Label();
-    Label storeNonBootClass = new Label();
-    Label classLoaderUnlocked = new Label();
-    Label unlockClassLoaderAndThrow = new Label();
-    Label setupUnsafeDefiner = new Label();
-    Label hasNextBootClass = new Label();
-    Label returnDefinedClasses = new Label();
+    // bytecode positions
+    final Label skipProtectionDomain = new Label();
+    final Label checkBootClassLoader = new Label();
+    final Label hasNextNonBootClass = new Label();
+    final Label classLoaderLocked = new Label();
+    final Label storeNonBootClass = new Label();
+    final Label classLoaderUnlocked = new Label();
+    final Label unlockClassLoaderAndThrow = new Label();
+    final Label setupUnsafeDefiner = new Label();
+    final Label hasNextBootClass = new Label();
+    final Label returnDefinedClasses = new Label();
+
+    // common bytecode variables
+    final int bytecodeMap = 1;
+    final int protectionDomainOrClassLoader = 2;
+    final int definedClasses = 3;
+    final int mapEntrySetIterator = 4;
+    final int protectionDomain = 5;
+    final int classLoader = 6;
+
+    // bytecode variables for non-boot classes
+    final int classLoadingLock = 7;
+    final int bytecodeMapEntry = 8;
+    final int className = 9;
+
+    // bytecode variables for boot classes
+    final int unsafeInstance = 7;
 
     mv.visitCode();
 
     // make sure we unlock the class-loader if an exception occurs while defining a class
     mv.visitTryCatchBlock(classLoaderLocked, classLoaderUnlocked, unlockClassLoaderAndThrow, null);
 
+    // -------- SHARED SETUP CODE  --------
+
     // store the defined classes in a list
     mv.visitTypeInsn(NEW, "java/util/ArrayList");
     mv.visitInsn(DUP);
     mv.visitMethodInsn(INVOKESPECIAL, "java/util/ArrayList", "<init>", "()V", false);
-    mv.visitVarInsn(ASTORE, 3);
+    mv.visitVarInsn(ASTORE, definedClasses);
 
-    // iterate over the map entries
-    mv.visitVarInsn(ALOAD, 1);
+    // get entry set iterator from the bytecode map
+    mv.visitVarInsn(ALOAD, bytecodeMap);
     mv.visitMethodInsn(INVOKEINTERFACE, MAP_CLASS, "entrySet", "()L" + SET_CLASS + ";", true);
     mv.visitMethodInsn(INVOKEINTERFACE, SET_CLASS, "iterator", "()L" + ITERATOR_CLASS + ";", true);
-    mv.visitVarInsn(ASTORE, 4);
+    mv.visitVarInsn(ASTORE, mapEntrySetIterator);
 
-    mv.visitVarInsn(ALOAD, 2);
+    // check if second argument is a protection domain or class-loader
+    mv.visitVarInsn(ALOAD, protectionDomainOrClassLoader);
     mv.visitTypeInsn(INSTANCEOF, PROTECTIONDOMAIN_CLASS);
     mv.visitJumpInsn(IFEQ, skipProtectionDomain);
 
     // extract class-loader from protection domain
-    mv.visitVarInsn(ALOAD, 2);
+    mv.visitVarInsn(ALOAD, protectionDomainOrClassLoader);
     mv.visitTypeInsn(CHECKCAST, PROTECTIONDOMAIN_CLASS);
     mv.visitInsn(DUP);
-    mv.visitVarInsn(ASTORE, 5);
+    mv.visitVarInsn(ASTORE, protectionDomain);
     mv.visitMethodInsn(
         INVOKEVIRTUAL,
         PROTECTIONDOMAIN_CLASS,
         "getClassLoader",
         "()L" + CLASSLOADER_CLASS + ";",
         false);
-    mv.visitVarInsn(ASTORE, 6);
+    mv.visitVarInsn(ASTORE, classLoader);
     mv.visitJumpInsn(GOTO, checkBootClassLoader);
 
     // only have class-loader, no protection domain
     mv.visitLabel(skipProtectionDomain);
     mv.visitInsn(ACONST_NULL);
-    mv.visitVarInsn(ASTORE, 5);
-    mv.visitVarInsn(ALOAD, 2);
+    mv.visitVarInsn(ASTORE, protectionDomain);
+    mv.visitVarInsn(ALOAD, protectionDomainOrClassLoader);
     mv.visitTypeInsn(CHECKCAST, CLASSLOADER_CLASS);
-    mv.visitVarInsn(ASTORE, 6);
+    mv.visitVarInsn(ASTORE, classLoader);
 
     // boot classes can only be defined via Unsafe
     mv.visitLabel(checkBootClassLoader);
-    mv.visitVarInsn(ALOAD, 6);
+    mv.visitVarInsn(ALOAD, classLoader);
     mv.visitJumpInsn(IFNULL, setupUnsafeDefiner);
+
+    // -------- LOOP TO DEFINE NON-BOOT CLASSES --------
 
     // check if we've defined all the given bytecode
     mv.visitLabel(hasNextNonBootClass);
-    mv.visitVarInsn(ALOAD, 4);
+    mv.visitVarInsn(ALOAD, mapEntrySetIterator);
     mv.visitMethodInsn(INVOKEINTERFACE, ITERATOR_CLASS, "hasNext", "()Z", true);
     mv.visitJumpInsn(IFEQ, returnDefinedClasses);
 
     // extract the name of the next class to define
-    mv.visitVarInsn(ALOAD, 4);
+    mv.visitVarInsn(ALOAD, mapEntrySetIterator);
     mv.visitMethodInsn(INVOKEINTERFACE, ITERATOR_CLASS, "next", "()L" + OBJECT_CLASS + ";", true);
     mv.visitInsn(DUP);
-    mv.visitVarInsn(ASTORE, 8);
+    mv.visitVarInsn(ASTORE, bytecodeMapEntry);
     mv.visitMethodInsn(
         INVOKEINTERFACE, MAP_ENTRY_CLASS, "getKey", "()L" + OBJECT_CLASS + ";", true);
     mv.visitTypeInsn(CHECKCAST, STRING_CLASS);
-    mv.visitVarInsn(ASTORE, 9);
+    mv.visitVarInsn(ASTORE, className);
 
     // lock the class-loader
-    mv.visitVarInsn(ALOAD, 6);
-    mv.visitVarInsn(ALOAD, 9);
+    mv.visitVarInsn(ALOAD, classLoader);
+    mv.visitVarInsn(ALOAD, className);
     mv.visitMethodInsn(
         INVOKEVIRTUAL,
         CLASSLOADER_CLASS,
@@ -210,13 +233,13 @@ final class DefineClassGlueGenerator {
         "(L" + STRING_CLASS + ";)L" + OBJECT_CLASS + ";",
         false);
     mv.visitInsn(DUP);
-    mv.visitVarInsn(ASTORE, 7);
+    mv.visitVarInsn(ASTORE, classLoadingLock);
     mv.visitInsn(MONITORENTER);
     mv.visitLabel(classLoaderLocked);
 
     // check in case the class has already been defined
-    mv.visitVarInsn(ALOAD, 6);
-    mv.visitVarInsn(ALOAD, 9);
+    mv.visitVarInsn(ALOAD, classLoader);
+    mv.visitVarInsn(ALOAD, className);
     mv.visitMethodInsn(
         INVOKEVIRTUAL,
         CLASSLOADER_CLASS,
@@ -228,9 +251,9 @@ final class DefineClassGlueGenerator {
 
     // define the class using the given class-name and bytecode
     mv.visitInsn(POP);
-    mv.visitVarInsn(ALOAD, 6);
-    mv.visitVarInsn(ALOAD, 9);
-    mv.visitVarInsn(ALOAD, 8);
+    mv.visitVarInsn(ALOAD, classLoader);
+    mv.visitVarInsn(ALOAD, className);
+    mv.visitVarInsn(ALOAD, bytecodeMapEntry);
     mv.visitMethodInsn(
         INVOKEINTERFACE, MAP_ENTRY_CLASS, "getValue", "()L" + OBJECT_CLASS + ";", true);
     mv.visitTypeInsn(CHECKCAST, BYTE_ARRAY);
@@ -238,45 +261,48 @@ final class DefineClassGlueGenerator {
     mv.visitInsn(ARRAYLENGTH);
     mv.visitInsn(ICONST_0);
     mv.visitInsn(SWAP);
-    mv.visitVarInsn(ALOAD, 5);
+    mv.visitVarInsn(ALOAD, protectionDomain);
     mv.visitMethodInsn(
         INVOKEVIRTUAL, CLASSLOADER_CLASS, "defineClass", CLASSLOADER_DEFINECLASS_DESCRIPTOR, false);
 
     // store the class in the list whether we defined it or it already existed
     mv.visitLabel(storeNonBootClass);
-    mv.visitVarInsn(ALOAD, 3);
+    mv.visitVarInsn(ALOAD, definedClasses);
     mv.visitInsn(SWAP);
     mv.visitMethodInsn(INVOKEVIRTUAL, ARRAYLIST_CLASS, "add", "(L" + OBJECT_CLASS + ";)Z", false);
     mv.visitInsn(POP);
 
     // unlock the class-loader
-    mv.visitVarInsn(ALOAD, 7);
+    mv.visitVarInsn(ALOAD, classLoadingLock);
     mv.visitInsn(MONITOREXIT);
     mv.visitLabel(classLoaderUnlocked);
 
+    // check again if we've defined all the given bytecode
     mv.visitJumpInsn(GOTO, hasNextNonBootClass);
 
     // unlock the class-loader if something goes wrong
     mv.visitLabel(unlockClassLoaderAndThrow);
     mv.visitInsn(DUP);
-    mv.visitVarInsn(ALOAD, 7);
+    mv.visitVarInsn(ALOAD, classLoadingLock);
     mv.visitInsn(MONITOREXIT);
     mv.visitInsn(ATHROW);
+
+    // -------- LOOP TO DEFINE BOOT CLASSES --------
 
     // load Unsafe field into local variable for performance
     mv.visitLabel(setupUnsafeDefiner);
     mv.visitFieldInsn(GETSTATIC, DEFINECLASS_GLUE_CLASS, "UNSAFE", unsafeDescriptor);
-    mv.visitVarInsn(ASTORE, 7);
+    mv.visitVarInsn(ASTORE, unsafeInstance);
 
     // check if we've defined all the given bytecode
     mv.visitLabel(hasNextBootClass);
-    mv.visitVarInsn(ALOAD, 4);
+    mv.visitVarInsn(ALOAD, mapEntrySetIterator);
     mv.visitMethodInsn(INVOKEINTERFACE, ITERATOR_CLASS, "hasNext", "()Z", true);
     mv.visitJumpInsn(IFEQ, returnDefinedClasses);
 
     // define the class using the given class-name and bytecode
-    mv.visitVarInsn(ALOAD, 7);
-    mv.visitVarInsn(ALOAD, 4);
+    mv.visitVarInsn(ALOAD, unsafeInstance);
+    mv.visitVarInsn(ALOAD, mapEntrySetIterator);
     mv.visitMethodInsn(INVOKEINTERFACE, ITERATOR_CLASS, "next", "()L" + OBJECT_CLASS + ";", true);
     mv.visitInsn(DUP);
     mv.visitMethodInsn(
@@ -291,21 +317,24 @@ final class DefineClassGlueGenerator {
     mv.visitInsn(ICONST_0);
     mv.visitInsn(SWAP);
     mv.visitInsn(ACONST_NULL);
-    mv.visitVarInsn(ALOAD, 5);
+    mv.visitVarInsn(ALOAD, protectionDomain);
     mv.visitMethodInsn(
         INVOKEVIRTUAL, unsafeClass, "defineClass", UNSAFE_DEFINECLASS_DESCRIPTOR, false);
 
     // store the class in the list
-    mv.visitVarInsn(ALOAD, 3);
+    mv.visitVarInsn(ALOAD, definedClasses);
     mv.visitInsn(SWAP);
     mv.visitMethodInsn(INVOKEVIRTUAL, ARRAYLIST_CLASS, "add", "(L" + OBJECT_CLASS + ";)Z", false);
     mv.visitInsn(POP);
 
+    // check again if we've defined all the given bytecode
     mv.visitJumpInsn(GOTO, hasNextBootClass);
+
+    // -------- SHARED RETURN CODE  --------
 
     // return the defined classes
     mv.visitLabel(returnDefinedClasses);
-    mv.visitVarInsn(ALOAD, 3);
+    mv.visitVarInsn(ALOAD, definedClasses);
     mv.visitInsn(ARETURN);
 
     mv.visitMaxs(-1, -1);
