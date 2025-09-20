@@ -7,6 +7,7 @@
 package datadog.instrument.classmatch;
 
 import static datadog.instrument.classmatch.InternalMatchers.descriptor;
+import static datadog.instrument.classmatch.InternalMatchers.hasFieldType;
 
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
@@ -41,30 +42,40 @@ public interface FieldMatcher extends Predicate<FieldOutline> {
    * @param accessMatcher the access matcher
    * @return matcher of fields with matching access
    */
-  default FieldMatcher withAccess(IntPredicate accessMatcher) {
+  default FieldMatcher access(IntPredicate accessMatcher) {
     return and(f -> accessMatcher.test(f.access));
   }
 
   /**
-   * Matches fields of the given type.
+   * Matches fields with the given type.
    *
    * @param type the field type
    * @return matcher of fields with the same type
    */
-  default FieldMatcher ofType(String type) {
+  default FieldMatcher type(String type) {
     String descriptor = descriptor(type);
     return and(f -> descriptor.equals(f.descriptor));
   }
 
   /**
-   * Matches fields of the given type.
+   * Matches fields with the given type.
    *
    * @param type the field type
    * @return matcher of fields with the same type
    */
-  default FieldMatcher ofType(Class<?> type) {
+  default FieldMatcher type(Class<?> type) {
     String descriptor = descriptor(type);
     return and(f -> descriptor.equals(f.descriptor));
+  }
+
+  /**
+   * Matches fields with a type matching the given criteria.
+   *
+   * @param typeMatcher the field type matcher
+   * @return matcher of fields with a matching type
+   */
+  default FieldMatcher type(Predicate<String> typeMatcher) {
+    return and(f -> hasFieldType(f, typeMatcher));
   }
 
   /**

@@ -39,21 +39,51 @@ final class InternalMatchers {
     return annotations -> anyMatch(annotations, annotationNamedOneOf);
   }
 
-  /** Returns {@code true} if the parameter declared at the given index has the given descriptor. */
-  static boolean declaresParameter(MethodOutline method, int paramIndex, String paramDescriptor) {
-    int offset;
-    if (paramIndex > 0) {
-      // boundaries covers start of second parameter, to start of return descriptor
-      int[] boundaries = method.descriptorBoundaries();
-      if (paramIndex >= boundaries.length) {
-        return false; // don't match against the return descriptor boundary
-      }
-      offset = boundaries[paramIndex - 1];
-    } else {
-      // no need to parse method descriptor, just check string at position 1 matches
-      offset = 1;
+  /**
+   * Does the method's descriptor contain the parameter descriptor at the given index?
+   *
+   * <p>Only for indices of 1 or above; index 0 uses a separate (faster) approach.
+   */
+  static boolean hasParamDescriptor(MethodOutline method, int paramIndex, String paramDescriptor) {
+    // boundaries covers start of second parameter, to start of return descriptor
+    int[] boundaries = method.descriptorBoundaries();
+    return paramIndex < boundaries.length // ignore return descriptor boundary
+        && method.descriptor.startsWith(paramDescriptor, boundaries[paramIndex - 1]);
+  }
+
+  /** Does the method's descriptor contain a matching parameter type at the given index? */
+  static boolean hasParamType(MethodOutline method, int paramIndex, Predicate<String> typeMatcher) {
+    // boundaries covers start of second parameter, to start of return descriptor
+    int[] boundaries = method.descriptorBoundaries();
+    if (paramIndex >= boundaries.length) { // ignore return descriptor boundary
+      return false;
     }
-    return method.descriptor.regionMatches(offset, paramDescriptor, 0, paramDescriptor.length());
+    // first parameter always starts at 1, for the rest check the boundary list
+    int from = paramIndex == 0 ? 1 : boundaries[paramIndex - 1];
+    String descriptor = method.descriptor;
+    // extract type from "L...;" descriptor string, ignore primitive/array types
+    return descriptor.charAt(from) == 'L'
+        && typeMatcher.test(descriptor.substring(from + 1, boundaries[paramIndex] - 1));
+  }
+
+  /** Does the method's descriptor contain a matching return type? */
+  static boolean hasReturnType(MethodOutline method, Predicate<String> typeMatcher) {
+    // boundaries covers start of second parameter, to start of return descriptor
+    int[] boundaries = method.descriptorBoundaries();
+    // return type starts at 2 if no parameters, otherwise check last boundary
+    int from = boundaries.length == 0 ? 2 : boundaries[boundaries.length - 1];
+    String descriptor = method.descriptor;
+    // extract type from "L...;" descriptor string, ignore primitive/array types
+    return descriptor.charAt(from) == 'L'
+        && typeMatcher.test(descriptor.substring(from + 1, descriptor.length() - 1));
+  }
+
+  /** Does the field's descriptor contain a matching type? */
+  static boolean hasFieldType(FieldOutline field, Predicate<String> typeMatcher) {
+    String descriptor = field.descriptor;
+    // extract type from "L...;" descriptor string, ignore primitive/array types
+    return descriptor.charAt(0) == 'L'
+        && typeMatcher.test(descriptor.substring(1, descriptor.length() - 1));
   }
 
   /** Returns the descriptor for the given type. */
@@ -245,7 +275,7 @@ final class InternalMatchers {
       int rhsLength =
           unionType.isInstance(rhs) ? (rhsArray = ((MatcherUnion<M>) rhs).matchers).length : 1;
 
-      // only expand array when either side is a nested union of the same type
+      // expand array if either side is a nested union of the same type
       int expandedLength = lhsLength + rhsLength;
       if (expandedLength > 2) {
         // original array should only have 2 elements, tolerate if there's extra

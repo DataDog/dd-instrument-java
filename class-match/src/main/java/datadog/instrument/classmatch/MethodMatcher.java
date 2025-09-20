@@ -9,8 +9,10 @@ package datadog.instrument.classmatch;
 import static datadog.instrument.classmatch.InternalMatchers.ALL_METHODS;
 import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotation;
 import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotationOneOf;
-import static datadog.instrument.classmatch.InternalMatchers.declaresParameter;
 import static datadog.instrument.classmatch.InternalMatchers.descriptor;
+import static datadog.instrument.classmatch.InternalMatchers.hasParamDescriptor;
+import static datadog.instrument.classmatch.InternalMatchers.hasParamType;
+import static datadog.instrument.classmatch.InternalMatchers.hasReturnType;
 import static java.util.Arrays.asList;
 
 import java.util.Collection;
@@ -74,8 +76,17 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @param accessMatcher the access matcher
    * @return matcher of methods with matching access
    */
-  default MethodMatcher withAccess(IntPredicate accessMatcher) {
+  default MethodMatcher access(IntPredicate accessMatcher) {
     return and(m -> accessMatcher.test(m.access));
+  }
+
+  /**
+   * Matches methods with no parameters.
+   *
+   * @return matcher of methods with no parameters
+   */
+  default MethodMatcher noParameters() {
+    return and(m -> m.descriptor.charAt(1) == ')');
   }
 
   /**
@@ -84,8 +95,12 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @param paramCount the parameter count
    * @return matcher of methods with the same parameter count
    */
-  default MethodMatcher withParameters(int paramCount) {
-    return and(m -> m.descriptorBoundaries().length == paramCount);
+  default MethodMatcher parameters(int paramCount) {
+    if (paramCount == 0) {
+      return noParameters();
+    } else {
+      return and(m -> m.descriptorBoundaries().length == paramCount);
+    }
   }
 
   /**
@@ -94,13 +109,13 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @param paramTypes the parameter types
    * @return matcher of methods with the same parameter types
    */
-  default MethodMatcher withParameters(String... paramTypes) {
+  default MethodMatcher parameters(String... paramTypes) {
     StringBuilder buf = new StringBuilder().append('(');
     for (String paramType : paramTypes) {
       buf.append(descriptor(paramType));
     }
-    String descriptorPrefix = buf.append(')').toString();
-    return and(m -> m.descriptor.startsWith(descriptorPrefix));
+    String prefix = buf.append(')').toString();
+    return and(m -> m.descriptor.startsWith(prefix));
   }
 
   /**
@@ -109,13 +124,13 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @param paramTypes the parameter types
    * @return matcher of methods with the same parameter types
    */
-  default MethodMatcher withParameters(Class<?>... paramTypes) {
+  default MethodMatcher parameters(Class<?>... paramTypes) {
     StringBuilder buf = new StringBuilder().append('(');
     for (Class<?> paramType : paramTypes) {
       buf.append(descriptor(paramType));
     }
-    String descriptorPrefix = buf.append(')').toString();
-    return and(m -> m.descriptor.startsWith(descriptorPrefix));
+    String prefix = buf.append(')').toString();
+    return and(m -> m.descriptor.startsWith(prefix));
   }
 
   /**
@@ -125,9 +140,13 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @param paramType the parameter type
    * @return matcher of methods with the same parameter type at the same position
    */
-  default MethodMatcher withParameter(int paramIndex, String paramType) {
+  default MethodMatcher parameter(int paramIndex, String paramType) {
     String paramDescriptor = descriptor(paramType);
-    return and(m -> declaresParameter(m, paramIndex, paramDescriptor));
+    if (paramIndex == 0) {
+      return and(m -> m.descriptor.startsWith(paramDescriptor, 1));
+    } else {
+      return and(m -> hasParamDescriptor(m, paramIndex, paramDescriptor));
+    }
   }
 
   /**
@@ -137,9 +156,24 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @param paramType the parameter type
    * @return matcher of methods with the same parameter type at the same position
    */
-  default MethodMatcher withParameter(int paramIndex, Class<?> paramType) {
+  default MethodMatcher parameter(int paramIndex, Class<?> paramType) {
     String paramDescriptor = descriptor(paramType);
-    return and(m -> declaresParameter(m, paramIndex, paramDescriptor));
+    if (paramIndex == 0) {
+      return and(m -> m.descriptor.startsWith(paramDescriptor, 1));
+    } else {
+      return and(m -> hasParamDescriptor(m, paramIndex, paramDescriptor));
+    }
+  }
+
+  /**
+   * Matches methods with a parameter type matching the given criteria.
+   *
+   * @param paramIndex the parameter index
+   * @param typeMatcher the parameter type matcher
+   * @return matcher of methods with a matching parameter type
+   */
+  default MethodMatcher parameter(int paramIndex, Predicate<String> typeMatcher) {
+    return and(m -> hasParamType(m, paramIndex, typeMatcher));
   }
 
   /**
@@ -149,7 +183,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods returning the same type
    */
   default MethodMatcher returning(String returnType) {
-    String returnDescriptor = ')' + descriptor(returnType);
+    String returnDescriptor = descriptor(returnType);
     return and(m -> m.descriptor.endsWith(returnDescriptor));
   }
 
@@ -160,8 +194,18 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods returning the same type
    */
   default MethodMatcher returning(Class<?> returnType) {
-    String returnDescriptor = ')' + descriptor(returnType);
+    String returnDescriptor = descriptor(returnType);
     return and(m -> m.descriptor.endsWith(returnDescriptor));
+  }
+
+  /**
+   * Matches methods returning a type matching the given criteria.
+   *
+   * @param typeMatcher the return type matcher
+   * @return matcher of methods with a matching return type
+   */
+  default MethodMatcher returning(Predicate<String> typeMatcher) {
+    return and(m -> hasReturnType(m, typeMatcher));
   }
 
   /**
