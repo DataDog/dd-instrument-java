@@ -49,7 +49,7 @@ public final class ClassNameFilter {
    * @param className the class-name to test
    * @return {@code true} if the class-name is in the filter; otherwise {@code false}
    */
-  public boolean contains(String className) {
+  public boolean contains(CharSequence className) {
     final int hash = className.hashCode();
     final long[] members = this.members;
     final int slotMask = this.slotMask;
@@ -120,7 +120,7 @@ public final class ClassNameFilter {
   }
 
   /** Checks whether the 32-bit 'class-code' is consistent with the fully-qualified class-name. */
-  private static boolean checkClassCode(String className, int code) {
+  private static boolean checkClassCode(CharSequence className, int code) {
     int start = (0xFF & code);
     int end = className.length() - 1;
     return end - start == (0xFF & (code >> 8))

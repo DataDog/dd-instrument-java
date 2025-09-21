@@ -57,7 +57,7 @@ public final class ClassInfoCache<T> {
    * @param className the class-name
    * @return information shared under the class-name
    */
-  public T find(String className) {
+  public T find(CharSequence className) {
     return find(className, ALL_CLASS_LOADERS);
   }
 
@@ -78,7 +78,7 @@ public final class ClassInfoCache<T> {
    * @param cl the class-loader
    * @return information shared under the class-name and class-loader
    */
-  public T find(String className, ClassLoader cl) {
+  public T find(CharSequence className, ClassLoader cl) {
     return find(className, ClassLoaderIndex.getClassLoaderKeyId(cl));
   }
 
@@ -102,7 +102,7 @@ public final class ClassInfoCache<T> {
    * @see ClassLoaderIndex#getClassLoaderKeyId(ClassLoader)
    */
   @SuppressWarnings("unchecked")
-  public T find(String className, int classLoaderKeyId) {
+  public T find(CharSequence className, int classLoaderKeyId) {
     final int hash = className.hashCode();
     final SharedInfo[] shared = this.shared;
     final int slotMask = this.slotMask;
@@ -112,7 +112,7 @@ public final class ClassInfoCache<T> {
       int slot = slotMask & h;
       SharedInfo existing = shared[slot];
       if (existing != null) {
-        if (className.equals(existing.className)) {
+        if (existing.className.contentEquals(className)) {
           // filter on class-loader, -1 on either side matches all
           if ((classLoaderKeyId ^ existing.classLoaderKeyId) <= 0) {
             // use global TICKS as a substitute for access time
