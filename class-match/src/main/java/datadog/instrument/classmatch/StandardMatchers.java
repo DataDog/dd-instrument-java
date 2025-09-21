@@ -65,40 +65,40 @@ public final class StandardMatchers {
   }
 
   /**
-   * Matches when the target has the given name.
+   * Matches when the name equals the given string.
    *
    * @param name the expected name
-   * @return {@code true} if the target has the name; otherwise {@code false}
+   * @return matcher of names with the same value
    */
   public static Predicate<String> named(String name) {
     return internalName(name)::equals;
   }
 
   /**
-   * Matches when the target has one of the given names.
+   * Matches when the name equals one of the given strings.
    *
    * @param names the expected names
-   * @return {@code true} if the target has one of the names; otherwise {@code false}
+   * @return matcher of names from the given list
    */
   public static Predicate<String> namedOneOf(String... names) {
-    return internalNames(asList(names))::contains;
+    return namedOneOf(asList(names));
   }
 
   /**
-   * Matches when the target has one of the given names.
+   * Matches when the name equals one of the given strings.
    *
    * @param names the expected names
-   * @return {@code true} if the target has one of the names; otherwise {@code false}
+   * @return matcher of names from the given list
    */
   public static Predicate<String> namedOneOf(Collection<String> names) {
     return internalNames(names)::contains;
   }
 
   /**
-   * Matches when the target's name starts with the given prefix.
+   * Matches when the name starts with the given prefix.
    *
    * @param prefix the expected prefix
-   * @return {@code true} if the target's name starts with the prefix; otherwise {@code false}
+   * @return matcher of names starting with the prefix
    */
   public static Predicate<String> nameStartsWith(String prefix) {
     String internalPrefix = internalName(prefix);
@@ -106,10 +106,10 @@ public final class StandardMatchers {
   }
 
   /**
-   * Matches when the target's name ends with the given suffix.
+   * Matches when the name ends with the given suffix.
    *
    * @param suffix the expected suffix
-   * @return {@code true} if the target's name ends with the suffix; otherwise {@code false}
+   * @return matcher of names ending with the suffix
    */
   public static Predicate<String> nameEndsWith(String suffix) {
     String internalSuffix = internalName(suffix);
