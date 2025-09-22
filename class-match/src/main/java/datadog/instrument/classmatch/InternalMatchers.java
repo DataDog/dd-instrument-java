@@ -31,7 +31,10 @@ final class InternalMatchers {
 
   /** Matches when at least one annotation has one of the given names. */
   static Predicate<String[]> declaresAnnotationOneOf(Collection<String> names) {
-    Set<String> internalNames = internalNames(names);
+    Set<String> internalNames = new HashSet<>((int) (names.size() / 0.75f) + 1);
+    for (String name : names) {
+      internalNames.add(internalName(name));
+    }
     // note these annotations are of interest when parsing
     ClassFile.annotationsOfInterest(internalNames);
     // performance tip: capture this method-ref outside the lambda
@@ -143,15 +146,6 @@ final class InternalMatchers {
   /** Returns the internal form of the given name. */
   static String internalName(String name) {
     return name.replace('.', '/');
-  }
-
-  /** Returns the internal forms of the given names. */
-  static Set<String> internalNames(Collection<String> names) {
-    Set<String> internalNames = new HashSet<>((int) (names.size() / 0.75f) + 1);
-    for (String name : names) {
-      internalNames.add(internalName(name));
-    }
-    return internalNames;
   }
 
   /** Returns {@code true} if at least one of the candidates matches. */
