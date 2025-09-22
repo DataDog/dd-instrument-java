@@ -19,9 +19,9 @@ final class InternalMatchers {
 
   private InternalMatchers() {}
 
-  /** Matches when at least one annotation has the given name. */
-  static Predicate<String[]> declaresAnnotation(String name) {
-    String internalName = internalName(name);
+  /** Matches when at least one annotation has the given type. */
+  static Predicate<String[]> declaresAnnotation(String type) {
+    String internalName = internalName(type);
     // note this annotation is of interest when parsing
     ClassFile.annotationOfInterest(internalName);
     // performance tip: capture this method-ref outside the lambda
@@ -29,11 +29,11 @@ final class InternalMatchers {
     return annotations -> anyMatch(annotations, annotationNamed);
   }
 
-  /** Matches when at least one annotation has one of the given names. */
-  static Predicate<String[]> declaresAnnotationOneOf(Collection<String> names) {
-    Set<String> internalNames = new HashSet<>((int) (names.size() / 0.75f) + 1);
-    for (String name : names) {
-      internalNames.add(internalName(name));
+  /** Matches when at least one annotation has one of the given types. */
+  static Predicate<String[]> declaresAnnotationOneOf(Collection<String> types) {
+    Set<String> internalNames = new HashSet<>((int) (types.size() / 0.75f) + 1);
+    for (String type : types) {
+      internalNames.add(internalName(type));
     }
     // note these annotations are of interest when parsing
     ClassFile.annotationsOfInterest(internalNames);
@@ -143,9 +143,9 @@ final class InternalMatchers {
     }
   }
 
-  /** Returns the internal form of the given name. */
-  static String internalName(String name) {
-    return name.replace('.', '/');
+  /** Returns the internal form of the given type. */
+  static String internalName(String type) {
+    return type.replace('.', '/');
   }
 
   /** Returns {@code true} if at least one of the candidates matches. */

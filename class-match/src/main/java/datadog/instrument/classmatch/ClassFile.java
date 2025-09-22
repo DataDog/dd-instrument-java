@@ -63,7 +63,7 @@ public final class ClassFile {
    *
    * <p>Example: {@code ClassFile.annotationOfInterest("javax/ws/rs/Path");}
    *
-   * @param internalName the name of the annotation type in internal form
+   * @param internalName the annotation type in internal form
    */
   public static synchronized void annotationOfInterest(String internalName) {
     if (annotationKeys.containsKey(internalName)) {
@@ -83,7 +83,7 @@ public final class ClassFile {
    *
    * <p>Example: {@code ClassFile.annotationsOfInterest("javax/ws/rs/Path", "jakarta/ws/rs/Path");}
    *
-   * @param internalNames the names of the annotation types in internal form
+   * @param internalNames the annotation types in internal form
    */
   public static synchronized void annotationsOfInterest(Collection<String> internalNames) {
     if (annotationKeys.keySet().containsAll(internalNames)) {
