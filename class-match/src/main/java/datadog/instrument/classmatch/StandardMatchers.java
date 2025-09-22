@@ -6,12 +6,11 @@
 
 package datadog.instrument.classmatch;
 
-import static datadog.instrument.classmatch.InternalMatchers.internalName;
-import static datadog.instrument.classmatch.InternalMatchers.internalNames;
 import static java.util.Arrays.asList;
 
 import java.lang.reflect.Modifier;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 
@@ -71,7 +70,7 @@ public final class StandardMatchers {
    * @return matcher of names with the same value
    */
   public static Predicate<String> named(String name) {
-    return internalName(name)::equals;
+    return name::equals;
   }
 
   /**
@@ -91,7 +90,7 @@ public final class StandardMatchers {
    * @return matcher of names from the given list
    */
   public static Predicate<String> namedOneOf(Collection<String> names) {
-    return internalNames(names)::contains;
+    return new HashSet<>(names)::contains;
   }
 
   /**
@@ -101,8 +100,7 @@ public final class StandardMatchers {
    * @return matcher of names starting with the prefix
    */
   public static Predicate<String> nameStartsWith(String prefix) {
-    String internalPrefix = internalName(prefix);
-    return s -> s.startsWith(internalPrefix);
+    return s -> s.startsWith(prefix);
   }
 
   /**
@@ -112,7 +110,6 @@ public final class StandardMatchers {
    * @return matcher of names ending with the suffix
    */
   public static Predicate<String> nameEndsWith(String suffix) {
-    String internalSuffix = internalName(suffix);
-    return s -> s.endsWith(internalSuffix);
+    return s -> s.endsWith(suffix);
   }
 }
