@@ -7,7 +7,6 @@
 package datadog.instrument.classmatch;
 
 import static datadog.instrument.classmatch.InternalMatchers.descriptor;
-import static datadog.instrument.classmatch.InternalMatchers.hasFieldType;
 
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
@@ -75,7 +74,11 @@ public interface FieldMatcher extends Predicate<FieldOutline> {
    * @return matcher of fields with a matching type
    */
   default FieldMatcher type(TypeMatcher typeMatcher) {
-    return and(f -> hasFieldType(f, typeMatcher));
+    return and(
+        f -> {
+          TypeString fieldType = f.typeString();
+          return fieldType != null && typeMatcher.test(fieldType);
+        });
   }
 
   /**

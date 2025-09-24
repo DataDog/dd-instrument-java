@@ -6,6 +6,8 @@
 
 package datadog.instrument.classmatch;
 
+import javax.annotation.Nullable;
+
 /** Outlines a field; access modifiers, field name, descriptor. */
 public final class FieldOutline {
 
@@ -22,5 +24,26 @@ public final class FieldOutline {
     this.access = access;
     this.fieldName = fieldName;
     this.descriptor = descriptor;
+  }
+
+  /** Lazy cache of the field's type-string hash. */
+  private int typeStringHash;
+
+  /**
+   * Provides a {@link TypeString} of the field type for hierarchy matching purposes.
+   *
+   * @return type-string; {@code null} if the field type is primitive or an array
+   */
+  @Nullable
+  TypeString typeString() {
+    if (descriptor.charAt(0) != 'L') {
+      return null; // don't create type-strings for primitive/array types
+    }
+    int start = 1;
+    int end = descriptor.length() - 1;
+    if (typeStringHash == 0) {
+      typeStringHash = TypeString.computeHash(descriptor, start, end);
+    }
+    return new TypeString(descriptor, start, end, typeStringHash);
   }
 }

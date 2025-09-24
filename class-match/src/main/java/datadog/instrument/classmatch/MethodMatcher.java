@@ -13,8 +13,6 @@ import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotation;
 import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotationOneOf;
 import static datadog.instrument.classmatch.InternalMatchers.descriptor;
 import static datadog.instrument.classmatch.InternalMatchers.hasParamDescriptor;
-import static datadog.instrument.classmatch.InternalMatchers.hasParamType;
-import static datadog.instrument.classmatch.InternalMatchers.hasReturnType;
 import static java.util.Arrays.asList;
 
 import java.util.Collection;
@@ -101,7 +99,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
     if (paramCount == 0) {
       return noParameters();
     } else {
-      return and(m -> m.descriptorBoundaries().length == paramCount);
+      return and(m -> m.parameterCount() == paramCount);
     }
   }
 
@@ -175,7 +173,11 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods with a matching parameter type
    */
   default MethodMatcher parameter(int paramIndex, TypeMatcher typeMatcher) {
-    return and(m -> hasParamType(m, paramIndex, typeMatcher));
+    return and(
+        m -> {
+          TypeString paramType = m.parameterTypeString(paramIndex);
+          return paramType != null && typeMatcher.test(paramType);
+        });
   }
 
   /**
@@ -207,7 +209,11 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods with a matching return type
    */
   default MethodMatcher returning(TypeMatcher typeMatcher) {
-    return and(m -> hasReturnType(m, typeMatcher));
+    return and(
+        m -> {
+          TypeString returnType = m.returnTypeString();
+          return returnType != null && typeMatcher.test(returnType);
+        });
   }
 
   /**

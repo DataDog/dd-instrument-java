@@ -54,41 +54,6 @@ final class InternalMatchers {
         && method.descriptor.startsWith(paramDescriptor, boundaries[paramIndex - 1]);
   }
 
-  /** Does the method's descriptor contain a matching parameter type at the given index? */
-  static boolean hasParamType(MethodOutline method, int paramIndex, TypeMatcher typeMatcher) {
-    // boundaries covers start of second parameter, to start of return descriptor
-    int[] boundaries = method.descriptorBoundaries();
-    if (paramIndex >= boundaries.length) { // ignore return descriptor boundary
-      return false;
-    }
-    // first parameter always starts at 1, for the rest check the boundary list
-    int from = paramIndex == 0 ? 1 : boundaries[paramIndex - 1];
-    String descriptor = method.descriptor;
-    // extract type from "L...;" descriptor string, ignore primitive/array types
-    return descriptor.charAt(from) == 'L'
-        && typeMatcher.test(descriptor.substring(from + 1, boundaries[paramIndex] - 1));
-  }
-
-  /** Does the method's descriptor contain a matching return type? */
-  static boolean hasReturnType(MethodOutline method, TypeMatcher typeMatcher) {
-    // boundaries covers start of second parameter, to start of return descriptor
-    int[] boundaries = method.descriptorBoundaries();
-    // return type starts at 2 if no parameters, otherwise check last boundary
-    int from = boundaries.length == 0 ? 2 : boundaries[boundaries.length - 1];
-    String descriptor = method.descriptor;
-    // extract type from "L...;" descriptor string, ignore primitive/array types
-    return descriptor.charAt(from) == 'L'
-        && typeMatcher.test(descriptor.substring(from + 1, descriptor.length() - 1));
-  }
-
-  /** Does the field's descriptor contain a matching type? */
-  static boolean hasFieldType(FieldOutline field, TypeMatcher typeMatcher) {
-    String descriptor = field.descriptor;
-    // extract type from "L...;" descriptor string, ignore primitive/array types
-    return descriptor.charAt(0) == 'L'
-        && typeMatcher.test(descriptor.substring(1, descriptor.length() - 1));
-  }
-
   /** Returns the descriptor for the given type. */
   static String descriptor(String type) {
     if (type.endsWith("[]")) {

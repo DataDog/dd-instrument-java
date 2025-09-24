@@ -6,10 +6,34 @@
 
 package datadog.instrument.classmatch;
 
+import static datadog.instrument.classmatch.InternalMatchers.internalName;
+
 import java.util.function.Predicate;
 
 /** Fluent-API for building type hierarchy predicates. */
 public interface TypeMatcher extends Predicate<CharSequence> {
+
+  /**
+   * Matches when the type starts with the given prefix.
+   *
+   * @param prefix the expected prefix
+   * @return matcher of types starting with the prefix
+   */
+  static TypeMatcher typeStartsWith(String prefix) {
+    String internalPrefix = internalName(prefix);
+    return cs -> TypeString.startsWith(cs, internalPrefix);
+  }
+
+  /**
+   * Matches when the type ends with the given suffix.
+   *
+   * @param suffix the expected suffix
+   * @return matcher of types ending with the suffix
+   */
+  static TypeMatcher typeEndsWith(String suffix) {
+    String internalSuffix = internalName(suffix);
+    return cs -> TypeString.endsWith(cs, internalSuffix);
+  }
 
   /**
    * Conjunction of this matcher AND another.

@@ -10,6 +10,7 @@ import static java.util.Arrays.asList;
 
 import java.util.BitSet;
 import java.util.List;
+import javax.annotation.Nullable;
 
 /** Outlines a method; access modifiers, method name, descriptor, annotations. */
 public final class MethodOutline {
@@ -26,9 +27,6 @@ public final class MethodOutline {
   /** Internal names of annotations declared on this method. */
   final String[] annotations;
 
-  /** Lazy cache of boundaries between each parameter/return descriptor. */
-  private int[] descriptorBoundaries;
-
   /**
    * @return internal names of annotations declared on this method
    */
@@ -43,7 +41,56 @@ public final class MethodOutline {
     this.annotations = annotations;
   }
 
+  /**
+   * @return number of method parameters
+   */
+  int parameterCount() {
+    return descriptorBoundaries().length;
+  }
+
+  /**
+   * Provides a {@link TypeString} of the indexed parameter type for hierarchy matching purposes.
+   *
+   * @param paramIndex the parameter index
+   * @return type-string; {@code null} if the parameter type is primitive, an array, or missing
+   */
+  @Nullable
+  TypeString parameterTypeString(int paramIndex) {
+    int[] boundaries = descriptorBoundaries();
+    if (paramIndex >= boundaries.length) {
+      return null; // method doesn't have enough parameters to match
+    }
+    // earliest potential param type can be found at index 2 "(L...;"
+    int start = paramIndex == 0 ? 2 : boundaries[paramIndex - 1] + 1;
+    if (descriptor.charAt(start - 1) != 'L') {
+      return null; // don't create type-strings for primitive/array types
+    }
+    int end = boundaries[paramIndex] - 1;
+    return new TypeString(descriptor, start, end, getHash(paramIndex, start, end));
+  }
+
+  /**
+   * Provides a {@link TypeString} of the return type for hierarchy matching purposes.
+   *
+   * @return type-string; {@code null} if the return type is primitive, an array, or missing
+   */
+  @Nullable
+  TypeString returnTypeString() {
+    int[] boundaries = descriptorBoundaries();
+    int returnIndex = boundaries.length;
+    // earliest potential return type can be found at index 3 "()L...;"
+    int start = returnIndex == 0 ? 3 : boundaries[returnIndex - 1] + 1;
+    if (descriptor.charAt(start - 1) != 'L') {
+      return null; // don't create type-strings for primitive/array/void types
+    }
+    int end = descriptor.length() - 1;
+    return new TypeString(descriptor, start, end, getHash(returnIndex, start, end));
+  }
+
   private static final int[] NO_BOUNDARIES = {};
+
+  /** Lazy cache of boundaries between each parameter/return descriptor. */
+  private int[] descriptorBoundaries;
 
   /**
    * Returns the boundaries between each parameter/return descriptor in the method descriptor.
@@ -100,5 +147,21 @@ public final class MethodOutline {
       boundaries[i] = p = partition.nextSetBit(p);
     }
     return boundaries;
+  }
+
+  /** Lazy cache of hashes for each parameter/return type-string. */
+  private int[] typeStringHashes;
+
+  /** Gets a previously cached {@link TypeString} hash; otherwise computes and caches a new hash. */
+  private int getHash(int typeStringIndex, int start, int end) {
+    if (typeStringHashes == null) {
+      // allow for one hash per parameter, plus one for return type
+      typeStringHashes = new int[descriptorBoundaries.length + 1];
+    }
+    int hash = typeStringHashes[typeStringIndex];
+    if (hash == 0) {
+      typeStringHashes[typeStringIndex] = hash = TypeString.computeHash(descriptor, start, end);
+    }
+    return hash;
   }
 }
