@@ -55,7 +55,7 @@ final class InternalMatchers {
   }
 
   /** Does the method's descriptor contain a matching parameter type at the given index? */
-  static boolean hasParamType(MethodOutline method, int paramIndex, Predicate<String> typeMatcher) {
+  static boolean hasParamType(MethodOutline method, int paramIndex, TypeMatcher typeMatcher) {
     // boundaries covers start of second parameter, to start of return descriptor
     int[] boundaries = method.descriptorBoundaries();
     if (paramIndex >= boundaries.length) { // ignore return descriptor boundary
@@ -70,7 +70,7 @@ final class InternalMatchers {
   }
 
   /** Does the method's descriptor contain a matching return type? */
-  static boolean hasReturnType(MethodOutline method, Predicate<String> typeMatcher) {
+  static boolean hasReturnType(MethodOutline method, TypeMatcher typeMatcher) {
     // boundaries covers start of second parameter, to start of return descriptor
     int[] boundaries = method.descriptorBoundaries();
     // return type starts at 2 if no parameters, otherwise check last boundary
@@ -82,7 +82,7 @@ final class InternalMatchers {
   }
 
   /** Does the field's descriptor contain a matching type? */
-  static boolean hasFieldType(FieldOutline field, Predicate<String> typeMatcher) {
+  static boolean hasFieldType(FieldOutline field, TypeMatcher typeMatcher) {
     String descriptor = field.descriptor;
     // extract type from "L...;" descriptor string, ignore primitive/array types
     return descriptor.charAt(0) == 'L'
@@ -240,6 +240,40 @@ final class InternalMatchers {
     public boolean test(MethodOutline outline) {
       for (MethodMatcher matcher : matchers) {
         if (matcher.test(outline)) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  /** Logical AND of two {@link TypeMatcher}s; nested conjunctions will be collapsed. */
+  static final class TypeConjunction extends MatcherUnion<TypeMatcher> implements TypeMatcher {
+    TypeConjunction(TypeMatcher lhs, TypeMatcher rhs) {
+      super(new TypeMatcher[] {lhs, rhs});
+    }
+
+    @Override
+    public boolean test(CharSequence typeString) {
+      for (TypeMatcher matcher : matchers) {
+        if (!matcher.test(typeString)) {
+          return false;
+        }
+      }
+      return true;
+    }
+  }
+
+  /** Logical OR of two {@link TypeMatcher}s; nested disjunctions will be collapsed. */
+  static final class TypeDisjunction extends MatcherUnion<TypeMatcher> implements TypeMatcher {
+    TypeDisjunction(TypeMatcher lhs, TypeMatcher rhs) {
+      super(new TypeMatcher[] {lhs, rhs});
+    }
+
+    @Override
+    public boolean test(CharSequence typeString) {
+      for (TypeMatcher matcher : matchers) {
+        if (matcher.test(typeString)) {
           return true;
         }
       }

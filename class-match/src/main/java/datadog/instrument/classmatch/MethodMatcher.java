@@ -172,7 +172,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @param typeMatcher the parameter type matcher
    * @return matcher of methods with a matching parameter type
    */
-  default MethodMatcher parameter(int paramIndex, Predicate<String> typeMatcher) {
+  default MethodMatcher parameter(int paramIndex, TypeMatcher typeMatcher) {
     return and(m -> hasParamType(m, paramIndex, typeMatcher));
   }
 
@@ -204,7 +204,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @param typeMatcher the return type matcher
    * @return matcher of methods with a matching return type
    */
-  default MethodMatcher returning(Predicate<String> typeMatcher) {
+  default MethodMatcher returning(TypeMatcher typeMatcher) {
     return and(m -> hasReturnType(m, typeMatcher));
   }
 

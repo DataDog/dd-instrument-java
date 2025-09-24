@@ -74,7 +74,7 @@ public interface FieldMatcher extends Predicate<FieldOutline> {
    * @param typeMatcher the field type matcher
    * @return matcher of fields with a matching type
    */
-  default FieldMatcher type(Predicate<String> typeMatcher) {
+  default FieldMatcher type(TypeMatcher typeMatcher) {
     return and(f -> hasFieldType(f, typeMatcher));
   }
 
