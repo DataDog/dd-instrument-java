@@ -6,6 +6,8 @@
 
 package datadog.instrument.classmatch;
 
+import static datadog.instrument.classmatch.ClassFile.CONSTRUCTOR;
+import static datadog.instrument.classmatch.ClassFile.STATIC_INITIALIZER;
 import static datadog.instrument.classmatch.InternalMatchers.ALL_METHODS;
 import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotation;
 import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotationOneOf;
@@ -58,7 +60,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of constructor methods
    */
   static MethodMatcher constructor() {
-    return m -> "<init>".equals(m.methodName);
+    return m -> CONSTRUCTOR.equals(m.methodName);
   }
 
   /**
@@ -67,7 +69,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of static-initializer methods
    */
   static MethodMatcher staticInitializer() {
-    return m -> "<clinit>".equals(m.methodName);
+    return m -> STATIC_INITIALIZER.equals(m.methodName);
   }
 
   /**

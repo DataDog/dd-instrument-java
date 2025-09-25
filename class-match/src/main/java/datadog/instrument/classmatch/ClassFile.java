@@ -23,10 +23,17 @@ import java.util.Map;
  */
 public final class ClassFile {
 
+  static final String JAVA_LANG_OBJECT = "java/lang/Object";
+  static final String STATIC_INITIALIZER = "<clinit>";
+  static final String CONSTRUCTOR = "<init>";
+  static final String SIMPLE_CALL = "()V";
+
   private static final String[] NO_INTERFACES = {};
   private static final FieldOutline[] NO_FIELDS = {};
   private static final MethodOutline[] NO_METHODS = {};
   private static final String[] NO_ANNOTATIONS = {};
+
+  private static final int ACC_INTERFACE = 0x0200;
   private static final int ACC_MODULE = 0x8000;
 
   // attribute header for annotations that are visible at runtime
@@ -171,7 +178,17 @@ public final class ClassFile {
     String className = utf(bytecode, cp[cp[u2(bytecode, cursor)]]);
     cursor += 2;
 
-    String superName = access != ACC_MODULE ? utf(bytecode, cp[cp[u2(bytecode, cursor)]]) : null;
+    String superName;
+    if ((access & ACC_INTERFACE) != 0) {
+      superName = JAVA_LANG_OBJECT;
+    } else if (access != ACC_MODULE) {
+      superName = utf(bytecode, cp[cp[u2(bytecode, cursor)]]);
+      if (JAVA_LANG_OBJECT.equals(superName)) {
+        superName = JAVA_LANG_OBJECT;
+      }
+    } else {
+      superName = null;
+    }
     cursor += 2;
 
     // optional list of implemented/extended interfaces
@@ -231,8 +248,14 @@ public final class ClassFile {
         int methodAccess = u2(bytecode, cursor);
         cursor += 2;
         String methodName = utf(bytecode, cp[u2(bytecode, cursor)]);
+        if (CONSTRUCTOR.equals(methodName)) {
+          methodName = CONSTRUCTOR;
+        }
         cursor += 2;
         String descriptor = utf(bytecode, cp[u2(bytecode, cursor)]);
+        if (SIMPLE_CALL.equals(descriptor)) {
+          descriptor = SIMPLE_CALL;
+        }
         cursor += 2;
         String[] annotations = NO_ANNOTATIONS;
         Map<UtfKey, String> ofInterest = annotationsOfInterest;
