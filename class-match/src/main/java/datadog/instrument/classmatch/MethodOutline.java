@@ -6,10 +6,7 @@
 
 package datadog.instrument.classmatch;
 
-import static java.util.Arrays.asList;
-
 import java.util.BitSet;
-import java.util.List;
 import javax.annotation.Nullable;
 
 /** Outlines a method; access modifiers, method name, descriptor, annotations. */
@@ -25,14 +22,7 @@ public final class MethodOutline {
   public final String descriptor;
 
   /** Internal names of annotations declared on this method. */
-  final String[] annotations;
-
-  /**
-   * @return internal names of annotations declared on this method
-   */
-  public List<String> annotations() {
-    return asList(annotations);
-  }
+  public final String[] annotations;
 
   MethodOutline(int access, String methodName, String descriptor, String[] annotations) {
     this.access = access;

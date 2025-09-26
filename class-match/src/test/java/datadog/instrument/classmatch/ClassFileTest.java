@@ -1,8 +1,6 @@
 package datadog.instrument.classmatch;
 
 import static java.util.Arrays.asList;
-import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -67,29 +65,29 @@ class ClassFileTest {
 
     assertEquals("sample/My例クラス", outline.className);
     assertEquals("java/util/AbstractCollection", outline.superName);
-    assertEquals(singletonList("java/io/Serializable"), outline.interfaces());
-    assertEquals(emptyList(), outline.annotations());
-    assertEquals("実例", outline.fields().get(0).fieldName);
-    assertEquals("Ljava/lang/String;", outline.fields().get(0).descriptor);
-    assertEquals("<init>", outline.methods().get(0).methodName);
-    assertEquals("()V", outline.methods().get(0).descriptor);
-    assertEquals(emptyList(), outline.methods().get(0).annotations());
-    assertEquals("何かをする", outline.methods().get(1).methodName);
-    assertEquals("([Ljava/lang/Object;)Ljava/lang/Boolean;", outline.methods().get(1).descriptor);
-    assertEquals(singletonList("java/lang/SafeVarargs"), outline.methods().get(1).annotations());
+    assertArrayEquals(new String[] {"java/io/Serializable"}, outline.interfaces);
+    assertArrayEquals(new String[0], outline.annotations);
+    assertEquals("実例", outline.fields[0].fieldName);
+    assertEquals("Ljava/lang/String;", outline.fields[0].descriptor);
+    assertEquals("<init>", outline.methods[0].methodName);
+    assertEquals("()V", outline.methods[0].descriptor);
+    assertArrayEquals(new String[0], outline.methods[0].annotations);
+    assertEquals("何かをする", outline.methods[1].methodName);
+    assertEquals("([Ljava/lang/Object;)Ljava/lang/Boolean;", outline.methods[1].descriptor);
+    assertArrayEquals(new String[] {"java/lang/SafeVarargs"}, outline.methods[1].annotations);
   }
 
   @Test
   void parameterParsing() {
     ClassOutline outline = ClassFile.outline(sampleParametersClass);
 
-    assertEquals(0, outline.methods().get(0).descriptorBoundaries().length);
-    assertArrayEquals(new int[0], outline.methods().get(0).descriptorBoundaries());
+    assertEquals(0, outline.methods[0].descriptorBoundaries().length);
+    assertArrayEquals(new int[0], outline.methods[0].descriptorBoundaries());
 
-    assertEquals(19, outline.methods().get(1).descriptorBoundaries().length);
+    assertEquals(19, outline.methods[1].descriptorBoundaries().length);
     assertArrayEquals(
         new int[] {2, 3, 4, 5, 6, 7, 8, 9, 27, 29, 32, 36, 41, 47, 54, 62, 71, 86, 106},
-        outline.methods().get(1).descriptorBoundaries());
+        outline.methods[1].descriptorBoundaries());
   }
 
   @SuppressWarnings("SameParameterValue")

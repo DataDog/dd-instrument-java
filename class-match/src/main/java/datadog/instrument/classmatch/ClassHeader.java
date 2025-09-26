@@ -6,10 +6,6 @@
 
 package datadog.instrument.classmatch;
 
-import static java.util.Arrays.asList;
-
-import java.util.List;
-
 /** Minimal class header that describes its access modifiers and immediate class hierarchy. */
 public class ClassHeader {
 
@@ -23,14 +19,7 @@ public class ClassHeader {
   public final String superName;
 
   /** Internal names of the interfaces declared by this class. */
-  final String[] interfaces;
-
-  /**
-   * @return internal names of the interfaces declared by this class.
-   */
-  public List<String> interfaces() {
-    return asList(interfaces);
-  }
+  public final String[] interfaces;
 
   ClassHeader(int access, String className, String superName, String[] interfaces) {
     this.access = access;
