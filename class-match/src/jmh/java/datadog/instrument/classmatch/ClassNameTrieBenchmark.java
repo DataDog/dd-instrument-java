@@ -8,7 +8,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -27,17 +26,11 @@ import org.openjdk.jmh.infra.Blackhole;
 public class ClassNameTrieBenchmark {
 
   private List<String> classNames;
-
   private ClassNameTrie trie;
 
   @Setup(Level.Trial)
   public void setup() {
-
-    classNames =
-        SampleClasses.load("spring-web.jar").stream()
-            .map(bytecode -> ClassFile.header(bytecode).className.replace('/', '.'))
-            .collect(Collectors.toList());
-
+    classNames = SampleClasses.loadClassNames("spring-web.jar");
     trie = buildTrie();
   }
 

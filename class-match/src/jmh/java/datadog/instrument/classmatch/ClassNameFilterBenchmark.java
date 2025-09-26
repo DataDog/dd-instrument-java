@@ -5,7 +5,6 @@ import static org.openjdk.jmh.annotations.Mode.AverageTime;
 
 import datadog.instrument.testing.SampleClasses;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -28,17 +27,11 @@ public class ClassNameFilterBenchmark {
   public int cacheSize;
 
   private List<String> classNames;
-
   private ClassNameFilter cache;
 
   @Setup(Level.Trial)
   public void setup() {
-
-    classNames =
-        SampleClasses.load("spring-web.jar").stream()
-            .map(bytecode -> ClassFile.header(bytecode).className)
-            .collect(Collectors.toList());
-
+    classNames = SampleClasses.loadClassNames("spring-web.jar");
     cache = new ClassNameFilter(cacheSize);
   }
 

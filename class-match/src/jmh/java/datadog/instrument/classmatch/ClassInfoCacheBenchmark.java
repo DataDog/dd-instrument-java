@@ -7,7 +7,6 @@ import datadog.instrument.testing.SampleClasses;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -30,24 +29,15 @@ public class ClassInfoCacheBenchmark {
   public int cacheSize;
 
   private List<String> classNames;
-
   private ClassLoader cl;
-
   private ClassInfoCache<Object> cache;
-
   private Object infoToShare;
 
   @Setup(Level.Trial)
   public void setup() {
     cl = URLClassLoader.newInstance(new URL[0]);
-
-    classNames =
-        SampleClasses.load("spring-web.jar").stream()
-            .map(bytecode -> ClassFile.header(bytecode).className)
-            .collect(Collectors.toList());
-
+    classNames = SampleClasses.loadClassNames("spring-web.jar");
     cache = new ClassInfoCache<>(cacheSize);
-
     infoToShare = new Object();
   }
 

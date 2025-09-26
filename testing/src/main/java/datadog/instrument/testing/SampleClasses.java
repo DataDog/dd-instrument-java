@@ -25,12 +25,30 @@ public final class SampleClasses {
   public static final String SAMPLE_BYTECODE_DIRECTORY = "build/sampleBytecode/";
 
   /**
+   * Finds all class names in the named sample bytecode jar.
+   *
+   * @param sampleJar the name of the sample jar (without version)
+   * @return list of class names contained in the sample jar
+   */
+  public static List<String> loadClassNames(String sampleJar) {
+    File sampleJarFile = new File(SAMPLE_BYTECODE_DIRECTORY + sampleJar);
+    try (JarFile sample = new JarFile(sampleJarFile)) {
+      return sample.stream()
+          .filter(e -> e.getName().endsWith(".class"))
+          .map(e -> e.getName().replace(".class", "").replace('/', '.'))
+          .collect(Collectors.toList());
+    } catch (IOException ex) {
+      throw new UncheckedIOException(ex);
+    }
+  }
+
+  /**
    * Loads all class bytecode from the named sample bytecode jar.
    *
    * @param sampleJar the name of the sample jar (without version)
    * @return list of bytecode contained in the sample jar
    */
-  public static List<byte[]> load(String sampleJar) {
+  public static List<byte[]> loadBytecode(String sampleJar) {
     File sampleJarFile = new File(SAMPLE_BYTECODE_DIRECTORY + sampleJar);
     byte[] buf = new byte[16384];
     ByteArrayOutputStream out = new ByteArrayOutputStream();
