@@ -4,6 +4,7 @@ plugins {
   java
   jacoco
 
+  id("me.champeau.jmh")
   id("com.diffplug.spotless")
   id("com.github.spotbugs")
   id("pl.allegro.tech.build.axion-release")
@@ -14,6 +15,14 @@ repositories {
 }
 
 version = rootProject.version
+
+dependencies {
+  compileOnly(libs.spotbugs.annotations)
+  testCompileOnly(libs.spotbugs.annotations)
+  testImplementation(libs.junit.jupiter)
+  testImplementation(libs.assertj.core)
+  testRuntimeOnly(libs.junit.launcher)
+}
 
 java {
   toolchain {
@@ -30,14 +39,6 @@ tasks.javadoc {
   if (JavaVersion.current().isJava9Compatible) {
     (options as StandardJavadocDocletOptions).addBooleanOption("html5", true)
   }
-}
-
-dependencies {
-  compileOnly(libs.spotbugs.annotations)
-  testCompileOnly(libs.spotbugs.annotations)
-  testImplementation(libs.junit.jupiter)
-  testImplementation(libs.assertj.core)
-  testRuntimeOnly(libs.junit.launcher)
 }
 
 tasks.named<Test>("test") {
@@ -70,7 +71,6 @@ tasks.check { finalizedBy(tasks.jacocoTestReport) }
 spotless {
   java {
     target("src/**/*.java")
-
     importOrder()
     removeUnusedImports()
     googleJavaFormat()
@@ -79,6 +79,21 @@ spotless {
 
 spotbugs {
   useJavaToolchains = true
-
   omitVisitors = listOf("FindReturnRef")
 }
+
+// dependency configuration to help pull sample bytecode in for testing
+val sampleBytecode by configurations.creating {
+  isTransitive = false
+}
+
+// copy sample bytecode jars to a known location for testing/benchmarking
+val sampleBytecodeDir = layout.buildDirectory.dir("sampleBytecode")
+val copySampleBytecode = tasks.register<Copy>("sampleBytecode") {
+  val versionJarSuffix = "-[0-9.]*\\.jar$".toRegex()
+  rename { name -> name.replace(versionJarSuffix, ".jar") }
+  into(sampleBytecodeDir)
+  from(sampleBytecode)
+}
+tasks.test { dependsOn(copySampleBytecode) }
+tasks.jmh { dependsOn(copySampleBytecode) }

@@ -8,6 +8,7 @@ import static org.objectweb.asm.ClassReader.SKIP_FRAMES;
 import static org.objectweb.asm.Opcodes.ASM9;
 import static org.openjdk.jmh.annotations.Mode.AverageTime;
 
+import datadog.instrument.testing.SampleClasses;
 import java.util.ArrayList;
 import java.util.List;
 import org.objectweb.asm.AnnotationVisitor;

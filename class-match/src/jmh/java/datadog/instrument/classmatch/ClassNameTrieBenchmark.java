@@ -3,6 +3,7 @@ package datadog.instrument.classmatch;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static org.openjdk.jmh.annotations.Mode.AverageTime;
 
+import datadog.instrument.testing.SampleClasses;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
