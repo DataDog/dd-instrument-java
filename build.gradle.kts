@@ -37,20 +37,30 @@ dependencies {
 }
 
 // collect all subproject output into a single jar
+fun allSources(): List<SourceDirectorySet> {
+  return subprojects.filter { it.name != "testing" }.map { it.sourceSets.main.get().allSource }
+}
 tasks.jar {
   dependsOn(embed)
   from(embed.map { zipTree(it) })
 }
 tasks.javadoc {
   dependsOn(embed)
-  setSource(subprojects.map { it.sourceSets.main.get().allSource })
+  setSource(allSources())
+  exclude(
+    "datadog/instrument/glue",
+    "datadog/instrument/utils/Glue.java",
+    "datadog/instrument/utils/JVM.java")
+  var javadocOptions = (options as StandardJavadocDocletOptions)
   if (JavaVersion.current().isJava9Compatible) {
-    (options as StandardJavadocDocletOptions).addBooleanOption("html5", true)
+    javadocOptions.addBooleanOption("html5", true)
   }
+  javadocOptions.addStringOption("-source-path",
+    allSources().joinToString(File.pathSeparator) { it.sourceDirectories.asPath })
 }
 tasks.named<Jar>("sourcesJar") {
   dependsOn(embed)
-  from(subprojects.map { it.sourceSets.main.get().allSource })
+  from(allSources())
 }
 
 publishing {
