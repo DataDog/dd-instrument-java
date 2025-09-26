@@ -26,6 +26,10 @@ public final class FieldOutline {
     this.descriptor = descriptor;
   }
 
+  // ----------------------------------------------------------------------------------------------
+  // The rest of this class is used to implement advanced matching, while keeping outlines minimal
+  // ----------------------------------------------------------------------------------------------
+
   /** Lazy cache of the field's type-string hash. */
   private int typeStringHash;
 

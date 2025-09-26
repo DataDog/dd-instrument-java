@@ -31,6 +31,18 @@ public final class MethodOutline {
     this.annotations = annotations;
   }
 
+  // ----------------------------------------------------------------------------------------------
+  // The rest of this class is used to implement advanced matching, while keeping outlines minimal
+  // ----------------------------------------------------------------------------------------------
+
+  private static final int[] NO_BOUNDARIES = {};
+
+  /** Lazy cache of boundaries between each parameter/return descriptor. */
+  private int[] descriptorBoundaries;
+
+  /** Lazy cache of hashes for each parameter/return type-string. */
+  private int[] typeStringHashes;
+
   /**
    * @return number of method parameters
    */
@@ -77,10 +89,18 @@ public final class MethodOutline {
     return new TypeString(descriptor, start, end, getHash(returnIndex, start, end));
   }
 
-  private static final int[] NO_BOUNDARIES = {};
-
-  /** Lazy cache of boundaries between each parameter/return descriptor. */
-  private int[] descriptorBoundaries;
+  /** Gets a previously cached {@link TypeString} hash; otherwise computes and caches a new hash. */
+  private int getHash(int typeStringIndex, int start, int end) {
+    if (typeStringHashes == null) {
+      // allow for one hash per parameter, plus one for return type
+      typeStringHashes = new int[descriptorBoundaries.length + 1];
+    }
+    int hash = typeStringHashes[typeStringIndex];
+    if (hash == 0) {
+      typeStringHashes[typeStringIndex] = hash = TypeString.computeHash(descriptor, start, end);
+    }
+    return hash;
+  }
 
   /**
    * Returns the boundaries between each parameter/return descriptor in the method descriptor.
@@ -137,21 +157,5 @@ public final class MethodOutline {
       boundaries[i] = p = partition.nextSetBit(p);
     }
     return boundaries;
-  }
-
-  /** Lazy cache of hashes for each parameter/return type-string. */
-  private int[] typeStringHashes;
-
-  /** Gets a previously cached {@link TypeString} hash; otherwise computes and caches a new hash. */
-  private int getHash(int typeStringIndex, int start, int end) {
-    if (typeStringHashes == null) {
-      // allow for one hash per parameter, plus one for return type
-      typeStringHashes = new int[descriptorBoundaries.length + 1];
-    }
-    int hash = typeStringHashes[typeStringIndex];
-    if (hash == 0) {
-      typeStringHashes[typeStringIndex] = hash = TypeString.computeHash(descriptor, start, end);
-    }
-    return hash;
   }
 }
