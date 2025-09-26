@@ -43,6 +43,7 @@ public final class ClassInjector {
    *
    * @param bytecode the named bytecode to inject
    * @return list of injected classes
+   * @throws IllegalStateException if class injection is not enabled
    */
   public static List<Class<?>> injectBootClasses(Map<String, byte[]> bytecode) {
     return (List<Class<?>>) classDefiner().apply(bytecode, null);
@@ -54,6 +55,7 @@ public final class ClassInjector {
    * @param bytecode the named bytecode to inject
    * @param cl the class-loader to use
    * @return list of injected classes
+   * @throws IllegalStateException if class injection is not enabled
    */
   public static List<Class<?>> injectClasses(Map<String, byte[]> bytecode, ClassLoader cl) {
     return (List<Class<?>>) classDefiner().apply(bytecode, cl);
@@ -65,6 +67,7 @@ public final class ClassInjector {
    * @param bytecode the named bytecode to inject
    * @param pd the protection domain to use
    * @return list of injected classes
+   * @throws IllegalStateException if class injection is not enabled
    */
   public static List<Class<?>> injectClasses(Map<String, byte[]> bytecode, ProtectionDomain pd) {
     return (List<Class<?>>) classDefiner().apply(bytecode, pd);
@@ -74,7 +77,7 @@ public final class ClassInjector {
 
   private static BiFunction classDefiner() {
     if (classDefiner == null) {
-      throw new UnsupportedOperationException("Class injection not enabled");
+      throw new IllegalStateException("Class injection not enabled");
     }
     return classDefiner;
   }
@@ -85,6 +88,7 @@ public final class ClassInjector {
    * Enables class injection via {@link Instrumentation}.
    *
    * @param inst the instrumentation instance
+   * @throws UnsupportedOperationException if class injection is not available
    */
   public static void enableClassInjection(Instrumentation inst) {
     if (classDefiner != null) {
