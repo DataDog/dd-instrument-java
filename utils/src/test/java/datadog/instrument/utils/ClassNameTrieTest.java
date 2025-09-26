@@ -1,4 +1,4 @@
-package datadog.instrument.classmatch;
+package datadog.instrument.utils;
 
 import static java.util.Collections.singletonList;
 import static java.util.function.Function.identity;

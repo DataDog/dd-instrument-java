@@ -4,7 +4,7 @@
  * Copyright 2025-Present Datadog, Inc.
  */
 
-package datadog.instrument.classmatch;
+package datadog.instrument.utils;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -916,7 +916,7 @@ public final class ClassNameTrie {
         lines.add("package " + pkgName + ';');
       }
       lines.add("");
-      lines.add("import datadog.instrument.classmatch.ClassNameTrie;");
+      lines.add("import datadog.instrument.utils.ClassNameTrie;");
       lines.add("");
       lines.add("// Generated from '" + triePath.getFileName() + "' - DO NOT EDIT!");
       lines.add("public final class " + className + " {");
