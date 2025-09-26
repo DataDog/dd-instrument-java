@@ -11,7 +11,12 @@ import javax.annotation.Nullable;
 /** Outlines a field; access modifiers, field name, descriptor. */
 public final class FieldOutline {
 
-  /** Access modifiers for this field. */
+  /**
+   * Access modifiers for this field.
+   *
+   * @see <a href="https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html#jvms-4.5-200-A.1">
+   *     Expected values</a>
+   */
   public final int access;
 
   /** Name of this field. */

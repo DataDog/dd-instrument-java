@@ -9,7 +9,12 @@ package datadog.instrument.classmatch;
 /** Minimal class header that describes its access modifiers and immediate class hierarchy. */
 public class ClassHeader {
 
-  /** Access modifiers for this class. */
+  /**
+   * Access modifiers for this class.
+   *
+   * @see <a href="https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html#jvms-4.1-200-E.1">
+   *     Expected values</a>
+   */
   public final int access;
 
   /** Internal name of this class. */

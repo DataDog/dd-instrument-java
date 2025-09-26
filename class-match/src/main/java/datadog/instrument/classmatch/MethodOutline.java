@@ -12,7 +12,12 @@ import javax.annotation.Nullable;
 /** Outlines a method; access modifiers, method name, descriptor, annotations. */
 public final class MethodOutline {
 
-  /** Access modifiers for this method. */
+  /**
+   * Access modifiers for this method.
+   *
+   * @see <a href="https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html#jvms-4.6-200-A.1">
+   *     Expected values</a>
+   */
   public final int access;
 
   /** Name of this method. */
