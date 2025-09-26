@@ -4,7 +4,7 @@
  * Copyright 2025-Present Datadog, Inc.
  */
 
-package datadog.instrument.classmatch;
+package datadog.instrument.utils;
 
 import java.util.Arrays;
 
