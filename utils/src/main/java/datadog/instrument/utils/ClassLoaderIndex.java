@@ -12,7 +12,7 @@ import static datadog.instrument.utils.ClassLoaderKey.SYSTEM_CLASS_LOADER;
 import static datadog.instrument.utils.ClassLoaderKey.SYSTEM_CLASS_LOADER_KEY_ID;
 
 /**
- * Semi-stable index of {@link ClassLoaderKey}s that guarantees a unique key and id for different
+ * Semi-stable index of known {@link ClassLoader}s that guarantees a unique key-id for different
  * class-loaders. A class-loader may have more than one key-id over its life if it is temporarily
  * displaced from the index. For example if a large number of class-loaders (>500) were created in
  * parallel.
