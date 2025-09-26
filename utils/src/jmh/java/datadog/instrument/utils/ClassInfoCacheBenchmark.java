@@ -1,4 +1,4 @@
-package datadog.instrument.classmatch;
+package datadog.instrument.utils;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static org.openjdk.jmh.annotations.Mode.AverageTime;

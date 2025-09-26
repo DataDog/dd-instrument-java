@@ -4,9 +4,8 @@
  * Copyright 2025-Present Datadog, Inc.
  */
 
-package datadog.instrument.classmatch;
+package datadog.instrument.utils;
 
-import datadog.instrument.utils.ClassLoaderIndex;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 
