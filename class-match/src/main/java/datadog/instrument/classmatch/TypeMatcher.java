@@ -7,11 +7,43 @@
 package datadog.instrument.classmatch;
 
 import static datadog.instrument.classmatch.InternalMatchers.internalName;
+import static java.util.Arrays.asList;
 
+import java.util.Collection;
 import java.util.function.Predicate;
 
 /** Fluent-API for building type hierarchy predicates. */
 public interface TypeMatcher extends Predicate<CharSequence> {
+
+  /**
+   * Matches when the type equals the given string.
+   *
+   * @param type the expected type
+   * @return matcher of types with the same value
+   */
+  static TypeMatcher type(String type) {
+    return internalName(type)::contentEquals;
+  }
+
+  /**
+   * Matches when the type equals one of the given strings.
+   *
+   * @param types the expected types
+   * @return matcher of types from the given list
+   */
+  static TypeMatcher typeOneOf(String... types) {
+    return typeOneOf(asList(types));
+  }
+
+  /**
+   * Matches when the type equals one of the given strings.
+   *
+   * @param types the expected types
+   * @return matcher of types from the given list
+   */
+  static TypeMatcher typeOneOf(Collection<String> types) {
+    return new InternalNames(types)::containsType;
+  }
 
   /**
    * Matches when the type starts with the given prefix.

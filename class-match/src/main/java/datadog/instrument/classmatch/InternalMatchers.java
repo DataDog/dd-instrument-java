@@ -9,9 +9,7 @@ package datadog.instrument.classmatch;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Predicate;
 
 /** Internally shared matchers, not part of the public API. */
@@ -31,14 +29,11 @@ final class InternalMatchers {
 
   /** Matches when at least one annotation has one of the given types. */
   static Predicate<String[]> declaresAnnotationOneOf(Collection<String> types) {
-    Set<String> internalNames = new HashSet<>((int) (types.size() / 0.75f) + 1);
-    for (String type : types) {
-      internalNames.add(internalName(type));
-    }
+    InternalNames internalNames = new InternalNames(types);
     // note these annotations are of interest when parsing
     ClassFile.annotationsOfInterest(internalNames);
     // performance tip: capture this method-ref outside the lambda
-    Predicate<String> annotationNamedOneOf = internalNames::contains;
+    Predicate<String> annotationNamedOneOf = internalNames::containsType;
     return annotations -> anyMatch(annotations, annotationNamedOneOf);
   }
 
