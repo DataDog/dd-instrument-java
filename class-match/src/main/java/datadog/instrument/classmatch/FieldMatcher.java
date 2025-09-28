@@ -42,7 +42,7 @@ public interface FieldMatcher extends Predicate<FieldOutline> {
    * @return matcher of fields with matching access
    */
   default FieldMatcher access(IntPredicate accessMatcher) {
-    return and(f -> accessMatcher.test(f.access));
+    return f -> test(f) && accessMatcher.test(f.access);
   }
 
   /**
@@ -53,7 +53,7 @@ public interface FieldMatcher extends Predicate<FieldOutline> {
    */
   default FieldMatcher type(String type) {
     String descriptor = descriptor(type);
-    return and(f -> descriptor.equals(f.descriptor));
+    return f -> test(f) && descriptor.equals(f.descriptor);
   }
 
   /**
@@ -64,7 +64,7 @@ public interface FieldMatcher extends Predicate<FieldOutline> {
    */
   default FieldMatcher type(Class<?> type) {
     String descriptor = descriptor(type);
-    return and(f -> descriptor.equals(f.descriptor));
+    return f -> test(f) && descriptor.equals(f.descriptor);
   }
 
   /**
@@ -73,12 +73,14 @@ public interface FieldMatcher extends Predicate<FieldOutline> {
    * @param typeMatcher the field type matcher
    * @return matcher of fields with a matching type
    */
-  default FieldMatcher type(TypeMatcher typeMatcher) {
-    return and(
-        f -> {
-          TypeString fieldType = f.typeString();
-          return fieldType != null && typeMatcher.test(fieldType);
-        });
+  default FieldMatcher and(TypeMatcher typeMatcher) {
+    return f -> {
+      if (!test(f)) {
+        return false;
+      }
+      TypeString fieldType = f.typeString();
+      return fieldType != null && typeMatcher.test(fieldType);
+    };
   }
 
   /**
