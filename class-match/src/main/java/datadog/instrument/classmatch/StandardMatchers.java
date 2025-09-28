@@ -53,6 +53,16 @@ public final class StandardMatchers {
   private StandardMatchers() {}
 
   /**
+   * Syntactic sugar around {@link IntPredicate#negate()}.
+   *
+   * @param predicate the predicate to negate
+   * @return negated predicate
+   */
+  public static IntPredicate not(IntPredicate predicate) {
+    return predicate.negate();
+  }
+
+  /**
    * Syntactic sugar around {@link Predicate#negate()}.
    *
    * @param <T> the predicate's target type
