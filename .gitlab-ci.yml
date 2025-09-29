@@ -1,6 +1,6 @@
 stages:
   - build
-  - create_key
+  - generate-signing-key
 
 default:
   tags: [ "arch:amd64" ]  # Use runners with the "arch:amd64" tag
