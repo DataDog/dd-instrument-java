@@ -1,5 +1,6 @@
 stages:
   - build
+  - create_key
 
 default:
   tags: [ "arch:amd64" ]  # Use runners with the "arch:amd64" tag
@@ -45,3 +46,16 @@ build:
         coverage_format: jacoco
         path: ./*/build/reports/jacoco/*/jacocoTestReport.xml
 
+create_key:
+  stage: generate-signing-key
+  when: manual
+  variables:
+    PROJECT_NAME: "dd-instrument-java"
+    EXPORT_TO_KEYSERVER: "true"
+  image: $REGISTRY/ci/agent-key-management-tools/gpg:1
+  script:
+    - /create.sh
+  artifacts:
+    expire_in: 13 mos
+    paths:
+      - pubkeys
