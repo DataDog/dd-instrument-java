@@ -1,0 +1,83 @@
+name: Draft release notes on tag
+on:
+  create:
+  workflow_dispatch:
+
+jobs:
+  draft_release_notes:
+    name: Draft release notes
+    permissions:
+      contents: write # Required to create a release
+    if: (github.event.ref_type == 'tag' && github.event.master_branch == 'main') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get milestone title
+        id: milestoneTitle
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # 8.0.0
+        with:
+          result-encoding: string
+          script: |
+            // Get the milestone title ("X.Y.Z") from tag name ("vX.Y.Z(-rc)")
+            const match = '${{github.event.ref}}'.match(/v(\d+\.\d+\.\d+)(-rc\d+)?/i)
+            if (!match) {
+              core.setFailed('Failed to parse tag name into milestone name: ${{github.event.ref}}')
+              return
+            }
+            const milestoneTitle = match[1]
+            const isReleaseCandidate = match[2] !== undefined
+
+            // Look for the milestone
+            const milestone = (await github.paginate('GET /repos/{owner}/{repo}/milestones', {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all'
+            })).find(m => m.title == milestoneTitle)
+            if (!milestone) {
+              core.setFailed(`Failed to find milestone: ${milestoneTitle}`)
+              return
+            }
+
+            // Get pull requests of the milestone
+            const pullRequests = (await github.paginate('/repos/{owner}/{repo}/issues', {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              milestone: milestone.number,
+              state: 'closed'
+            }))
+            .filter(i => i.pull_request && i.pull_request.merged_at)                // Skip closed but not merged
+            .filter(p => !p.labels.find(label => label.name == 'no release notes')) // Skip excluded
+
+            // Generate changelog
+            function cleanUpTitle(title) {
+              // Remove tags between brackets
+              title = title.replace(/\[[^\]]+\]/g, '')
+              // Remove cherry-pick prefix
+              if (title.startsWith('🍒 ') && title.includes(' - ')) {
+                title = title.substring(title.indexOf(' - ') + 3)
+              }
+              return title
+            }
+            function format(pullRequest) {
+              return `${cleanUpTitle(pullRequest.title)} (#${pullRequest.number} - @${pullRequest.user.login})`
+            }
+
+            var changelog = ''
+            if (isReleaseCandidate) {
+              changelog += '> [!WARNING]\n' +
+                '> This is a **release candidate** and is **not** intended for use in production.  \n' +
+                'Please [open an issue](https://github.com/DataDog/dd-trace-java/issues/new) regarding any problems in this release candidate.\n\n'
+            }
+            changelog += '# What's Changed\n\n'
+            for (let pullRequest of pullRequests) {
+              changelog += '* ' + format(pullRequest) + '\n'
+            }
+
+            // Create release with the draft changelog
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: '${{ github.event.ref }}',
+              name: milestoneTitle,
+              draft: true,
+              body: changelog
+            })
