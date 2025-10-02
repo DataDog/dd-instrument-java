@@ -69,7 +69,7 @@ publishing {
       from(components["java"])
       pom {
         name = project.name
-        description = project.description
+        description = "Datadog Instrumentation Helpers for Java"
         url = "https://github.com/datadog/dd-instrument-java"
         licenses {
           license {
