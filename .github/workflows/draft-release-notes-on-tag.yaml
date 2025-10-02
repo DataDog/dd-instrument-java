@@ -67,7 +67,6 @@ jobs:
                 '> This is a **release candidate** and is **not** intended for use in production.  \n' +
                 'Please [open an issue](https://github.com/DataDog/dd-trace-java/issues/new) regarding any problems in this release candidate.\n\n'
             }
-            changelog += '# What's Changed\n\n'
             for (let pullRequest of pullRequests) {
               changelog += '* ' + format(pullRequest) + '\n'
             }
