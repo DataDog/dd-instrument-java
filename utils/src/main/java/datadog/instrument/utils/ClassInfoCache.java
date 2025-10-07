@@ -8,6 +8,7 @@ package datadog.instrument.utils;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.IntPredicate;
 
 /**
  * Shares class information from multiple classloaders in a single cache.
@@ -114,6 +115,47 @@ public final class ClassInfoCache<T> {
         if (existing.className.contentEquals(className)) {
           // filter on class-loader, -1 on either side matches all
           if ((classLoaderKeyId ^ existing.classLoaderKeyId) <= 0) {
+            // use global TICKS as a substitute for access time
+            // TICKS is only incremented in 'share' for performance reasons
+            existing.accessed = TICKS.get();
+            return (T) existing.classInfo;
+          }
+          // fall-through and quit; name matched but class-loader didn't
+        } else if (i < MAX_HASH_ATTEMPTS) {
+          continue; // rehash and try again
+        }
+      }
+      // quit search when:
+      // * we find an empty slot (we know there won't be further info)
+      // * we find a slot with the same name but different class-loader
+      // * we've exhausted all hash attempts
+      return null;
+    }
+  }
+
+  /**
+   * Finds information for the given class-name, filtered by class-loader key.
+   *
+   * @param className the class-name
+   * @param classLoaderKeyFilter the filter for the class-loader key
+   * @return information shared under the class-name and filtered class-loader
+   * @see ClassLoaderIndex#getClassLoaderKeyId(ClassLoader)
+   */
+  @SuppressWarnings("unchecked")
+  public T find(CharSequence className, IntPredicate classLoaderKeyFilter) {
+    final int hash = className.hashCode();
+    final SharedInfo[] shared = this.shared;
+    final int slotMask = this.slotMask;
+
+    // try to find matching slot, rehashing after each attempt
+    for (int i = 1, h = hash; true; i++, h = rehash(h)) {
+      int slot = slotMask & h;
+      SharedInfo existing = shared[slot];
+      if (existing != null) {
+        if (existing.className.contentEquals(className)) {
+          // apply filter to class-loader key, -1 always matches
+          if (existing.classLoaderKeyId < 0
+              || classLoaderKeyFilter.test(existing.classLoaderKeyId)) {
             // use global TICKS as a substitute for access time
             // TICKS is only incremented in 'share' for performance reasons
             existing.accessed = TICKS.get();
