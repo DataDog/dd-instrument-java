@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.IntPredicate;
 import org.junit.jupiter.api.Test;
 
 class ClassInfoCacheTest {
@@ -18,6 +19,11 @@ class ClassInfoCacheTest {
 
     ClassLoader myCL = newCL();
     ClassLoader notMyCL = newCL();
+
+    int myCLKey = ClassLoaderIndex.getClassLoaderKeyId(myCL);
+
+    IntPredicate myCLFilter = sameCLKey(myCLKey);
+    IntPredicate notMyCLFilter = myCLFilter.negate();
 
     assertNull(cache.find("example.test.MyGlobalClass"));
     assertNull(cache.find("example.test.MyLocalClass"));
@@ -30,6 +36,14 @@ class ClassInfoCacheTest {
     assertNull(cache.find("example.test.MyGlobalClass", notMyCL));
     assertNull(cache.find("example.test.MyLocalClass", notMyCL));
     assertNull(cache.find("example.test.NotMyClass", notMyCL));
+
+    assertNull(cache.find("example.test.MyGlobalClass", myCLFilter));
+    assertNull(cache.find("example.test.MyLocalClass", myCLFilter));
+    assertNull(cache.find("example.test.NotMyClass", myCLFilter));
+
+    assertNull(cache.find("example.test.MyGlobalClass", notMyCLFilter));
+    assertNull(cache.find("example.test.MyLocalClass", notMyCLFilter));
+    assertNull(cache.find("example.test.NotMyClass", notMyCLFilter));
 
     cache.share("example.test.MyGlobalClass", "my global data");
     cache.share("example.test.MyLocalClass", "my local data", myCL);
@@ -46,6 +60,14 @@ class ClassInfoCacheTest {
     assertNull(cache.find("example.test.MyLocalClass", notMyCL));
     assertNull(cache.find("example.test.NotMyClass", notMyCL));
 
+    assertEquals("my global data", cache.find("example.test.MyGlobalClass", myCLFilter));
+    assertEquals("my local data", cache.find("example.test.MyLocalClass", myCLFilter));
+    assertNull(cache.find("example.test.NotMyClass", myCLFilter));
+
+    assertEquals("my global data", cache.find("example.test.MyGlobalClass", notMyCLFilter));
+    assertNull(cache.find("example.test.MyLocalClass", notMyCLFilter));
+    assertNull(cache.find("example.test.NotMyClass", notMyCLFilter));
+
     cache.clear();
 
     assertNull(cache.find("example.test.MyGlobalClass"));
@@ -59,6 +81,14 @@ class ClassInfoCacheTest {
     assertNull(cache.find("example.test.MyGlobalClass", notMyCL));
     assertNull(cache.find("example.test.MyLocalClass", notMyCL));
     assertNull(cache.find("example.test.NotMyClass", notMyCL));
+
+    assertNull(cache.find("example.test.MyGlobalClass", myCLFilter));
+    assertNull(cache.find("example.test.MyLocalClass", myCLFilter));
+    assertNull(cache.find("example.test.NotMyClass", myCLFilter));
+
+    assertNull(cache.find("example.test.MyGlobalClass", notMyCLFilter));
+    assertNull(cache.find("example.test.MyLocalClass", notMyCLFilter));
+    assertNull(cache.find("example.test.NotMyClass", notMyCLFilter));
   }
 
   @Test
@@ -111,10 +141,18 @@ class ClassInfoCacheTest {
     for (int i = 0; i < 300; i++) {
       if (overwritten.contains(i)) {
         assertNull(cache.find("example.MyClass" + i), "rem " + i);
+        assertNull(cache.find("example.MyClass" + i, i), "rem " + i);
+        assertNull(cache.find("example.MyClass" + i, sameCLKey(i)), "rem " + i);
       } else {
         assertEquals(i, cache.find("example.MyClass" + i), "add " + i);
+        assertEquals(i, cache.find("example.MyClass" + i, i), "add " + i);
+        assertEquals(i, cache.find("example.MyClass" + i, sameCLKey(i)), "add " + i);
       }
     }
+  }
+
+  private static IntPredicate sameCLKey(int clKey) {
+    return k -> k == clKey;
   }
 
   private static ClassLoader newCL() {
