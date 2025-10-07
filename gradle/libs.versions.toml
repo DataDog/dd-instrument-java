@@ -1,5 +1,5 @@
 [versions]
-asm = "9.8"
+asm = "9.9"
 junit-jupiter = "5.13.4"
 junit-platform = "1.13.4"
 assertj = "3.27.5"
