@@ -2,6 +2,7 @@ plugins {
   java
   `maven-publish`
   signing
+  id("com.gradleup.shadow")
   id("pl.allegro.tech.build.axion-release")
   id("io.github.gradle-nexus.publish-plugin")
 }
@@ -63,6 +64,16 @@ tasks.named<Jar>("sourcesJar") {
   from(allSources())
 }
 
+// produce "-all" jar with a shaded copy of ASM
+tasks.shadowJar {
+  dependsOn(embed)
+  from(embed.map { zipTree(it) })
+  relocate("org.objectweb.asm", "datadog.instrument.asm")
+}
+tasks.assemble {
+  dependsOn(tasks.shadowJar)
+}
+
 publishing {
   publications {
     create<MavenPublication>("maven") {
@@ -88,6 +99,16 @@ publishing {
           connection = "scm:https://datadog@github.com/datadog/dd-instrument-java"
           developerConnection = "scm:git@github.com:datadog/dd-instrument-java.git"
           url = "https://github.com/datadog/dd-instrument-java"
+        }
+        withXml {
+          // mark ASM dependency as optional
+          var doc = asElement().ownerDocument
+          var deps = doc.getElementsByTagName("dependency")
+          for (i in 0 ..< deps.length) {
+            var optional = doc.createElement("optional")
+            optional.textContent = "true"
+            deps.item(i).appendChild(optional)
+          }
         }
       }
     }
