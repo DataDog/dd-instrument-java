@@ -63,6 +63,46 @@ public final class StandardMatchers {
   }
 
   /**
+   * Negates the given type matcher.
+   *
+   * @param matcher the matcher to negate
+   * @return negation of the matcher
+   */
+  public static TypeMatcher not(TypeMatcher matcher) {
+    return cs -> !matcher.test(cs);
+  }
+
+  /**
+   * Negates the given class matcher.
+   *
+   * @param matcher the matcher to negate
+   * @return negation of the matcher
+   */
+  public static ClassMatcher not(ClassMatcher matcher) {
+    return c -> !matcher.test(c);
+  }
+
+  /**
+   * Negates the given field matcher.
+   *
+   * @param matcher the matcher to negate
+   * @return negation of the matcher
+   */
+  public static FieldMatcher not(FieldMatcher matcher) {
+    return f -> !matcher.test(f);
+  }
+
+  /**
+   * Negates the given method matcher.
+   *
+   * @param matcher the matcher to negate
+   * @return negation of the matcher
+   */
+  public static MethodMatcher not(MethodMatcher matcher) {
+    return m -> !matcher.test(m);
+  }
+
+  /**
    * Syntactic sugar around {@link Predicate#negate()}.
    *
    * @param <T> the predicate's target type
