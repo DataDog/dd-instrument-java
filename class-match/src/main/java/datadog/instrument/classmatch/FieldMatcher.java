@@ -8,7 +8,6 @@ package datadog.instrument.classmatch;
 
 import static datadog.instrument.classmatch.InternalMatchers.descriptor;
 
-import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 
 /** Fluent-API for building {@link FieldOutline} predicates. */
@@ -41,7 +40,7 @@ public interface FieldMatcher extends Predicate<FieldOutline> {
    * @param accessMatcher the access matcher
    * @return matcher of fields with matching access
    */
-  default FieldMatcher access(IntPredicate accessMatcher) {
+  default FieldMatcher access(AccessMatcher accessMatcher) {
     return f -> test(f) && accessMatcher.test(f.access);
   }
 

@@ -12,7 +12,6 @@ import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotationO
 import static java.util.Arrays.asList;
 
 import java.util.Collection;
-import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 
 /** Fluent-API for building {@link ClassOutline} predicates. */
@@ -36,7 +35,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * @param fieldMatcher the field matcher
    * @return matcher of classes with a matching field
    */
-  static ClassMatcher declares(IntPredicate accessMatcher, FieldMatcher fieldMatcher) {
+  static ClassMatcher declares(AccessMatcher accessMatcher, FieldMatcher fieldMatcher) {
     FieldMatcher combinedMatcher = fieldMatcher.access(accessMatcher);
     return c -> anyMatch(c.fields, combinedMatcher);
   }
@@ -58,7 +57,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * @param methodMatcher the method matcher
    * @return matcher of classes with a matching method
    */
-  static ClassMatcher declares(IntPredicate accessMatcher, MethodMatcher methodMatcher) {
+  static ClassMatcher declares(AccessMatcher accessMatcher, MethodMatcher methodMatcher) {
     MethodMatcher combinedMatcher = methodMatcher.access(accessMatcher);
     return c -> anyMatch(c.methods, combinedMatcher);
   }
