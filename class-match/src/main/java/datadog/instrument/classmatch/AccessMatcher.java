@@ -29,11 +29,11 @@ public interface AccessMatcher extends IntPredicate {
   AccessMatcher PACKAGE_PRIVATE =
       acc -> (acc & (Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE)) == 0;
 
-  /** Matches static access. */
+  /** Matches static methods/fields. */
   AccessMatcher STATIC = Modifier::isStatic;
 
-  /** Matches non-static access. */
-  AccessMatcher NON_STATIC = acc -> (acc & Modifier.STATIC) == 0;
+  /** Matches non-static methods/fields. */
+  AccessMatcher INSTANCE = acc -> (acc & Modifier.STATIC) == 0;
 
   /** Matches final classes/methods/fields. */
   AccessMatcher FINAL = Modifier::isFinal;
@@ -56,11 +56,14 @@ public interface AccessMatcher extends IntPredicate {
   /** Matches interface classes. */
   AccessMatcher INTERFACE = Modifier::isInterface;
 
+  /** Matches non-interface classes. */
+  AccessMatcher CLASS = acc -> (acc & Modifier.INTERFACE) == 0;
+
   /** Matches abstract classes/methods. */
   AccessMatcher ABSTRACT = Modifier::isAbstract;
 
   /** Matches non-abstract classes/methods. */
-  AccessMatcher NON_ABSTRACT = acc -> (acc & Modifier.ABSTRACT) == 0;
+  AccessMatcher CONCRETE = acc -> (acc & Modifier.ABSTRACT) == 0;
 
   /**
    * Conjunction of this matcher AND another.
