@@ -25,6 +25,10 @@ public interface AccessMatcher extends IntPredicate {
   /** Matches protected access. */
   AccessMatcher PROTECTED = Modifier::isProtected;
 
+  /** Matches package-private access. */
+  AccessMatcher PACKAGE_PRIVATE =
+      acc -> (acc & (Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE)) == 0;
+
   /** Matches static access. */
   AccessMatcher STATIC = Modifier::isStatic;
 
@@ -40,14 +44,14 @@ public interface AccessMatcher extends IntPredicate {
   /** Matches synchronized methods. */
   AccessMatcher SYNCHRONIZED = Modifier::isSynchronized;
 
+  /** Matches varargs methods. */
+  AccessMatcher VARARGS = acc -> (acc & 0x0080) != 0;
+
   /** Matches volatile fields. */
   AccessMatcher VOLATILE = Modifier::isVolatile;
 
   /** Matches transient fields. */
   AccessMatcher TRANSIENT = Modifier::isTransient;
-
-  /** Matches native methods. */
-  AccessMatcher NATIVE = Modifier::isNative;
 
   /** Matches interface classes. */
   AccessMatcher INTERFACE = Modifier::isInterface;
