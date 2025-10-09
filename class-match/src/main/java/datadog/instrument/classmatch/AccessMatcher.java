@@ -55,6 +55,9 @@ public interface AccessMatcher extends IntPredicate {
   /** Matches abstract classes/methods. */
   AccessMatcher ABSTRACT = Modifier::isAbstract;
 
+  /** Matches non-abstract classes/methods. */
+  AccessMatcher NON_ABSTRACT = acc -> (acc & Modifier.ABSTRACT) == 0;
+
   /**
    * Conjunction of this matcher AND another.
    *
