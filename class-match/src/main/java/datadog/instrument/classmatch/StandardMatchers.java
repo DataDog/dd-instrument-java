@@ -18,16 +18,6 @@ public final class StandardMatchers {
   private StandardMatchers() {}
 
   /**
-   * Negates the given access matcher.
-   *
-   * @param matcher the matcher to negate
-   * @return negation of the matcher
-   */
-  public static AccessMatcher not(AccessMatcher matcher) {
-    return acc -> !matcher.test(acc);
-  }
-
-  /**
    * Negates the given type matcher.
    *
    * @param matcher the matcher to negate
@@ -65,6 +55,16 @@ public final class StandardMatchers {
    */
   public static MethodMatcher not(MethodMatcher matcher) {
     return m -> !matcher.test(m);
+  }
+
+  /**
+   * Negates the given access matcher.
+   *
+   * @param matcher the matcher to negate
+   * @return negation of the matcher
+   */
+  public static AccessMatcher not(AccessMatcher matcher) {
+    return acc -> !matcher.test(acc);
   }
 
   /**
