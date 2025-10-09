@@ -28,8 +28,14 @@ public interface AccessMatcher extends IntPredicate {
   /** Matches static access. */
   AccessMatcher STATIC = Modifier::isStatic;
 
+  /** Matches non-static access. */
+  AccessMatcher NON_STATIC = acc -> (acc & Modifier.STATIC) == 0;
+
   /** Matches final classes/methods/fields. */
   AccessMatcher FINAL = Modifier::isFinal;
+
+  /** Matches non-final classes/methods/fields. */
+  AccessMatcher NON_FINAL = acc -> (acc & Modifier.FINAL) == 0;
 
   /** Matches synchronized methods. */
   AccessMatcher SYNCHRONIZED = Modifier::isSynchronized;
@@ -46,8 +52,14 @@ public interface AccessMatcher extends IntPredicate {
   /** Matches interface classes. */
   AccessMatcher INTERFACE = Modifier::isInterface;
 
+  /** Matches non-interface classes. */
+  AccessMatcher CLASS = acc -> (acc & Modifier.INTERFACE) == 0;
+
   /** Matches abstract classes. */
   AccessMatcher ABSTRACT = Modifier::isAbstract;
+
+  /** Matches concrete (constructable) classes. */
+  AccessMatcher CONCRETE = acc -> (acc & Modifier.ABSTRACT) == 0;
 
   /**
    * Conjunction of this matcher AND another.
