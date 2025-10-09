@@ -52,14 +52,8 @@ public interface AccessMatcher extends IntPredicate {
   /** Matches interface classes. */
   AccessMatcher INTERFACE = Modifier::isInterface;
 
-  /** Matches non-interface classes. */
-  AccessMatcher CLASS = acc -> (acc & Modifier.INTERFACE) == 0;
-
-  /** Matches abstract classes. */
+  /** Matches abstract classes/methods. */
   AccessMatcher ABSTRACT = Modifier::isAbstract;
-
-  /** Matches concrete (constructable) classes. */
-  AccessMatcher CONCRETE = acc -> (acc & Modifier.ABSTRACT) == 0;
 
   /**
    * Conjunction of this matcher AND another.
