@@ -8,16 +8,15 @@ package datadog.instrument.utils;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.IntPredicate;
 
 /**
  * Shares class information from multiple classloaders in a single cache.
  *
- * <p>Information is indexed by class-name, with an optional class-loader filter. When multiple
+ * <p>Information is indexed by class-name, with an optional class-loader matcher. When multiple
  * classes are defined with the same name, only one has its information cached at any given time.
  * The class-loader can then be used to check information is for the correct class.
  *
- * @see ClassLoaderIndex#getClassLoaderKeyId
+ * @see ClassLoaderIndex#getClassLoaderKeyId(ClassLoader)
  */
 public final class ClassInfoCache<T> {
 
@@ -72,7 +71,7 @@ public final class ClassInfoCache<T> {
   }
 
   /**
-   * Finds information for the given class-name, under the given class-loader.
+   * Finds information for the given class-name, scoped to the given class-loader.
    *
    * @param className the class-name
    * @param cl the class-loader
@@ -83,18 +82,18 @@ public final class ClassInfoCache<T> {
   }
 
   /**
-   * Shares information for the given class-name, under the given class-loader.
+   * Shares information for the given class-name, scoped to the given class-loader.
    *
    * @param className the class-name
    * @param info the information to share under the class-name and class-loader
-   * @param cl limit the information to this class-loader
+   * @param cl scope the information to this class-loader
    */
   public void share(String className, T info, ClassLoader cl) {
     share(className, info, ClassLoaderIndex.getClassLoaderKeyId(cl));
   }
 
   /**
-   * Finds information for the given class-name, under the given class-loader key.
+   * Finds information for the given class-name, scoped to the given class-loader key.
    *
    * @param className the class-name
    * @param classLoaderKeyId the class-loader's key-id
@@ -113,7 +112,7 @@ public final class ClassInfoCache<T> {
       SharedInfo existing = shared[slot];
       if (existing != null) {
         if (existing.className.contentEquals(className)) {
-          // filter on class-loader, -1 on either side matches all
+          // match on class-loader key, -1 on either side matches all
           if ((classLoaderKeyId ^ existing.classLoaderKeyId) <= 0) {
             // use global TICKS as a substitute for access time
             // TICKS is only incremented in 'share' for performance reasons
@@ -134,15 +133,15 @@ public final class ClassInfoCache<T> {
   }
 
   /**
-   * Finds information for the given class-name, filtered by class-loader key.
+   * Finds information for the given class-name, scoped to class-loaders with matching keys.
    *
    * @param className the class-name
-   * @param classLoaderKeyFilter the filter for the class-loader key
-   * @return information shared under the class-name and filtered class-loader
+   * @param classLoaderKeyMatcher matcher of class-loader keys
+   * @return information shared under the class-name and matching class-loader
    * @see ClassLoaderIndex#getClassLoaderKeyId(ClassLoader)
    */
   @SuppressWarnings("unchecked")
-  public T find(CharSequence className, IntPredicate classLoaderKeyFilter) {
+  public T find(CharSequence className, ClassLoaderKeyMatcher classLoaderKeyMatcher) {
     final int hash = className.hashCode();
     final SharedInfo[] shared = this.shared;
     final int slotMask = this.slotMask;
@@ -153,9 +152,9 @@ public final class ClassInfoCache<T> {
       SharedInfo existing = shared[slot];
       if (existing != null) {
         if (existing.className.contentEquals(className)) {
-          // apply filter to class-loader key, -1 always matches
+          // apply custom matcher to class-loader key, -1 always matches
           if (existing.classLoaderKeyId < 0
-              || classLoaderKeyFilter.test(existing.classLoaderKeyId)) {
+              || classLoaderKeyMatcher.test(existing.classLoaderKeyId)) {
             // use global TICKS as a substitute for access time
             // TICKS is only incremented in 'share' for performance reasons
             existing.accessed = TICKS.get();
@@ -175,11 +174,11 @@ public final class ClassInfoCache<T> {
   }
 
   /**
-   * Shares information for the given class-name, under the given class-loader key.
+   * Shares information for the given class-name, scoped to the given class-loader key.
    *
    * @param className the class-name
    * @param info the information to share under the class-name and class-loader
-   * @param classLoaderKeyId limit the information to this class-loader key-id
+   * @param classLoaderKeyId scope the information to this class-loader key-id
    * @see ClassLoaderIndex#getClassLoaderKeyId(ClassLoader)
    */
   @SuppressWarnings("StatementWithEmptyBody")
