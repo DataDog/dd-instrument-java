@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.function.IntPredicate;
 import org.junit.jupiter.api.Test;
 
 class ClassInfoCacheTest {
@@ -20,10 +19,10 @@ class ClassInfoCacheTest {
     ClassLoader myCL = newCL();
     ClassLoader notMyCL = newCL();
 
-    int myCLKey = ClassLoaderIndex.getClassLoaderKeyId(myCL);
+    int myCLKeyId = ClassLoaderIndex.getClassLoaderKeyId(myCL);
 
-    IntPredicate myCLFilter = sameCLKey(myCLKey);
-    IntPredicate notMyCLFilter = myCLFilter.negate();
+    ClassLoaderKeyMatcher matchMyCL = sameCLKey(myCLKeyId);
+    ClassLoaderKeyMatcher dontMatchMyCL = keyId -> !matchMyCL.test(keyId);
 
     assertNull(cache.find("example.test.MyGlobalClass"));
     assertNull(cache.find("example.test.MyLocalClass"));
@@ -37,13 +36,13 @@ class ClassInfoCacheTest {
     assertNull(cache.find("example.test.MyLocalClass", notMyCL));
     assertNull(cache.find("example.test.NotMyClass", notMyCL));
 
-    assertNull(cache.find("example.test.MyGlobalClass", myCLFilter));
-    assertNull(cache.find("example.test.MyLocalClass", myCLFilter));
-    assertNull(cache.find("example.test.NotMyClass", myCLFilter));
+    assertNull(cache.find("example.test.MyGlobalClass", matchMyCL));
+    assertNull(cache.find("example.test.MyLocalClass", matchMyCL));
+    assertNull(cache.find("example.test.NotMyClass", matchMyCL));
 
-    assertNull(cache.find("example.test.MyGlobalClass", notMyCLFilter));
-    assertNull(cache.find("example.test.MyLocalClass", notMyCLFilter));
-    assertNull(cache.find("example.test.NotMyClass", notMyCLFilter));
+    assertNull(cache.find("example.test.MyGlobalClass", dontMatchMyCL));
+    assertNull(cache.find("example.test.MyLocalClass", dontMatchMyCL));
+    assertNull(cache.find("example.test.NotMyClass", dontMatchMyCL));
 
     cache.share("example.test.MyGlobalClass", "my global data");
     cache.share("example.test.MyLocalClass", "my local data", myCL);
@@ -60,13 +59,13 @@ class ClassInfoCacheTest {
     assertNull(cache.find("example.test.MyLocalClass", notMyCL));
     assertNull(cache.find("example.test.NotMyClass", notMyCL));
 
-    assertEquals("my global data", cache.find("example.test.MyGlobalClass", myCLFilter));
-    assertEquals("my local data", cache.find("example.test.MyLocalClass", myCLFilter));
-    assertNull(cache.find("example.test.NotMyClass", myCLFilter));
+    assertEquals("my global data", cache.find("example.test.MyGlobalClass", matchMyCL));
+    assertEquals("my local data", cache.find("example.test.MyLocalClass", matchMyCL));
+    assertNull(cache.find("example.test.NotMyClass", matchMyCL));
 
-    assertEquals("my global data", cache.find("example.test.MyGlobalClass", notMyCLFilter));
-    assertNull(cache.find("example.test.MyLocalClass", notMyCLFilter));
-    assertNull(cache.find("example.test.NotMyClass", notMyCLFilter));
+    assertEquals("my global data", cache.find("example.test.MyGlobalClass", dontMatchMyCL));
+    assertNull(cache.find("example.test.MyLocalClass", dontMatchMyCL));
+    assertNull(cache.find("example.test.NotMyClass", dontMatchMyCL));
 
     cache.clear();
 
@@ -82,13 +81,13 @@ class ClassInfoCacheTest {
     assertNull(cache.find("example.test.MyLocalClass", notMyCL));
     assertNull(cache.find("example.test.NotMyClass", notMyCL));
 
-    assertNull(cache.find("example.test.MyGlobalClass", myCLFilter));
-    assertNull(cache.find("example.test.MyLocalClass", myCLFilter));
-    assertNull(cache.find("example.test.NotMyClass", myCLFilter));
+    assertNull(cache.find("example.test.MyGlobalClass", matchMyCL));
+    assertNull(cache.find("example.test.MyLocalClass", matchMyCL));
+    assertNull(cache.find("example.test.NotMyClass", matchMyCL));
 
-    assertNull(cache.find("example.test.MyGlobalClass", notMyCLFilter));
-    assertNull(cache.find("example.test.MyLocalClass", notMyCLFilter));
-    assertNull(cache.find("example.test.NotMyClass", notMyCLFilter));
+    assertNull(cache.find("example.test.MyGlobalClass", dontMatchMyCL));
+    assertNull(cache.find("example.test.MyLocalClass", dontMatchMyCL));
+    assertNull(cache.find("example.test.NotMyClass", dontMatchMyCL));
   }
 
   @Test
@@ -151,8 +150,8 @@ class ClassInfoCacheTest {
     }
   }
 
-  private static IntPredicate sameCLKey(int clKey) {
-    return k -> k == clKey;
+  private static ClassLoaderKeyMatcher sameCLKey(int expectedKeyId) {
+    return keyId -> keyId == expectedKeyId;
   }
 
   private static ClassLoader newCL() {
