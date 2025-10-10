@@ -13,6 +13,7 @@ import java.util.Collection;
 import java.util.function.Predicate;
 
 /** Fluent-API for building type hierarchy predicates. */
+@FunctionalInterface
 public interface TypeMatcher extends Predicate<CharSequence> {
 
   /**

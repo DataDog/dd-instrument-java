@@ -16,7 +16,6 @@ import static datadog.instrument.classmatch.InternalMatchers.hasParamDescriptor;
 import static java.util.Arrays.asList;
 
 import java.util.Collection;
-import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 
 /** Fluent-API for building {@link MethodOutline} predicates. */
@@ -76,7 +75,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @param accessMatcher the access matcher
    * @return matcher of methods with matching access
    */
-  default MethodMatcher access(IntPredicate accessMatcher) {
+  default MethodMatcher access(AccessMatcher accessMatcher) {
     return and(m -> accessMatcher.test(m.access));
   }
 
