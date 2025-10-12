@@ -109,6 +109,13 @@ public abstract class ClassLoaderValue<V> {
     }
   }
 
+  /** Removes all values computed by this {@code ClassLoaderValue}. */
+  public final void clear() {
+    bootValue = null;
+    systemValue = null;
+    otherValues.clear();
+  }
+
   /**
    * Visits the values computed by this {@code ClassLoaderValue}, for diagnostic purposes.
    *

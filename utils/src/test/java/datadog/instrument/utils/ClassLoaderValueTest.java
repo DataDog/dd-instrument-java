@@ -95,6 +95,10 @@ class ClassLoaderValueTest {
     assertThat(classLoaderValue.get(cl5)).isEqualTo("5=CL5");
 
     assertEquals(6, classLoaderValue.size());
+
+    classLoaderValue.clear();
+
+    assertEquals(0, classLoaderValue.size());
   }
 
   @Test
