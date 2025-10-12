@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.BiConsumer;
 
 /**
  * Lazily associate a computed value with (potentially) every {@link ClassLoader}. The computed
@@ -108,9 +109,30 @@ public abstract class ClassLoaderValue<V> {
     }
   }
 
+  /**
+   * Visits the values computed by this {@code ClassLoaderValue}, for diagnostic purposes.
+   *
+   * @param visitor the visitor of class-loader values
+   */
+  public final void visit(BiConsumer<ClassLoader, V> visitor) {
+    if (bootValue != null) {
+      visitor.accept(BOOT_CLASS_LOADER, bootValue);
+    }
+    if (systemValue != null) {
+      visitor.accept(SYSTEM_CLASS_LOADER, systemValue);
+    }
+    for (Map.Entry<Object, V> entry : otherValues.entrySet()) {
+      // skip stale values by checking the associated class-loader
+      ClassLoader cl = ((ClassLoaderKey) entry.getKey()).get();
+      if (cl != null) {
+        visitor.accept(cl, entry.getValue());
+      }
+    }
+  }
+
   /** For testing purposes. */
-  int size() {
-    return (null != bootValue ? 1 : 0) + (null != systemValue ? 1 : 0) + otherValues.size();
+  final int size() {
+    return (bootValue != null ? 1 : 0) + (systemValue != null ? 1 : 0) + otherValues.size();
   }
 
   /**

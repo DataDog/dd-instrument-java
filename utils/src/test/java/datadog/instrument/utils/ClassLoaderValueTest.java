@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -35,18 +37,18 @@ class ClassLoaderValueTest {
 
     assertThat(classLoaderValue.get(cl0)).isEqualTo("0=null");
     assertThat(classLoaderValue.get(cl1)).matches("1=.*App.*");
-    assertThat(classLoaderValue.get(cl2)).matches("2=CL2");
-    assertThat(classLoaderValue.get(cl3)).matches("3=CL3");
-    assertThat(classLoaderValue.get(cl4)).matches("4=CL4");
-    assertThat(classLoaderValue.get(cl5)).matches("5=CL5");
+    assertThat(classLoaderValue.get(cl2)).isEqualTo("2=CL2");
+    assertThat(classLoaderValue.get(cl3)).isEqualTo("3=CL3");
+    assertThat(classLoaderValue.get(cl4)).isEqualTo("4=CL4");
+    assertThat(classLoaderValue.get(cl5)).isEqualTo("5=CL5");
 
     assertEquals(6, classLoaderValue.size());
 
     // repeated requests should return the same values
-    assertThat(classLoaderValue.get(cl5)).matches("5=CL5");
-    assertThat(classLoaderValue.get(cl4)).matches("4=CL4");
-    assertThat(classLoaderValue.get(cl3)).matches("3=CL3");
-    assertThat(classLoaderValue.get(cl2)).matches("2=CL2");
+    assertThat(classLoaderValue.get(cl5)).isEqualTo("5=CL5");
+    assertThat(classLoaderValue.get(cl4)).isEqualTo("4=CL4");
+    assertThat(classLoaderValue.get(cl3)).isEqualTo("3=CL3");
+    assertThat(classLoaderValue.get(cl2)).isEqualTo("2=CL2");
     assertThat(classLoaderValue.get(cl1)).matches("1=.*App.*");
     assertThat(classLoaderValue.get(cl0)).isEqualTo("0=null");
 
@@ -59,10 +61,10 @@ class ClassLoaderValueTest {
     // only the removed value should be replaced
     assertThat(classLoaderValue.get(cl0)).isEqualTo("6=null");
     assertThat(classLoaderValue.get(cl1)).matches("1=.*App.*");
-    assertThat(classLoaderValue.get(cl2)).matches("2=CL2");
-    assertThat(classLoaderValue.get(cl3)).matches("3=CL3");
-    assertThat(classLoaderValue.get(cl4)).matches("4=CL4");
-    assertThat(classLoaderValue.get(cl5)).matches("5=CL5");
+    assertThat(classLoaderValue.get(cl2)).isEqualTo("2=CL2");
+    assertThat(classLoaderValue.get(cl3)).isEqualTo("3=CL3");
+    assertThat(classLoaderValue.get(cl4)).isEqualTo("4=CL4");
+    assertThat(classLoaderValue.get(cl5)).isEqualTo("5=CL5");
 
     assertEquals(6, classLoaderValue.size());
 
@@ -73,10 +75,10 @@ class ClassLoaderValueTest {
     // only the removed value should be replaced
     assertThat(classLoaderValue.get(cl0)).isEqualTo("6=null");
     assertThat(classLoaderValue.get(cl1)).matches("7=.*App.*");
-    assertThat(classLoaderValue.get(cl2)).matches("2=CL2");
-    assertThat(classLoaderValue.get(cl3)).matches("3=CL3");
-    assertThat(classLoaderValue.get(cl4)).matches("4=CL4");
-    assertThat(classLoaderValue.get(cl5)).matches("5=CL5");
+    assertThat(classLoaderValue.get(cl2)).isEqualTo("2=CL2");
+    assertThat(classLoaderValue.get(cl3)).isEqualTo("3=CL3");
+    assertThat(classLoaderValue.get(cl4)).isEqualTo("4=CL4");
+    assertThat(classLoaderValue.get(cl5)).isEqualTo("5=CL5");
 
     assertEquals(6, classLoaderValue.size());
 
@@ -87,10 +89,10 @@ class ClassLoaderValueTest {
     // only the removed value should be replaced
     assertThat(classLoaderValue.get(cl0)).isEqualTo("6=null");
     assertThat(classLoaderValue.get(cl1)).matches("7=.*App.*");
-    assertThat(classLoaderValue.get(cl2)).matches("2=CL2");
-    assertThat(classLoaderValue.get(cl3)).matches("8=CL3");
-    assertThat(classLoaderValue.get(cl4)).matches("4=CL4");
-    assertThat(classLoaderValue.get(cl5)).matches("5=CL5");
+    assertThat(classLoaderValue.get(cl2)).isEqualTo("2=CL2");
+    assertThat(classLoaderValue.get(cl3)).isEqualTo("8=CL3");
+    assertThat(classLoaderValue.get(cl4)).isEqualTo("4=CL4");
+    assertThat(classLoaderValue.get(cl5)).isEqualTo("5=CL5");
 
     assertEquals(6, classLoaderValue.size());
   }
@@ -98,6 +100,8 @@ class ClassLoaderValueTest {
   @Test
   @Timeout(30)
   void removeStaleEntries() {
+    Map<ClassLoader, String> visited = new HashMap<>();
+
     ClassLoader cl0 = null;
     ClassLoader cl1 = ClassLoader.getSystemClassLoader();
     ClassLoader cl2 = newCL("CL2");
@@ -107,14 +111,29 @@ class ClassLoaderValueTest {
 
     assertEquals(0, classLoaderValue.size());
 
+    classLoaderValue.visit(visited::put);
+    assertEquals(0, visited.size());
+    visited.clear();
+
     assertThat(classLoaderValue.get(cl0)).isEqualTo("0=null");
     assertThat(classLoaderValue.get(cl1)).matches("1=.*App.*");
-    assertThat(classLoaderValue.get(cl2)).matches("2=CL2");
-    assertThat(classLoaderValue.get(cl3)).matches("3=CL3");
-    assertThat(classLoaderValue.get(cl4)).matches("4=CL4");
-    assertThat(classLoaderValue.get(cl5)).matches("5=CL5");
+    assertThat(classLoaderValue.get(cl2)).isEqualTo("2=CL2");
+    assertThat(classLoaderValue.get(cl3)).isEqualTo("3=CL3");
+    assertThat(classLoaderValue.get(cl4)).isEqualTo("4=CL4");
+    assertThat(classLoaderValue.get(cl5)).isEqualTo("5=CL5");
 
     assertEquals(6, classLoaderValue.size());
+
+    classLoaderValue.visit(visited::put);
+    assertThat(visited.values())
+        .containsExactlyInAnyOrder(
+            classLoaderValue.get(cl0),
+            classLoaderValue.get(cl1),
+            classLoaderValue.get(cl2),
+            classLoaderValue.get(cl3),
+            classLoaderValue.get(cl4),
+            classLoaderValue.get(cl5));
+    visited.clear();
 
     cl2 = null;
     cl4 = null;
@@ -124,6 +143,15 @@ class ClassLoaderValueTest {
       System.runFinalization();
       ClassLoaderValue.removeStaleEntries();
     }
+
+    classLoaderValue.visit(visited::put);
+    assertThat(visited.values())
+        .containsExactlyInAnyOrder(
+            classLoaderValue.get(cl0),
+            classLoaderValue.get(cl1),
+            classLoaderValue.get(cl3),
+            classLoaderValue.get(cl5));
+    visited.clear();
   }
 
   private static ClassLoader newCL(String name) {
