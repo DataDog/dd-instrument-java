@@ -38,8 +38,6 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
   // registered cleaners of stale class-loader keys and their values
   private static final List<Consumer<Reference<?>>> cleaners = new CopyOnWriteArrayList<>();
 
-  private static final int MAX_KEYS_CLEANED_PER_CYCLE = 8;
-
   /** Registers a cleaner of stale class-loader keys. */
   static void registerCleaner(Consumer<Reference<?>> cleaner) {
     cleaners.add(cleaner);
@@ -47,15 +45,11 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
 
   /** Checks for stale class-loader keys; stale keys are cleaned by the registered cleaners. */
   static void cleanStaleKeys() {
-    int count = 0;
     Reference<?> ref;
     while ((ref = staleKeys.poll()) != null) {
       //noinspection ForLoopReplaceableByForEach - indexed loop performs better
       for (int i = 0, size = cleaners.size(); i < size; i++) {
         cleaners.get(i).accept(ref);
-      }
-      if (++count >= MAX_KEYS_CLEANED_PER_CYCLE) {
-        break; // limit work done per call
       }
     }
   }
