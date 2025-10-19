@@ -5,6 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -73,5 +80,28 @@ class ClassNameFilterTest {
         assertTrue(filter.contains("example.MyClass" + i));
       }
     }
+  }
+
+  @Test
+  void roundTrip() {
+    ClassNameFilter exporter = new ClassNameFilter(8);
+
+    exporter.add("example.MyClass");
+    exporter.add("example.test.FB");
+    exporter.add("example.test.Ea");
+
+    ClassNameFilter importer;
+    try (ByteArrayOutputStream sink = new ByteArrayOutputStream()) {
+      exporter.writeTo(new DataOutputStream(sink));
+      try (InputStream source = new ByteArrayInputStream(sink.toByteArray())) {
+        importer = ClassNameFilter.readFrom(new DataInputStream(source));
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+
+    assertTrue(importer.contains("example.MyClass"));
+    assertTrue(importer.contains("example.test.FB"));
+    assertFalse(importer.contains("example.test.Ea"));
   }
 }

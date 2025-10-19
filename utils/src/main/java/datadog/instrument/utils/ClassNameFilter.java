@@ -6,6 +6,9 @@
 
 package datadog.instrument.utils;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.util.Arrays;
 
 /**
@@ -22,6 +25,8 @@ public final class ClassNameFilter {
   private static final int MAX_CAPACITY = 1 << 20;
   private static final int MIN_CAPACITY = 1 << 8;
   private static final int MAX_HASH_ATTEMPTS = 10;
+
+  private static final int FILE_MAGIC = 0xDD094172;
 
   // fixed-size hashtable of encoded members, indexed by class-name
   private final long[] members;
@@ -41,6 +46,11 @@ public final class ClassNameFilter {
     // choose enough slot bits to cover the given capacity
     slotMask = -1 >>> Integer.numberOfLeadingZeros(capacity - 1);
     members = new long[slotMask + 1];
+  }
+
+  private ClassNameFilter(int slotMask, long[] members) {
+    this.slotMask = slotMask;
+    this.members = members;
   }
 
   /**
@@ -104,6 +114,40 @@ public final class ClassNameFilter {
   /** Removes all class-names from the filter. */
   public void clear() {
     Arrays.fill(members, 0);
+  }
+
+  /**
+   * Writes filter content to an external resource.
+   *
+   * @param out where to write the serialized filter
+   * @throws IOException if the content cannot be written
+   */
+  public void writeTo(DataOutput out) throws IOException {
+    out.writeInt(FILE_MAGIC);
+    out.writeInt(slotMask);
+    for (long m : members) {
+      out.writeLong(m);
+    }
+  }
+
+  /**
+   * Reads filter content from an external resource.
+   *
+   * @param in the serialized filter content
+   * @return deserialized class-name filter
+   * @throws IOException if the content cannot be read
+   */
+  public static ClassNameFilter readFrom(DataInput in) throws IOException {
+    int magic = in.readInt();
+    if (magic != FILE_MAGIC) {
+      throw new IOException("Unexpected file magic " + magic);
+    }
+    int slotMask = in.readInt();
+    long[] members = new long[slotMask + 1];
+    for (int i = 0; i < members.length; i++) {
+      members[i] = in.readLong();
+    }
+    return new ClassNameFilter(slotMask, members);
   }
 
   /**
