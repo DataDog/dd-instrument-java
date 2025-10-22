@@ -4,44 +4,47 @@ plugins {
   id("java-common")
 }
 
-val generatedGlueDir = layout.buildDirectory.dir("generated/glue/java/").get()
+val generatedGlueResources = layout.buildDirectory.dir("generated/glue/resources/").get()
+val generatedGlueJava = layout.buildDirectory.dir("generated/glue/java/").get()
 sourceSets {
   create("glue") {
-    output.dir(generatedGlueDir)
+    output.dir(generatedGlueResources)
+    output.dir(generatedGlueJava)
   }
   main {
-    java.srcDir(generatedGlueDir)
+    resources.srcDir(generatedGlueResources)
+    java.srcDir(generatedGlueJava)
   }
 }
 
 val glueImplementation by configurations
 dependencies {
   glueImplementation(libs.asm)
+  glueImplementation(libs.spotbugs.annotations)
   glueImplementation(project(":utils"))
 }
 
 tasks.register<JavaExec>("generateGlue") {
   val glue: String by project.extra
 
-  val javaFile = generatedGlueDir.file("datadog/instrument/glue/${glue}.java")
+  // generate glue files under a consistent packaging location
+  val resourcesDir = generatedGlueResources.dir("datadog/instrument/glue/")
+  val javaDir = generatedGlueJava.dir("datadog/instrument/glue/")
 
   group = "Build"
   description = "Generate ${glue}"
   mainClass = "datadog.instrument.glue.${glue}Generator"
   classpath = sourceSets["glue"].runtimeClasspath
-  args = listOf(javaFile.toString())
-  outputs.files(javaFile)
+  args = listOf(resourcesDir.toString(), javaDir.toString())
+  outputs.dirs(resourcesDir, javaDir)
 }
 
+tasks.processResources {
+  dependsOn(tasks.named("generateGlue"))
+}
 tasks.compileJava {
   dependsOn(tasks.named("generateGlue"))
 }
 tasks.named("sourcesJar") {
   dependsOn(tasks.named("generateGlue"))
-}
-
-tasks.jar {
-  // glue classes only contain large string constants that get inlined into other classes
-  // - the inlining means we can safely drop these classes from the final jar to save space
-  excludes.add("datadog/instrument/glue/**")
 }

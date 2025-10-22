@@ -11,10 +11,11 @@ import static datadog.instrument.utils.Glue.packBytecode;
 import static org.objectweb.asm.ClassWriter.COMPUTE_FRAMES;
 import static org.objectweb.asm.Opcodes.*;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -36,7 +37,7 @@ import org.objectweb.asm.MethodVisitor;
  */
 final class DefineClassGlueGenerator {
   // our glue must be located inside the java.lang namespace for accessibility reasons
-  private static final String DEFINECLASS_GLUE_CLASS = "java/lang/$Datadog$DefineClass$Glue$";
+  private static final String DEFINECLASSGLUE_CLASS = "java/lang/$Datadog$DefineClassGlue";
 
   private static final String OBJECT_CLASS = "java/lang/Object";
   private static final String CLASS_CLASS = "java/lang/Class";
@@ -94,7 +95,7 @@ final class DefineClassGlueGenerator {
     cw.visit(
         V1_8,
         ACC_PUBLIC | ACC_FINAL,
-        DEFINECLASS_GLUE_CLASS,
+        DEFINECLASSGLUE_CLASS,
         null,
         OBJECT_CLASS,
         new String[] {BIFUNCTION_CLASS});
@@ -108,7 +109,7 @@ final class DefineClassGlueGenerator {
     mv = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
     mv.visitCode();
     mv.visitMethodInsn(INVOKESTATIC, unsafeClass, "getUnsafe", "()" + unsafeDescriptor, false);
-    mv.visitFieldInsn(PUTSTATIC, DEFINECLASS_GLUE_CLASS, "UNSAFE", unsafeDescriptor);
+    mv.visitFieldInsn(PUTSTATIC, DEFINECLASSGLUE_CLASS, "UNSAFE", unsafeDescriptor);
     mv.visitInsn(RETURN);
     mv.visitMaxs(1, 0);
     mv.visitEnd();
@@ -291,7 +292,7 @@ final class DefineClassGlueGenerator {
 
     // load Unsafe field into local variable for performance
     mv.visitLabel(setupUnsafeDefiner);
-    mv.visitFieldInsn(GETSTATIC, DEFINECLASS_GLUE_CLASS, "UNSAFE", unsafeDescriptor);
+    mv.visitFieldInsn(GETSTATIC, DEFINECLASSGLUE_CLASS, "UNSAFE", unsafeDescriptor);
     mv.visitVarInsn(ASTORE, unsafeInstance);
 
     // check if we've defined all the given bytecode
@@ -351,15 +352,14 @@ final class DefineClassGlueGenerator {
   }
 
   public static void main(String[] args) throws IOException {
-    if (args.length < 1 || !args[0].endsWith(".java")) {
-      throw new IllegalArgumentException("Expected: java-file");
+    if (args.length != 2) {
+      throw new IllegalArgumentException("Expected: resources-dir java-dir");
     }
-    File file = new File(args[0]);
-    String name = file.getName();
+    Path defineClassGlue = Paths.get(args[1], "DefineClassGlue.java");
     List<String> lines = new ArrayList<>();
-    classHeader(lines, name.substring(0, name.length() - 5));
+    classHeader(lines, "DefineClassGlue");
     lines.add("  /** Glue Id */");
-    lines.add("  String ID = \"" + DEFINECLASS_GLUE_CLASS.replace('/', '.') + "\";");
+    lines.add("  String ID = \"" + DEFINECLASSGLUE_CLASS.replace('/', '.') + "\";");
     lines.add("  /** Packed Java 8 bytecode */");
     lines.add("  String V8 =");
     packBytecode(lines, generateBytecode("sun/misc"));
@@ -367,6 +367,6 @@ final class DefineClassGlueGenerator {
     lines.add("  String V9 =");
     packBytecode(lines, generateBytecode("jdk/internal/misc"));
     lines.add("}");
-    Files.write(file.toPath(), lines, StandardCharsets.UTF_8);
+    Files.write(defineClassGlue, lines, StandardCharsets.UTF_8);
   }
 }
