@@ -42,7 +42,7 @@ public abstract class ClassLoaderValue<V> {
   private volatile V systemValue;
 
   // maps other (unloadable) class-loaders to their values
-  private final Map<Object, V> otherValues = new ConcurrentHashMap<>();
+  private final Map<ClassLoaderKey, V> otherValues = new ConcurrentHashMap<>();
 
   /** Register subclass instances for cleaning. */
   protected ClassLoaderValue() {
@@ -105,6 +105,7 @@ public abstract class ClassLoaderValue<V> {
     } else if (cl == SYSTEM_CLASS_LOADER) {
       systemValue = null;
     } else {
+      //noinspection All: intentionally use lookup key without reference overhead
       otherValues.remove(new LookupKey(cl));
     }
   }
@@ -128,9 +129,9 @@ public abstract class ClassLoaderValue<V> {
     if (systemValue != null) {
       visitor.accept(SYSTEM_CLASS_LOADER, systemValue);
     }
-    for (Map.Entry<Object, V> entry : otherValues.entrySet()) {
+    for (Map.Entry<ClassLoaderKey, V> entry : otherValues.entrySet()) {
       // skip stale values by checking the associated class-loader
-      ClassLoader cl = ((ClassLoaderKey) entry.getKey()).get();
+      ClassLoader cl = entry.getKey().get();
       if (cl != null) {
         visitor.accept(cl, entry.getValue());
       }
@@ -178,6 +179,7 @@ public abstract class ClassLoaderValue<V> {
 
   /** Lazily associate a computed value with a custom class-loader. */
   private V getOtherValue(ClassLoader cl) {
+    //noinspection All: intentionally use lookup key without reference overhead
     V value = otherValues.get(new LookupKey(cl));
     if (value == null) {
       value = computeValue(cl);

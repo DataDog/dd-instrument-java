@@ -7,7 +7,6 @@
 package datadog.instrument.utils;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.List;
@@ -36,17 +35,17 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
   private static final ReferenceQueue<ClassLoader> staleKeys = new ReferenceQueue<>();
 
   // registered cleaners of stale class-loader keys and their values
-  private static final List<Consumer<Reference<?>>> cleaners = new CopyOnWriteArrayList<>();
+  private static final List<Consumer<ClassLoaderKey>> cleaners = new CopyOnWriteArrayList<>();
 
   /** Registers a cleaner of stale class-loader keys. */
-  static void registerCleaner(Consumer<Reference<?>> cleaner) {
+  static void registerCleaner(Consumer<ClassLoaderKey> cleaner) {
     cleaners.add(cleaner);
   }
 
   /** Checks for stale class-loader keys; stale keys are cleaned by the registered cleaners. */
   static void cleanStaleKeys() {
-    Reference<?> ref;
-    while ((ref = staleKeys.poll()) != null) {
+    ClassLoaderKey ref;
+    while ((ref = (ClassLoaderKey) staleKeys.poll()) != null) {
       //noinspection ForLoopReplaceableByForEach - indexed loop performs better
       for (int i = 0, size = cleaners.size(); i < size; i++) {
         cleaners.get(i).accept(ref);
