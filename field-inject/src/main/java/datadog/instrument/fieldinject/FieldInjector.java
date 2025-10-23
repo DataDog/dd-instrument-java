@@ -19,5 +19,7 @@ public final class FieldInjector {
    * @param inst the instrumentation instance
    * @throws UnsupportedOperationException if field injection is not available
    */
-  public static void enableFieldInjection(Instrumentation inst) {}
+  public static void enableFieldInjection(Instrumentation inst) {
+    throw new UnsupportedOperationException("Not yet implemented");
+  }
 }
