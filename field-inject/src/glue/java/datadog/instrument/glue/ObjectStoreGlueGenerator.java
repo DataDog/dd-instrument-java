@@ -6,6 +6,8 @@
 
 package datadog.instrument.glue;
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -22,7 +24,8 @@ final class ObjectStoreGlueGenerator {
 
     Files.copy(
         Paths.get("src/glue/java/datadog/instrument/glue/GlobalObjectStore.java"),
-        Paths.get(args[1], "GlobalObjectStore.java"));
+        Paths.get(args[1], "GlobalObjectStore.java"),
+        REPLACE_EXISTING);
 
     //    if (args.length < 1 || !args[0].endsWith(".java")) {
     //      throw new IllegalArgumentException("Expected: java-file");
