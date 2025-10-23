@@ -8,7 +8,10 @@ package datadog.instrument.utils;
 
 import static java.nio.charset.StandardCharsets.UTF_16BE;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.util.List;
+import java.util.MissingResourceException;
 
 /** Methods for packing glue bytecode into strings that can be stored in the constant pool. */
 public final class Glue {
@@ -68,5 +71,39 @@ public final class Glue {
    */
   public static byte[] unpackBytecode(String bytecode) {
     return bytecode.getBytes(UTF_16BE);
+  }
+
+  private static final String GLUE_RESOURCE_PREFIX = "/datadog/instrument/glue/";
+
+  private static final int BUFFER_SIZE = 8192;
+
+  /**
+   * Loads glue bytecode with the given name from the given host.
+   *
+   * @param host the host class used to load the glue resource
+   * @param glueName the glue resource containing the bytecode
+   * @return the glue bytecode
+   * @throws MissingResourceException if the bytecode cannot be read
+   */
+  @SuppressWarnings({"Since15", "DataFlowIssue"})
+  public static byte[] loadBytecode(Class<?> host, String glueName) {
+    String glueResource = GLUE_RESOURCE_PREFIX + glueName;
+    try (InputStream is = host.getResourceAsStream(glueResource)) {
+      if (JVM.atLeastJava(9)) {
+        return is.readAllBytes();
+      } else {
+        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+          int bytesRead;
+          byte[] buf = new byte[BUFFER_SIZE];
+          while ((bytesRead = is.read(buf, 0, BUFFER_SIZE)) != -1) {
+            os.write(buf, 0, bytesRead);
+          }
+          return os.toByteArray();
+        }
+      }
+    } catch (Throwable e) {
+      String detail = "Cannot load " + glueResource + " from " + host + ": " + e;
+      throw new MissingResourceException(detail, host.getName(), glueResource);
+    }
   }
 }
