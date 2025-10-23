@@ -1,12 +1,12 @@
 package datadog.instrument.fieldinject;
 
-import static datadog.instrument.fieldinject.ObjectStores.objectStore;
+import static datadog.instrument.fieldinject.ObjectStoreIds.objectStoreId;
 
 import datadog.instrument.glue.GlobalObjectStore;
 import java.util.function.Function;
 
 /**
- * Key-value store where keys and values both implement or extend specific types.
+ * Key-value store where keys and values are objects that implement or extend specific types.
  *
  * <p>When field-injection is enabled values may be stored directly inside keys; otherwise values
  * are recorded in a global weak map. Since the same object may participate in multiple stores the
@@ -41,7 +41,17 @@ public final class ObjectStore<K, V> {
    * @param <V> the value type
    */
   public static <K, V> ObjectStore<K, V> of(String keyType, String valueType) {
-    return objectStore(keyType, valueType);
+    return new ObjectStore<>(objectStoreId(keyType, valueType));
+  }
+
+  /**
+   * Removes stale entries from the global object-store, where the key is now unused.
+   *
+   * <p>It is the caller's responsibility to decide how often to call {@code #removeStaleEntries}.
+   * It may be periodically with a background thread, on certain requests, or some other condition.
+   */
+  public static void removeStaleEntries() {
+    GlobalObjectStore.removeStaleEntries();
   }
 
   // used to disambiguate requests for different stores on the same key instance

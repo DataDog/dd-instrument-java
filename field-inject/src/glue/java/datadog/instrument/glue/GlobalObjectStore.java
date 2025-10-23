@@ -20,7 +20,7 @@ public final class GlobalObjectStore {
 
   private GlobalObjectStore() {}
 
-  public static void cleanStaleKeys() {
+  public static void removeStaleEntries() {
     Reference<?> ref;
     while ((ref = WeakKey.staleKeys.poll()) != null) {
       //noinspection SuspiciousMethodCalls
