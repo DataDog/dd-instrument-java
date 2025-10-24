@@ -7,7 +7,6 @@
 package datadog.instrument.glue;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.Map;
@@ -21,15 +20,14 @@ public final class GlobalObjectStore {
   private GlobalObjectStore() {}
 
   public static void removeStaleEntries() {
-    Reference<?> ref;
-    while ((ref = WeakKey.staleKeys.poll()) != null) {
-      //noinspection SuspiciousMethodCalls
-      weakMap.remove(ref);
+    WeakKey key;
+    while ((key = WeakKey.poll()) != null) {
+      weakMap.remove(key);
     }
   }
 
   public static Object get(Object key, int storeId) {
-    //noinspection SuspiciousMethodCalls
+    //noinspection All: intentionally use lookup key without reference overhead
     return weakMap.get(new LookupKey(key, storeId));
   }
 
@@ -37,7 +35,7 @@ public final class GlobalObjectStore {
     if (value != null) {
       weakMap.put(new WeakKey(key, storeId), value);
     } else {
-      //noinspection SuspiciousMethodCalls
+      //noinspection All: intentionally use lookup key without reference overhead
       weakMap.remove(new LookupKey(key, storeId));
     }
   }
@@ -48,12 +46,12 @@ public final class GlobalObjectStore {
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
-  public static Object computeIfAbsent(Object key, int storeId, Function factory) {
-    return weakMap.computeIfAbsent(new WeakKey(key, storeId), factory);
+  public static Object computeIfAbsent(Object key, int storeId, Function valueFunction) {
+    return weakMap.computeIfAbsent(new WeakKey(key, storeId), valueFunction);
   }
 
   public static Object remove(Object key, int storeId) {
-    //noinspection SuspiciousMethodCalls
+    //noinspection All: intentionally use lookup key without reference overhead
     return weakMap.remove(new LookupKey(key, storeId));
   }
 
@@ -61,7 +59,7 @@ public final class GlobalObjectStore {
   private static final class WeakKey extends WeakReference<Object> {
 
     // stale store keys that are now eligible for collection
-    static final ReferenceQueue<Object> staleKeys = new ReferenceQueue<>();
+    private static final ReferenceQueue<Object> staleKeys = new ReferenceQueue<>();
 
     final int hash;
     final int storeId;
@@ -70,6 +68,10 @@ public final class GlobalObjectStore {
       super(key, staleKeys);
       this.hash = (31 * storeId) + System.identityHashCode(key);
       this.storeId = storeId;
+    }
+
+    static WeakKey poll() {
+      return (WeakKey) staleKeys.poll();
     }
 
     @Override

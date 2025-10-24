@@ -66,7 +66,7 @@ public final class ObjectStore<K, V> {
   /**
    * @param storeId the internally allocated store id
    */
-  ObjectStore(int storeId) {
+  private ObjectStore(int storeId) {
     this.storeId = storeId;
   }
 
