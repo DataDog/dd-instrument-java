@@ -44,11 +44,11 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
 
   /** Checks for stale class-loader keys; stale keys are cleaned by the registered cleaners. */
   static void cleanStaleKeys() {
-    ClassLoaderKey ref;
-    while ((ref = (ClassLoaderKey) staleKeys.poll()) != null) {
+    ClassLoaderKey key;
+    while ((key = (ClassLoaderKey) staleKeys.poll()) != null) {
       //noinspection ForLoopReplaceableByForEach - indexed loop performs better
       for (int i = 0, size = cleaners.size(); i < size; i++) {
-        cleaners.get(i).accept(ref);
+        cleaners.get(i).accept(key);
       }
     }
   }
