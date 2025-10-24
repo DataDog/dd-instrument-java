@@ -12,6 +12,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.List;
 import java.util.MissingResourceException;
+import java.util.Objects;
 
 /** Methods for packing glue bytecode into strings that can be stored in the constant pool. */
 public final class Glue {
@@ -85,10 +86,10 @@ public final class Glue {
    * @return the glue bytecode
    * @throws MissingResourceException if the bytecode cannot be read
    */
-  @SuppressWarnings({"Since15", "DataFlowIssue"})
+  @SuppressWarnings({"Since15"})
   public static byte[] loadBytecode(Class<?> host, String glueName) {
     String glueResource = GLUE_RESOURCE_PREFIX + glueName;
-    try (InputStream is = host.getResourceAsStream(glueResource)) {
+    try (InputStream is = Objects.requireNonNull(host.getResourceAsStream(glueResource))) {
       if (JVM.atLeastJava(9)) {
         return is.readAllBytes();
       } else {
