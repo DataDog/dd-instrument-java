@@ -22,9 +22,16 @@ final class ObjectStoreIds {
    * @return the key-value's store id
    */
   static int objectStoreId(String keyType, String valueType) {
-    return typeId(keyType) << 16 | typeId(valueType);
+    // key is typically more unique so use that for LSB
+    return typeId(valueType) << 16 | typeId(keyType);
   }
 
+  /**
+   * Generates a unique id for the given object store key (or value) type.
+   *
+   * @param type the type
+   * @return the unique type id
+   */
   private static short typeId(String type) {
     return typeIds.computeIfAbsent(type, unused -> (short) nextTypeId.getAndIncrement());
   }
