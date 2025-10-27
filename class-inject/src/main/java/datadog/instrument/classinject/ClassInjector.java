@@ -97,14 +97,13 @@ public final class ClassInjector {
     try {
       InjectGlue injectGlue = new InjectGlue();
       try {
-        // temporary transformation to install our glue to access ClassLoader.defineClass
+        // temporary transformation to install our glue to access 'defineClass'
         inst.addTransformer(injectGlue, true);
-        inst.retransformClasses(ClassLoader.class);
-        ClassLoader cl = ClassLoader.getSystemClassLoader();
-        classDefiner = (BiFunction) cl.loadClass(DefineClassGlue.ID).newInstance();
+        inst.retransformClasses(Class.class);
+        classDefiner = (BiFunction) Class.forName(DefineClassGlue.ID).newInstance();
       } finally {
         inst.removeTransformer(injectGlue);
-        inst.retransformClasses(ClassLoader.class);
+        inst.retransformClasses(Class.class);
       }
     } catch (Throwable e) {
       throw new UnsupportedOperationException("Class injection not available", e);
@@ -119,10 +118,10 @@ public final class ClassInjector {
         Class<?> classBeingRedefined,
         ProtectionDomain protectionDomain,
         byte[] bytecode) {
-      if ("java/lang/ClassLoader".equals(className)) {
+      if ("java/lang/Class".equals(className)) {
         ClassReader cr = new ClassReader(bytecode);
         ClassWriter cw = new ClassWriter(cr, 0);
-        cr.accept(new ClassLoaderPatch(cw), 0);
+        cr.accept(new ClassPatch(cw), 0);
         return cw.toByteArray();
       } else {
         return null;
@@ -130,8 +129,8 @@ public final class ClassInjector {
     }
   }
 
-  static final class ClassLoaderPatch extends ClassVisitor {
-    ClassLoaderPatch(ClassVisitor cv) {
+  static final class ClassPatch extends ClassVisitor {
+    ClassPatch(ClassVisitor cv) {
       super(ASM9, cv);
     }
 
@@ -139,19 +138,17 @@ public final class ClassInjector {
     public MethodVisitor visitMethod(
         int access, String name, String descriptor, String signature, String[] exceptions) {
       MethodVisitor mv = cv.visitMethod(access, name, descriptor, signature, exceptions);
-      // hook into both forms of the 'loadClass' method to retrieve the injected glue
-      // custom system class-loaders will call one of them to fetch bootstrap classes
-      if ((access & ACC_STATIC) == 0
-          && "loadClass".equals(name)
-          && descriptor.startsWith("(Ljava/lang/String;")) {
-        return new LoadClassPatch(mv);
+      if ((access & ACC_STATIC) != 0
+          && "forName".equals(name)
+          && "(Ljava/lang/String;)Ljava/lang/Class;".equals(descriptor)) {
+        return new ForNamePatch(mv);
       }
       return mv;
     }
   }
 
-  static final class LoadClassPatch extends MethodVisitor {
-    LoadClassPatch(MethodVisitor mv) {
+  static final class ForNamePatch extends MethodVisitor {
+    ForNamePatch(MethodVisitor mv) {
       super(ASM9, mv);
     }
 
@@ -161,9 +158,9 @@ public final class ClassInjector {
 
       Label notDatadogGlueRequest = new Label();
 
-      // add branch at start of loadClass method to define our glue as a hidden/anonymous class
+      // add branch at start of Class.forName method to define our glue as a hidden/anonymous class
       mv.visitLdcInsn(DefineClassGlue.ID);
-      mv.visitVarInsn(ALOAD, 1);
+      mv.visitVarInsn(ALOAD, 0);
       mv.visitMethodInsn(
           INVOKEVIRTUAL, "java/lang/String", "equals", "(Ljava/lang/Object;)Z", false);
       mv.visitJumpInsn(IFEQ, notDatadogGlueRequest);
@@ -241,7 +238,7 @@ public final class ClassInjector {
 
       mv.visitInsn(ARETURN);
 
-      // otherwise this is a standard load request, handle it as before
+      // otherwise this is a standard Class.forName request, handle it as before
       mv.visitLabel(notDatadogGlueRequest);
       mv.visitFrame(F_SAME, 0, null, 0, null);
     }
