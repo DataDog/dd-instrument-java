@@ -6,6 +6,7 @@
 
 package datadog.instrument.classinject;
 
+import static java.util.Collections.singletonMap;
 import static org.objectweb.asm.Opcodes.*;
 
 import datadog.instrument.glue.DefineClassGlue;
@@ -37,6 +38,44 @@ import org.objectweb.asm.Type;
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public final class ClassInjector {
+
+  /**
+   * Injects a class on the bootstrap classpath.
+   *
+   * @param name the name of the class
+   * @param bytecode the class bytecode
+   * @return the injected class
+   * @throws IllegalStateException if class injection is not enabled
+   */
+  public static Class<?> injectBootClass(String name, byte[] bytecode) {
+    return injectBootClasses(singletonMap(name, bytecode)).get(0);
+  }
+
+  /**
+   * Injects a class using the given class-loader.
+   *
+   * @param name the name of the class
+   * @param bytecode the class bytecode
+   * @param cl the class-loader to use
+   * @return the injected class
+   * @throws IllegalStateException if class injection is not enabled
+   */
+  public static Class<?> injectClass(String name, byte[] bytecode, ClassLoader cl) {
+    return injectClasses(singletonMap(name, bytecode), cl).get(0);
+  }
+
+  /**
+   * Injects a class using the given protection domain.
+   *
+   * @param name the name of the class
+   * @param bytecode the class bytecode
+   * @param pd the protection domain to use
+   * @return the injected class
+   * @throws IllegalStateException if class injection is not enabled
+   */
+  public static Class<?> injectClass(String name, byte[] bytecode, ProtectionDomain pd) {
+    return injectClasses(singletonMap(name, bytecode), pd).get(0);
+  }
 
   /**
    * Injects classes on the bootstrap classpath.
