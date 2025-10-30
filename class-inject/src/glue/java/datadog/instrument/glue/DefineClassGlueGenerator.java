@@ -6,8 +6,8 @@
 
 package datadog.instrument.glue;
 
-import static datadog.instrument.utils.Glue.classHeader;
-import static datadog.instrument.utils.Glue.packBytecode;
+import static datadog.instrument.glue.GlueGenerator.classHeader;
+import static datadog.instrument.glue.GlueGenerator.packBytecode;
 import static org.objectweb.asm.ClassWriter.COMPUTE_FRAMES;
 import static org.objectweb.asm.Opcodes.*;
 
@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -351,11 +350,8 @@ final class DefineClassGlueGenerator {
     return cw.toByteArray();
   }
 
-  public static void main(String[] args) throws IOException {
-    if (args.length != 2) {
-      throw new IllegalArgumentException("Expected: resources-dir java-dir");
-    }
-    Path defineClassGlue = Paths.get(args[1], "DefineClassGlue.java");
+  public static void generateGlue(Path resourcePath, Path javaPath) throws IOException {
+    Path defineClassGlue = javaPath.resolve("DefineClassGlue.java");
     List<String> lines = new ArrayList<>();
     classHeader(lines, "DefineClassGlue");
     lines.add("  /** Glue Id */");

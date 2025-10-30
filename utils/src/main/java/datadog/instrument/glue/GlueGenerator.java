@@ -4,20 +4,31 @@
  * Copyright 2025-Present Datadog, Inc.
  */
 
-package datadog.instrument.utils;
+package datadog.instrument.glue;
 
-import static java.nio.charset.StandardCharsets.UTF_16BE;
-
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
+import java.lang.reflect.Method;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
-import java.util.MissingResourceException;
-import java.util.Objects;
 
-/** Methods for packing glue bytecode into strings that can be stored in the constant pool. */
-public final class Glue {
+/** Generates instrumentation glue for projects that apply the {@code instrument-glue} plugin. */
+public final class GlueGenerator {
 
-  private Glue() {}
+  private GlueGenerator() {}
+
+  /** Entry-point for generating instrumentation glue into resource files or Java source code. */
+  public static void main(String[] args) throws ReflectiveOperationException {
+    if (args.length < 3) {
+      throw new IllegalArgumentException("Expected: resource-path java-path glue-name...");
+    }
+    Path resourcePath = Paths.get(args[0]);
+    Path javaPath = Paths.get(args[1]);
+    for (int i = 2; i < args.length; i++) {
+      Class<?> generatorClass = Class.forName("datadog.instrument.glue." + args[i] + "Generator");
+      Method generateGlue = generatorClass.getMethod("generateGlue", Path.class, Path.class);
+      generateGlue.invoke(null, resourcePath, javaPath);
+    }
+  }
 
   /**
    * Writes the source header of a class to hold the string representation of glue bytecode.
@@ -62,49 +73,5 @@ public final class Glue {
       }
     }
     lines.add(buf + "\";");
-  }
-
-  /**
-   * Unpacks a string literal produced by {@link #packBytecode} back into the original bytecode.
-   *
-   * @param bytecode the packed bytecode
-   * @return the unpacked bytecode
-   */
-  public static byte[] unpackBytecode(String bytecode) {
-    return bytecode.getBytes(UTF_16BE);
-  }
-
-  private static final String GLUE_RESOURCE_PREFIX = "/datadog/instrument/glue/";
-
-  private static final int BUFFER_SIZE = 8192;
-
-  /**
-   * Loads glue bytecode with the given name from the given host.
-   *
-   * @param host the host class used to load the glue resource
-   * @param glueName the glue resource containing the bytecode
-   * @return the glue bytecode
-   * @throws MissingResourceException if the bytecode cannot be read
-   */
-  @SuppressWarnings({"Since15"})
-  public static byte[] loadBytecode(Class<?> host, String glueName) {
-    String glueResource = GLUE_RESOURCE_PREFIX + glueName;
-    try (InputStream is = Objects.requireNonNull(host.getResourceAsStream(glueResource))) {
-      if (JVM.atLeastJava(9)) {
-        return is.readAllBytes();
-      } else {
-        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-          int bytesRead;
-          byte[] buf = new byte[BUFFER_SIZE];
-          while ((bytesRead = is.read(buf, 0, BUFFER_SIZE)) != -1) {
-            os.write(buf, 0, bytesRead);
-          }
-          return os.toByteArray();
-        }
-      }
-    } catch (Throwable e) {
-      String detail = "Cannot load " + glueResource + " from " + host + ": " + e;
-      throw new MissingResourceException(detail, host.getName(), glueResource);
-    }
   }
 }

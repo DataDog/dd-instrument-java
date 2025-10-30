@@ -48,10 +48,7 @@ tasks.jar {
 tasks.javadoc {
   dependsOn(embed)
   setSource(allSources())
-  exclude(
-    "datadog/instrument/glue",
-    "datadog/instrument/utils/Glue.java",
-    "datadog/instrument/utils/JVM.java")
+  exclude("datadog/instrument/glue", "datadog/instrument/utils/JVM.java")
   var javadocOptions = (options as StandardJavadocDocletOptions)
   if (JavaVersion.current().isJava9Compatible) {
     javadocOptions.addBooleanOption("html5", true)
