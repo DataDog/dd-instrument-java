@@ -25,18 +25,18 @@ dependencies {
 }
 
 tasks.register<JavaExec>("generateGlue") {
-  val glue: String by project.extra
+  val glue: List<String> by project.extra
 
   // generate glue files under a consistent packaging location
-  val resourcesDir = generatedGlueResources.dir("datadog/instrument/glue/")
-  val javaDir = generatedGlueJava.dir("datadog/instrument/glue/")
+  val resourcePath = generatedGlueResources.dir("datadog/instrument/glue/")
+  val javaPath = generatedGlueJava.dir("datadog/instrument/glue/")
 
   group = "Build"
-  description = "Generate ${glue}"
-  mainClass = "datadog.instrument.glue.${glue}Generator"
+  description = "Generate Instrumentation Glue"
+  mainClass = "datadog.instrument.glue.GlueGenerator"
   classpath = sourceSets["glue"].runtimeClasspath
-  args = listOf(resourcesDir.toString(), javaDir.toString())
-  outputs.dirs(resourcesDir, javaDir)
+  args = listOf(resourcePath.toString(), javaPath.toString()) + glue
+  outputs.dirs(resourcePath, javaPath)
 }
 
 tasks.processResources {
