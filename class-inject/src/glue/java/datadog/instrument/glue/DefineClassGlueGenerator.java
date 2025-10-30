@@ -83,6 +83,36 @@ final class DefineClassGlueGenerator {
 
   private DefineClassGlueGenerator() {}
 
+  /**
+   * Generates glue to access {@code ClassLoader.defineClass} and writes it to the given location.
+   *
+   * @param resourcePath where to write resource files
+   * @param javaPath where to write Java files
+   * @throws IOException if the files cannot be written
+   * @see GlueGenerator#main
+   */
+  public static void generateGlue(Path resourcePath, Path javaPath) throws IOException {
+    Path defineClassGlue = javaPath.resolve("DefineClassGlue.java");
+    List<String> lines = new ArrayList<>();
+    classHeader(lines, "DefineClassGlue");
+    lines.add("  /** Glue Id */");
+    lines.add("  String ID = \"" + DEFINECLASSGLUE_CLASS.replace('/', '.') + "\";");
+    lines.add("  /** Packed Java 8 bytecode */");
+    lines.add("  String V8 =");
+    packBytecode(lines, generateBytecode("sun/misc"));
+    lines.add("  /** Packed Java 9+ bytecode */");
+    lines.add("  String V9 =");
+    packBytecode(lines, generateBytecode("jdk/internal/misc"));
+    lines.add("}");
+    Files.write(defineClassGlue, lines, StandardCharsets.UTF_8);
+  }
+
+  /**
+   * Generates glue bytecode to access {@code ClassLoader.defineClass}.
+   *
+   * @param unsafeNamespace which Unsafe to use for boot injection
+   * @return glue to access {@code ClassLoader.defineClass}
+   */
   private static byte[] generateBytecode(String unsafeNamespace) {
 
     // use Unsafe to define boot classes that have no class-loader
@@ -348,21 +378,5 @@ final class DefineClassGlueGenerator {
     cw.visitEnd();
 
     return cw.toByteArray();
-  }
-
-  public static void generateGlue(Path resourcePath, Path javaPath) throws IOException {
-    Path defineClassGlue = javaPath.resolve("DefineClassGlue.java");
-    List<String> lines = new ArrayList<>();
-    classHeader(lines, "DefineClassGlue");
-    lines.add("  /** Glue Id */");
-    lines.add("  String ID = \"" + DEFINECLASSGLUE_CLASS.replace('/', '.') + "\";");
-    lines.add("  /** Packed Java 8 bytecode */");
-    lines.add("  String V8 =");
-    packBytecode(lines, generateBytecode("sun/misc"));
-    lines.add("  /** Packed Java 9+ bytecode */");
-    lines.add("  String V9 =");
-    packBytecode(lines, generateBytecode("jdk/internal/misc"));
-    lines.add("}");
-    Files.write(defineClassGlue, lines, StandardCharsets.UTF_8);
   }
 }
