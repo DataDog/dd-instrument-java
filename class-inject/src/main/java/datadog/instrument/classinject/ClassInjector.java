@@ -115,13 +115,13 @@ public final class ClassInjector {
   private ClassInjector() {}
 
   private static BiFunction classDefiner() {
-    if (classDefiner == null) {
+    if (defineClassGlue == null) {
       throw new IllegalStateException("Class injection not enabled");
     }
-    return classDefiner;
+    return defineClassGlue;
   }
 
-  private static volatile BiFunction classDefiner;
+  private static volatile BiFunction defineClassGlue;
 
   /**
    * Enables class injection via {@link Instrumentation}.
@@ -130,7 +130,7 @@ public final class ClassInjector {
    * @throws UnsupportedOperationException if class injection is not available
    */
   public static void enableClassInjection(Instrumentation inst) {
-    if (classDefiner != null) {
+    if (defineClassGlue != null) {
       return;
     }
     try {
@@ -139,7 +139,7 @@ public final class ClassInjector {
         // temporary transformation to install our glue to access 'defineClass'
         inst.addTransformer(injectGlue, true);
         inst.retransformClasses(Class.class);
-        classDefiner = (BiFunction) Class.forName(DefineClassGlue.ID).newInstance();
+        defineClassGlue = (BiFunction) Class.forName(DefineClassGlue.ID).newInstance();
       } finally {
         inst.removeTransformer(injectGlue);
         inst.retransformClasses(Class.class);
