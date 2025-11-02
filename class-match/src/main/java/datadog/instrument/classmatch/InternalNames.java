@@ -32,7 +32,7 @@ final class InternalNames extends AbstractSet<String> {
    */
   InternalNames(Collection<String> types) {
     // attempt to hash types into a table with ~75% load factor
-    int tableSize = Integer.max(8, types.size() * 4 / 3) - 1;
+    int tableSize = Math.max(8, types.size() * 4 / 3) - 1;
     int slotMask = -1 >>> Integer.numberOfLeadingZeros(tableSize);
     String[] table = new String[slotMask + 1];
     Iterator<String> itr = types.iterator();
