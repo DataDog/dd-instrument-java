@@ -6,7 +6,11 @@
 
 package datadog.instrument.utils;
 
-/** Provides information about the JVM; used to select the best injection approach. */
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+/** Assorted JVM helpers; uses the best approach for the current JVM. */
 public final class JVM {
   private static final int JAVA_VERSION = getMajorJavaVersion();
 
@@ -52,5 +56,30 @@ public final class JVM {
       }
     }
     return value;
+  }
+
+  private static final int BUFFER_SIZE = 8192;
+
+  /**
+   * Reads all remaining bytes from the given input stream.
+   *
+   * @param is the input stream
+   * @return a byte array containing the bytes read from the input stream
+   * @throws IOException if an I/O error occurs
+   */
+  @SuppressWarnings("Since15")
+  public static byte[] readAllBytes(InputStream is) throws IOException {
+    if (JVM.atLeastJava(9)) {
+      return is.readAllBytes();
+    } else {
+      try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+        int bytesRead;
+        byte[] buf = new byte[BUFFER_SIZE];
+        while ((bytesRead = is.read(buf, 0, BUFFER_SIZE)) != -1) {
+          os.write(buf, 0, bytesRead);
+        }
+        return os.toByteArray();
+      }
+    }
   }
 }

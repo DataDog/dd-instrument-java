@@ -7,16 +7,14 @@
 package datadog.instrument.glue;
 
 import static java.nio.charset.StandardCharsets.UTF_16BE;
+import static java.util.Objects.requireNonNull;
 
 import datadog.instrument.utils.JVM;
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.MissingResourceException;
-import java.util.Objects;
 
 /** Methods for loading instrumentation glue bytecode from string literals and resource files. */
 public final class Glue {
-
   private static final String GLUE_RESOURCE_PREFIX = "/datadog/instrument/glue/";
 
   private static final int BUFFER_SIZE = 8192;
@@ -41,22 +39,10 @@ public final class Glue {
    * @return the glue bytecode
    * @throws MissingResourceException if the bytecode cannot be read
    */
-  @SuppressWarnings({"Since15"})
   public static byte[] loadBytecode(Class<?> host, String glueName) {
     String glueResource = GLUE_RESOURCE_PREFIX + glueName;
-    try (InputStream is = Objects.requireNonNull(host.getResourceAsStream(glueResource))) {
-      if (JVM.atLeastJava(9)) {
-        return is.readAllBytes();
-      } else {
-        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-          int bytesRead;
-          byte[] buf = new byte[BUFFER_SIZE];
-          while ((bytesRead = is.read(buf, 0, BUFFER_SIZE)) != -1) {
-            os.write(buf, 0, bytesRead);
-          }
-          return os.toByteArray();
-        }
-      }
+    try (InputStream is = requireNonNull(host.getResourceAsStream(glueResource))) {
+      return JVM.readAllBytes(is);
     } catch (Throwable e) {
       String detail = "Cannot load " + glueResource + " from " + host + ": " + e;
       throw new MissingResourceException(detail, host.getName(), glueResource);
