@@ -16,7 +16,11 @@ public final class GlueGenerator {
 
   private GlueGenerator() {}
 
-  /** Entry-point for generating instrumentation glue into resource files or Java source code. */
+  /**
+   * Entry-point for generating instrumentation glue into resource files or Java source code.
+   *
+   * @param args the command-line arguments
+   */
   public static void main(String[] args) throws ReflectiveOperationException {
     if (args.length < 3) {
       throw new IllegalArgumentException("Expected: resource-path java-path glue-name...");
