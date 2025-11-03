@@ -20,6 +20,7 @@ public final class GlueGenerator {
    * Entry-point for generating instrumentation glue into resource files or Java source code.
    *
    * @param args the command-line arguments
+   * @throws ReflectiveOperationException if the glue cannot be generated
    */
   public static void main(String[] args) throws ReflectiveOperationException {
     if (args.length < 3) {
