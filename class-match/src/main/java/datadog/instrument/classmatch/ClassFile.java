@@ -52,7 +52,18 @@ public final class ClassFile {
    * @return class header containing class-name, super-name, interfaces
    */
   public static ClassHeader header(byte[] bytecode) {
-    return parse(bytecode, true);
+    return parse(bytecode, 0, true);
+  }
+
+  /**
+   * Extracts a {@link ClassHeader} from the given class-file content.
+   *
+   * @param bytecode the class-file content to parse
+   * @param offset the offset of the class-file content
+   * @return class header containing class-name, super-name, interfaces
+   */
+  public static ClassHeader header(byte[] bytecode, int offset) {
+    return parse(bytecode, offset, true);
   }
 
   /**
@@ -62,7 +73,18 @@ public final class ClassFile {
    * @return class outline containing header, fields, methods, annotations
    */
   public static ClassOutline outline(byte[] bytecode) {
-    return (ClassOutline) parse(bytecode, false);
+    return (ClassOutline) parse(bytecode, 0, false);
+  }
+
+  /**
+   * Extracts a {@link ClassOutline} from the given class-file content.
+   *
+   * @param bytecode the class-file content to parse
+   * @param offset the offset of the class-file content
+   * @return class outline containing header, fields, methods, annotations
+   */
+  public static ClassOutline outline(byte[] bytecode, int offset) {
+    return (ClassOutline) parse(bytecode, offset, false);
   }
 
   /**
@@ -115,9 +137,9 @@ public final class ClassFile {
   }
 
   /** Parse class-file content, skipping over uninteresting sections, */
-  private static ClassHeader parse(byte[] bytecode, boolean onlyHeader) {
+  private static ClassHeader parse(byte[] bytecode, int offset, boolean onlyHeader) {
     // skip preamble
-    int cursor = 8;
+    int cursor = offset + 8;
 
     int cpLen = u2(bytecode, cursor);
     cursor += 2;

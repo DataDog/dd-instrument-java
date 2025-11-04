@@ -19,8 +19,11 @@ import org.junit.jupiter.api.Test;
 
 class ClassFileTest {
 
+  static int SAMPLE_OFFSET = 1357;
+
   static final byte[] sampleUnicodeClass;
   static final byte[] sampleParametersClass;
+  static final byte[] sampleClassAtOffset;
 
   static {
     try {
@@ -35,6 +38,9 @@ class ClassFileTest {
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
+    sampleClassAtOffset = new byte[sampleUnicodeClass.length + SAMPLE_OFFSET];
+    System.arraycopy(
+        sampleUnicodeClass, 0, sampleClassAtOffset, SAMPLE_OFFSET, sampleUnicodeClass.length);
   }
 
   @Test
@@ -88,6 +94,21 @@ class ClassFileTest {
     assertArrayEquals(
         new int[] {2, 3, 4, 5, 6, 7, 8, 9, 27, 29, 32, 36, 41, 47, 54, 62, 71, 86, 106},
         outline.methods[1].descriptorBoundaries());
+  }
+
+  @Test
+  void offsetParsing() {
+    ClassHeader header = ClassFile.header(sampleClassAtOffset, SAMPLE_OFFSET);
+    assertEquals("sample/My例クラス", header.className);
+    assertEquals("java/util/AbstractCollection", header.superName);
+    assertArrayEquals(new String[] {"java/io/Serializable"}, header.interfaces);
+
+    ClassOutline outline = ClassFile.outline(sampleClassAtOffset, SAMPLE_OFFSET);
+    assertEquals("sample/My例クラス", outline.className);
+    assertEquals("java/util/AbstractCollection", outline.superName);
+    assertArrayEquals(new String[] {"java/io/Serializable"}, outline.interfaces);
+    assertEquals(1, outline.fields.length);
+    assertEquals(2, outline.methods.length);
   }
 
   @SuppressWarnings("SameParameterValue")
