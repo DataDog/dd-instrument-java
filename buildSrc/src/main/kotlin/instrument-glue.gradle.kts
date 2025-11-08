@@ -24,7 +24,7 @@ dependencies {
   glueImplementation(project(":utils"))
 }
 
-tasks.register<JavaExec>("generateGlue") {
+val generateGlue = tasks.register<JavaExec>("generateGlue") {
   val glue: List<String> by project.extra
 
   // generate glue files under a consistent packaging location
@@ -39,12 +39,6 @@ tasks.register<JavaExec>("generateGlue") {
   outputs.dirs(resourcePath, javaPath)
 }
 
-tasks.processResources {
-  dependsOn(tasks.named("generateGlue"))
-}
-tasks.compileJava {
-  dependsOn(tasks.named("generateGlue"))
-}
-tasks.named("sourcesJar") {
-  dependsOn(tasks.named("generateGlue"))
-}
+tasks.processResources { dependsOn(generateGlue) }
+tasks.compileJava { dependsOn(generateGlue) }
+tasks.named("sourcesJar") { dependsOn(generateGlue) }
