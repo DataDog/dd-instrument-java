@@ -2,7 +2,6 @@ plugins {
   java
   `maven-publish`
   signing
-  id("com.gradleup.shadow")
   id("pl.allegro.tech.build.axion-release")
   id("io.github.gradle-nexus.publish-plugin")
 }
@@ -31,9 +30,10 @@ dependencies {
   embed(project(":utils"))
   embed(project(":class-inject"))
   embed(project(":class-match"))
+  embed(libs.asm)
 
-  implementation(libs.asm)
-
+  // to satisfy javadoc
+  compileOnly(libs.asm)
   compileOnly(libs.spotbugs.annotations)
 }
 
@@ -59,16 +59,6 @@ tasks.javadoc {
 tasks.named<Jar>("sourcesJar") {
   dependsOn(embed)
   from(allSources())
-}
-
-// produce "-all" jar with a shaded copy of ASM
-tasks.shadowJar {
-  dependsOn(embed)
-  from(embed.map { zipTree(it) })
-  relocate("org.objectweb.asm", "datadog.instrument.asm")
-}
-tasks.assemble {
-  dependsOn(tasks.shadowJar)
 }
 
 publishing {
