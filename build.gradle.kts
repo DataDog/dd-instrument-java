@@ -1,8 +1,8 @@
 plugins {
   java
+  id("shader")
   `maven-publish`
   signing
-  id("com.gradleup.shadow")
   id("pl.allegro.tech.build.axion-release")
   id("io.github.gradle-nexus.publish-plugin")
 }
@@ -31,25 +31,33 @@ dependencies {
   embed(project(":utils"))
   embed(project(":class-inject"))
   embed(project(":class-match"))
+  embed(libs.asm)
 
-  implementation(libs.asm)
-
+  // to satisfy javadoc
+  compileOnly(libs.asm)
   compileOnly(libs.spotbugs.annotations)
 }
 
-// collect all subproject output into a single jar
-fun allSources(): List<SourceDirectorySet> {
-  return subprojects.filter { it.name != "testing" }.map { it.sourceSets.main.get().allSource }
+// relocate embedded copy of asm to avoid clashes on classpath
+shader {
+  relocate("org/objectweb/" to "datadog/instrument/")
 }
+
+// collect all subproject output into a single jar
 tasks.jar {
   dependsOn(embed)
   from(embed.map { zipTree(it) })
+  // drop this file when embedding asm
+  exclude("module-info.class")
+}
+fun allSources(): List<SourceDirectorySet> {
+  return subprojects.filter { it.name != "testing" }.map { it.sourceSets.main.get().allSource }
 }
 tasks.javadoc {
   dependsOn(embed)
   setSource(allSources())
   exclude("datadog/instrument/glue", "datadog/instrument/utils/JVM.java")
-  var javadocOptions = (options as StandardJavadocDocletOptions)
+  val javadocOptions = (options as StandardJavadocDocletOptions)
   if (JavaVersion.current().isJava9Compatible) {
     javadocOptions.addBooleanOption("html5", true)
   }
@@ -59,16 +67,6 @@ tasks.javadoc {
 tasks.named<Jar>("sourcesJar") {
   dependsOn(embed)
   from(allSources())
-}
-
-// produce "-all" jar with a shaded copy of ASM
-tasks.shadowJar {
-  dependsOn(embed)
-  from(embed.map { zipTree(it) })
-  relocate("org.objectweb.asm", "datadog.instrument.asm")
-}
-tasks.assemble {
-  dependsOn(tasks.shadowJar)
 }
 
 publishing {
@@ -96,16 +94,6 @@ publishing {
           connection = "scm:https://datadog@github.com/datadog/dd-instrument-java"
           developerConnection = "scm:git@github.com:datadog/dd-instrument-java.git"
           url = "https://github.com/datadog/dd-instrument-java"
-        }
-        withXml {
-          // mark ASM dependency as optional
-          var doc = asElement().ownerDocument
-          var deps = doc.getElementsByTagName("dependency")
-          for (i in 0 ..< deps.length) {
-            var optional = doc.createElement("optional")
-            optional.textContent = "true"
-            deps.item(i).appendChild(optional)
-          }
         }
       }
     }
