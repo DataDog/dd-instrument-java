@@ -92,16 +92,6 @@ publishing {
           developerConnection = "scm:git@github.com:datadog/dd-instrument-java.git"
           url = "https://github.com/datadog/dd-instrument-java"
         }
-        withXml {
-          // mark ASM dependency as optional
-          val doc = asElement().ownerDocument
-          val deps = doc.getElementsByTagName("dependency")
-          for (i in 0 ..< deps.length) {
-            val optional = doc.createElement("optional")
-            optional.textContent = "true"
-            deps.item(i).appendChild(optional)
-          }
-        }
       }
     }
   }
