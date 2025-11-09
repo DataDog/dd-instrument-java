@@ -1,5 +1,6 @@
 plugins {
   java
+  id("shader")
   `maven-publish`
   signing
   id("pl.allegro.tech.build.axion-release")
@@ -44,12 +45,16 @@ fun allSources(): List<SourceDirectorySet> {
 tasks.jar {
   dependsOn(embed)
   from(embed.map { zipTree(it) })
+  exclude { it.isDirectory }
+  exclude("module-info.class")
+  eachFile(project.extensions.getByName<Action<FileCopyDetails>>("shader"))
+  filteringCharset = "ISO-8859-1"
 }
 tasks.javadoc {
   dependsOn(embed)
   setSource(allSources())
   exclude("datadog/instrument/glue", "datadog/instrument/utils/JVM.java")
-  var javadocOptions = (options as StandardJavadocDocletOptions)
+  val javadocOptions = (options as StandardJavadocDocletOptions)
   if (JavaVersion.current().isJava9Compatible) {
     javadocOptions.addBooleanOption("html5", true)
   }
@@ -89,10 +94,10 @@ publishing {
         }
         withXml {
           // mark ASM dependency as optional
-          var doc = asElement().ownerDocument
-          var deps = doc.getElementsByTagName("dependency")
+          val doc = asElement().ownerDocument
+          val deps = doc.getElementsByTagName("dependency")
           for (i in 0 ..< deps.length) {
-            var optional = doc.createElement("optional")
+            val optional = doc.createElement("optional")
             optional.textContent = "true"
             deps.item(i).appendChild(optional)
           }

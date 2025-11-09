@@ -9,6 +9,7 @@ repositories {
 dependencies {
   // needed to re-use the 'libs' version catalog between the main project and buildSrc
   implementation(files(libs.javaClass.superclass.protectionDomain.codeSource.location))
+  implementation(libs.asm.commons)
   implementation(libs.spotless)
   implementation(libs.spotbugs)
   implementation(libs.axion.release)
