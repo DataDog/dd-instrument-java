@@ -38,10 +38,11 @@ dependencies {
   compileOnly(libs.spotbugs.annotations)
 }
 
-// collect all subproject output into a single jar
-fun allSources(): List<SourceDirectorySet> {
-  return subprojects.filter { it.name != "testing" }.map { it.sourceSets.main.get().allSource }
+shader {
+  relocate("org/objectweb/" to "datadog/instrument/")
 }
+
+// collect all subproject output into a single jar
 tasks.jar {
   dependsOn(embed)
   from(embed.map { zipTree(it) })
@@ -49,6 +50,9 @@ tasks.jar {
   exclude("module-info.class")
   eachFile(project.extensions.getByName<Action<FileCopyDetails>>("shader"))
   filteringCharset = "ISO-8859-1"
+}
+fun allSources(): List<SourceDirectorySet> {
+  return subprojects.filter { it.name != "testing" }.map { it.sourceSets.main.get().allSource }
 }
 tasks.javadoc {
   dependsOn(embed)

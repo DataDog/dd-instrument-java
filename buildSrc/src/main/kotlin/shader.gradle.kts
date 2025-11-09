@@ -9,27 +9,47 @@ import java.io.Reader
 import java.io.StringReader
 import java.nio.charset.StandardCharsets
 
-class ToJava8(cv: ClassVisitor) : ClassVisitor(Opcodes.ASM9, cv) {
-  override fun visit(
-    version: Int, access: Int, name: String?, signature: String?, superName: String?, interfaces: Array<out String?>?
-  ) {
-    super.visit(version.coerceAtLeast(52), access, name, signature, superName, interfaces)
+extensions.create("shader", Shader::class)
+
+open class Shader : Action<FileCopyDetails> {
+  companion object {
+    var relocations: Map<String, String> = mapOf()
+  }
+
+  @Suppress("unused")
+  fun relocate(entry: Pair<String, String>) {
+    relocations += entry
+  }
+
+  override fun execute(t: FileCopyDetails) {
+    var resourcePath: String = t.path
+    if (resourcePath.endsWith(".class")) {
+      t.filter(ShadeClass::class)
+    }
+    relocations.forEach { (oldPath, newPath) ->
+      resourcePath = resourcePath.replace(oldPath, newPath)
+    }
+    t.path = resourcePath
   }
 }
 
-class Shade(reader: Reader) : FilterReader(shade(reader)) {
+class ShadeClass(reader: Reader) : FilterReader(shade(reader)) {
   companion object {
     fun shade(reader: Reader): Reader {
       val remapper = object : Remapper(Opcodes.ASM9) {
         override fun map(internalName: String?): String? {
-          return internalName?.replace("org/objectweb/", "datadog/instrument/")
+          var result: String? = internalName
+          Shader.relocations.forEach { (oldPath, newPath) ->
+            result = result?.replace(oldPath, newPath)
+          }
+          return result
         }
 
         override fun mapValue(value: Any?): Any? {
-          if (value is String) {
-            return value.replace("org/objectweb/", "datadog/instrument/")
+          return if (value is String) {
+            map(value)
           } else {
-            return super.mapValue(value)
+            super.mapValue(value)
           }
         }
       }
@@ -41,13 +61,10 @@ class Shade(reader: Reader) : FilterReader(shade(reader)) {
   }
 }
 
-open class Shader : Action<FileCopyDetails> {
-  override fun execute(t: FileCopyDetails) {
-    if (t.path.endsWith(".class")) {
-      t.filter(Shade::class)
-    }
-    t.path = t.path.replace("org/objectweb/", "datadog/instrument/")
+class ToJava8(cv: ClassVisitor) : ClassVisitor(Opcodes.ASM9, cv) {
+  override fun visit(
+    version: Int, access: Int, name: String?, signature: String?, superName: String?, interfaces: Array<out String?>?
+  ) {
+    super.visit(version.coerceAtLeast(Opcodes.V1_8), access, name, signature, superName, interfaces)
   }
 }
-
-project.extensions.create("shader", Shader::class)
