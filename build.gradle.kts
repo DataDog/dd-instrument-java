@@ -38,6 +38,7 @@ dependencies {
   compileOnly(libs.spotbugs.annotations)
 }
 
+// relocate embedded copy of asm to avoid clashes on classpath
 shader {
   relocate("org/objectweb/" to "datadog/instrument/")
 }
@@ -46,10 +47,8 @@ shader {
 tasks.jar {
   dependsOn(embed)
   from(embed.map { zipTree(it) })
-  exclude { it.isDirectory }
+  // drop this file when embedding asm
   exclude("module-info.class")
-  eachFile(project.extensions.getByName<Action<FileCopyDetails>>("shader"))
-  filteringCharset = "ISO-8859-1"
 }
 fun allSources(): List<SourceDirectorySet> {
   return subprojects.filter { it.name != "testing" }.map { it.sourceSets.main.get().allSource }
