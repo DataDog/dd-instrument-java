@@ -17,8 +17,6 @@ import java.util.MissingResourceException;
 public final class Glue {
   private static final String GLUE_RESOURCE_PREFIX = "/datadog/instrument/glue/";
 
-  private static final int BUFFER_SIZE = 8192;
-
   private Glue() {}
 
   /**
