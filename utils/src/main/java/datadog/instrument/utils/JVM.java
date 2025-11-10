@@ -72,14 +72,18 @@ public final class JVM {
     if (JVM.atLeastJava(9)) {
       return is.readAllBytes();
     } else {
-      try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-        int bytesRead;
-        byte[] buf = new byte[BUFFER_SIZE];
-        while ((bytesRead = is.read(buf, 0, BUFFER_SIZE)) != -1) {
-          os.write(buf, 0, bytesRead);
-        }
-        return os.toByteArray();
+      return readAllBytesLoop(is);
+    }
+  }
+
+  private static byte[] readAllBytesLoop(InputStream is) throws IOException {
+    try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+      int bytesRead;
+      byte[] buf = new byte[BUFFER_SIZE];
+      while ((bytesRead = is.read(buf, 0, BUFFER_SIZE)) != -1) {
+        os.write(buf, 0, bytesRead);
       }
+      return os.toByteArray();
     }
   }
 }
