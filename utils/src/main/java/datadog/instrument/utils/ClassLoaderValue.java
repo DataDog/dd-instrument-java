@@ -52,9 +52,9 @@ public abstract class ClassLoaderValue<V> {
   /**
    * Computes the given class-loaders's derived value for this {@code ClassLoaderValue}.
    *
-   * <p>This method will be invoked within the first thread that accesses the value with the {@link
-   * #get} method. Normally, this method is invoked at most once per class-loader, but it may be
-   * invoked again if there has been a call to {@link #remove remove}.
+   * <p>This method will be invoked within the first thread that attempts to access the value with
+   * the {@link #get} method. Normally, this method is invoked at most once per class-loader, but it
+   * may be invoked again if there has been a call to {@link #remove remove}.
    *
    * <p>If this method throws an exception, the corresponding call to {@code get} will terminate
    * abnormally with that exception, and no class-loader value will be recorded.
@@ -94,8 +94,8 @@ public abstract class ClassLoaderValue<V> {
    * Removes the associated value for the given class-loader.
    *
    * <p>If this is subsequently {@linkplain #get read} for the same class-loader, its value will be
-   * reinitialized by invoking its {@link #computeValue computeValue} method. This may result in an
-   * additional invocation of the {@code computeValue} method for the given class-loader.
+   * reinitialized by invoking its {@link #computeValue} method. This may result in an additional
+   * invocation of the {@code computeValue} method for the given class-loader.
    *
    * @param cl the class-loader whose value must be removed
    */
@@ -146,7 +146,7 @@ public abstract class ClassLoaderValue<V> {
   /**
    * Removes stale entries from {@code ClassLoaderValue}s, where the class-loader is now unused.
    *
-   * <p>It is the caller's responsibility to decide how often to call {@code #removeStaleEntries}.
+   * <p>It is responsibility of the caller to decide how often to call {@code removeStaleEntries}.
    * It may be periodically with a background thread, on certain requests, or some other condition.
    */
   public static void removeStaleEntries() {
@@ -177,16 +177,17 @@ public abstract class ClassLoaderValue<V> {
     return value;
   }
 
+  /** Helper to make {@code computeValue} compatible with {@code computeIfAbsent}. */
+  private V computeValueForKey(ClassLoaderKey key) {
+    return computeValue(key.get());
+  }
+
   /** Lazily associate a computed value with a custom class-loader. */
   private V getOtherValue(ClassLoader cl) {
     //noinspection All: intentionally use lookup key without reference overhead
     V value = otherValues.get(new LookupKey(cl));
     if (value == null) {
-      value = computeValue(cl);
-      V existingValue = otherValues.putIfAbsent(getClassLoaderKey(cl), value);
-      if (existingValue != null) {
-        value = existingValue;
-      }
+      value = otherValues.computeIfAbsent(getClassLoaderKey(cl), this::computeValueForKey);
     }
     return value;
   }
