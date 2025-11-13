@@ -146,7 +146,7 @@ public abstract class ClassLoaderValue<V> {
   /**
    * Removes stale entries from {@code ClassLoaderValue}s, where the class-loader is now unused.
    *
-   * <p>It is the caller's responsibility to decide how often to call {@code #removeStaleEntries}.
+   * <p>It is responsibility of the caller to decide how often to call {@code removeStaleEntries}.
    * It may be periodically with a background thread, on certain requests, or some other condition.
    */
   public static void removeStaleEntries() {
