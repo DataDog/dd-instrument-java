@@ -6,7 +6,7 @@ assertj = "3.27.6"
 spotless = "8.1.0"
 spotbugs = "6.4.7"
 spotbugs-annotations = "4.9.8"
-axion-release = "1.20.1"
+axion-release = "1.21.1"
 nexus-publish = "2.0.0"
 jmh-plugin = "0.7.3"
 
