@@ -1,7 +1,7 @@
 [versions]
 asm = "9.9"
-junit-jupiter = "5.13.4"
-junit-platform = "1.13.4"
+junit-jupiter = "5.14.1"
+junit-platform = "1.14.1"
 assertj = "3.27.5"
 spotless = "7.2.1"
 spotbugs = "6.4.2"
