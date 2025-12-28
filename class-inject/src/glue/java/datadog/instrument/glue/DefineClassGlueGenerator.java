@@ -312,7 +312,6 @@ final class DefineClassGlueGenerator {
 
     // unlock the class-loader if something goes wrong
     mv.visitLabel(unlockClassLoaderAndThrow);
-    mv.visitInsn(DUP);
     mv.visitVarInsn(ALOAD, classLoadingLock);
     mv.visitInsn(MONITOREXIT);
     mv.visitInsn(ATHROW);
@@ -371,7 +370,7 @@ final class DefineClassGlueGenerator {
     mv.visitEnd();
 
     // pad bytecode to even number of bytes, to make string encoding/decoding easier
-    if ((unsafeNamespace.length() & 0x01) == 0) {
+    if ((unsafeNamespace.length() & 0x01) == 1) {
       cw.newConst(0);
     }
 
