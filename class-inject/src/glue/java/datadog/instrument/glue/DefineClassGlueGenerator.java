@@ -81,6 +81,9 @@ final class DefineClassGlueGenerator {
           + CLASS_CLASS
           + ";";
 
+  private static final String CLASS_FORNAME_DESCRIPTOR =
+      "(L" + STRING_CLASS + ";ZL" + CLASSLOADER_CLASS + ";)L" + CLASS_CLASS + ";";
+
   private DefineClassGlueGenerator() {}
 
   /**
@@ -166,7 +169,10 @@ final class DefineClassGlueGenerator {
     final Label unlockClassLoaderAndThrow = new Label();
     final Label setupUnsafeDefiner = new Label();
     final Label hasNextBootClass = new Label();
+    final Label defineBootClass = new Label();
     final Label storeBootClass = new Label();
+    final Label loadBootClass = new Label();
+    final Label rethrowOriginal = new Label();
     final Label returnDefinedClasses = new Label();
 
     // common bytecode variables
@@ -184,11 +190,16 @@ final class DefineClassGlueGenerator {
 
     // bytecode variables for boot classes
     final int unsafeInstance = 8;
+    final int originalError = 9;
 
     mv.visitCode();
 
     // make sure we unlock the class-loader if an exception occurs while defining a class
     mv.visitTryCatchBlock(classLoaderLocked, classLoaderUnlocked, unlockClassLoaderAndThrow, null);
+
+    // fall back and see if the boot class is already loaded if defining it fails
+    mv.visitTryCatchBlock(defineBootClass, storeBootClass, loadBootClass, null);
+    mv.visitTryCatchBlock(loadBootClass, rethrowOriginal, rethrowOriginal, null);
 
     // -------- SHARED SETUP CODE  --------
 
@@ -361,10 +372,11 @@ final class DefineClassGlueGenerator {
     mv.visitVarInsn(ALOAD, protectionDomain);
 
     // define the boot class using the given class-name and bytecode
+    mv.visitLabel(defineBootClass);
     mv.visitMethodInsn(
         INVOKEVIRTUAL, unsafeClass, "defineClass", UNSAFE_DEFINECLASS_DESCRIPTOR, false);
 
-    // store the class in the list
+    // store the class in the list whether we defined it or it already existed
     mv.visitLabel(storeBootClass);
     mv.visitVarInsn(ALOAD, definedClasses);
     mv.visitInsn(SWAP);
@@ -373,6 +385,21 @@ final class DefineClassGlueGenerator {
 
     // check again if we've defined all the given bytecode
     mv.visitJumpInsn(GOTO, hasNextBootClass);
+
+    // see if the boot class has already been defined
+    mv.visitLabel(loadBootClass);
+    mv.visitVarInsn(ASTORE, originalError);
+    mv.visitVarInsn(ALOAD, className);
+    mv.visitInsn(ICONST_0); // initialize=false
+    mv.visitInsn(ACONST_NULL);
+    mv.visitMethodInsn(INVOKESTATIC, CLASS_CLASS, "forName", CLASS_FORNAME_DESCRIPTOR, false);
+    mv.visitJumpInsn(GOTO, storeBootClass);
+
+    // boot class is not defined, report original error
+    mv.visitLabel(rethrowOriginal);
+    mv.visitInsn(POP);
+    mv.visitVarInsn(ALOAD, originalError);
+    mv.visitInsn(ATHROW);
 
     // -------- SHARED RETURN CODE  --------
 
@@ -385,7 +412,7 @@ final class DefineClassGlueGenerator {
     mv.visitEnd();
 
     // pad bytecode to even number of bytes, to make string encoding/decoding easier
-    if ((unsafeNamespace.length() & 0x01) == 1) {
+    if ((unsafeNamespace.length() & 0x01) == 0) {
       cw.newConst(0);
     }
 
