@@ -1,6 +1,11 @@
 plugins {
+  id("java-common")
   id("instrument-glue")
-  id("instrument-module")
+}
+
+dependencies {
+  implementation(libs.asm)
+  implementation(project(":utils"))
 }
 
 // class-inject generates glue bytecode at build-time to provide access to Unsafe.defineClass
