@@ -31,6 +31,7 @@ dependencies {
   embed(project(":utils"))
   embed(project(":class-inject"))
   embed(project(":class-match"))
+  embed(project(":field-inject"))
   embed(libs.asm)
 
   // to satisfy javadoc
