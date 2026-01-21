@@ -251,6 +251,9 @@ public final class ClassNameTrie {
       throw new IOException("Unexpected file magic " + magic);
     }
     int trieLength = in.readInt();
+    if (trieLength == 0) {
+      return EMPTY_TRIE;
+    }
     char[] trieData = new char[trieLength];
     for (int i = 0; i < trieLength; i++) {
       byte b = in.readByte();
@@ -309,10 +312,12 @@ public final class ClassNameTrie {
      * @param trie existing trie
      */
     public Builder(ClassNameTrie trie) {
-      trieData = trie.trieData;
-      trieLength = trieData.length;
-      longJumps = trie.longJumps;
-      longJumpCount = null != longJumps ? longJumps.length : 0;
+      if (trie.trieData.length > 1) { // non-empty trie (branch count + content)
+        trieData = trie.trieData;
+        trieLength = trieData.length;
+        longJumps = trie.longJumps;
+        longJumpCount = null != longJumps ? longJumps.length : 0;
+      }
     }
 
     /**
