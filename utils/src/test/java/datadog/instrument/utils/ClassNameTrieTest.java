@@ -308,7 +308,7 @@ class ClassNameTrieTest {
 
   @Test
   void buildFromEmptyTrie() {
-    ClassNameTrie.Builder builder = new ClassNameTrie.Builder(ClassNameTrie.Builder.EMPTY_TRIE);
+    ClassNameTrie.Builder builder = new ClassNameTrie.Builder(ClassNameTrie.EMPTY_TRIE);
 
     assertTrue(builder.isEmpty());
     assertEquals(-1, builder.apply("test"));
