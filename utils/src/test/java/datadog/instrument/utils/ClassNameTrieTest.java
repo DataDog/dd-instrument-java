@@ -166,14 +166,14 @@ class ClassNameTrieTest {
     ClassNameTrie trie =
         new ClassNameTrie("\001\141\u4001\001\142\u4002\001\143\u8003".toCharArray(), null);
 
+    assertFalse(new ClassNameTrie.Builder(trie).isEmpty());
+
     assertEquals(1, trie.apply("a"));
     assertEquals(2, trie.apply("ab"));
     assertEquals(3, trie.apply("abc"));
     assertEquals(-1, trie.apply(""));
     assertEquals(-1, trie.apply("b"));
     assertEquals(-1, trie.apply("c"));
-
-    assertFalse(new ClassNameTrie.Builder(trie).isEmpty());
 
     ClassNameTrie emptyTrie =
         ClassNameTrie.readFrom(
@@ -184,6 +184,13 @@ class ClassNameTrieTest {
                     })));
 
     assertTrue(new ClassNameTrie.Builder(emptyTrie).isEmpty());
+
+    assertEquals(-1, emptyTrie.apply("a"));
+    assertEquals(-1, emptyTrie.apply("ab"));
+    assertEquals(-1, emptyTrie.apply("abc"));
+    assertEquals(-1, emptyTrie.apply(""));
+    assertEquals(-1, emptyTrie.apply("b"));
+    assertEquals(-1, emptyTrie.apply("c"));
   }
 
   @Test
@@ -280,6 +287,36 @@ class ClassNameTrieTest {
     for (Map.Entry<String, Integer> entry : data.entrySet()) {
       assertEquals(entry.getValue(), importer.apply(entry.getKey()));
     }
+  }
+
+  @Test
+  void roundTripNoMappings() {
+    ClassNameTrie.Builder exporter = new ClassNameTrie.Builder();
+
+    ClassNameTrie importer;
+    try (ByteArrayOutputStream sink = new ByteArrayOutputStream()) {
+      exporter.writeTo(new DataOutputStream(sink));
+      try (InputStream source = new ByteArrayInputStream(sink.toByteArray())) {
+        importer = ClassNameTrie.readFrom(new DataInputStream(source));
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+
+    assertEquals(-1, importer.apply("test"));
+  }
+
+  @Test
+  void buildFromEmptyTrie() {
+    ClassNameTrie.Builder builder = new ClassNameTrie.Builder(ClassNameTrie.EMPTY_TRIE);
+
+    assertTrue(builder.isEmpty());
+    assertEquals(-1, builder.apply("test"));
+
+    builder.put("test", 42);
+
+    assertFalse(builder.isEmpty());
+    assertEquals(42, builder.apply("test"));
   }
 
   private String randomKey(int unused) {

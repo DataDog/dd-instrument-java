@@ -90,6 +90,9 @@ import java.util.regex.Pattern;
  */
 public final class ClassNameTrie {
 
+  /** Constant representing an empty class-name trie with zero branches. */
+  public static final ClassNameTrie EMPTY_TRIE = new ClassNameTrie(new char[] {0x0000}, null);
+
   /** Marks a leaf in the trie, where the rest of the bits are the index to be returned. */
   private static final char LEAF_MARKER = 0x8000;
 
@@ -248,6 +251,9 @@ public final class ClassNameTrie {
       throw new IOException("Unexpected file magic " + magic);
     }
     int trieLength = in.readInt();
+    if (trieLength == 0) {
+      return EMPTY_TRIE;
+    }
     char[] trieData = new char[trieLength];
     for (int i = 0; i < trieLength; i++) {
       byte b = in.readByte();
@@ -285,8 +291,10 @@ public final class ClassNameTrie {
   /** Builds an in-memory trie that represents a mapping of {class-name} to {number}. */
   public static class Builder {
 
-    /** Constant representing an empty class-name trie. */
-    public static final ClassNameTrie EMPTY_TRIE = new ClassNameTrie(new char[] {0x0000}, null);
+    /**
+     * @deprecated use {@link ClassNameTrie#EMPTY_TRIE} instead.
+     */
+    @Deprecated public static final ClassNameTrie EMPTY_TRIE = ClassNameTrie.EMPTY_TRIE;
 
     private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*(?:([0-9]+)\\s+)?([^\\s#]+)");
 
@@ -304,10 +312,12 @@ public final class ClassNameTrie {
      * @param trie existing trie
      */
     public Builder(ClassNameTrie trie) {
-      trieData = trie.trieData;
-      trieLength = trieData.length;
-      longJumps = trie.longJumps;
-      longJumpCount = null != longJumps ? longJumps.length : 0;
+      if (trie.trieData.length > 1) { // non-empty trie (branch count + content)
+        trieData = trie.trieData;
+        trieLength = trieData.length;
+        longJumps = trie.longJumps;
+        longJumpCount = null != longJumps ? longJumps.length : 0;
+      }
     }
 
     /**
@@ -332,7 +342,7 @@ public final class ClassNameTrie {
      */
     public ClassNameTrie buildTrie() {
       if (trieLength == 0) {
-        return EMPTY_TRIE;
+        return ClassNameTrie.EMPTY_TRIE;
       }
       // avoid unnecessary allocation when compaction isn't required
       if (trieData.length > trieLength) {
