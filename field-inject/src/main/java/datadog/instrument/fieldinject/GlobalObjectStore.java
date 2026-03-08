@@ -19,7 +19,7 @@ import javax.annotation.Nullable;
 /**
  * Global key-value store used when field-injection is not possible. Since the same object may
  * participate in multiple stores each global key captures the store identity along with a weak
- * reference to the original key.
+ * reference to the original object key.
  */
 public final class GlobalObjectStore {
 
@@ -111,8 +111,13 @@ public final class GlobalObjectStore {
    */
   @Nullable
   public static Object get(Object key, int storeId) {
-    //noinspection All: intentionally use lookup key without reference overhead
-    return weakMap.get(new LookupKey(key, storeId));
+    LookupKey lookupKey = LookupKey.with(key, storeId);
+    try {
+      //noinspection All: intentionally use lookup key without reference overhead
+      return weakMap.get(lookupKey);
+    } finally {
+      lookupKey.reset();
+    }
   }
 
   /**
@@ -124,8 +129,7 @@ public final class GlobalObjectStore {
    */
   public static void put(Object key, int storeId, Object value) {
     if (value == null) {
-      //noinspection All: intentionally use lookup key without reference overhead
-      weakMap.remove(new LookupKey(key, storeId));
+      remove(key, storeId);
     } else if (checkCapacity()) {
       weakMap.put(new StoreKey(key, storeId), value);
     }
@@ -141,8 +145,7 @@ public final class GlobalObjectStore {
    * @return existing value if present, otherwise the new value
    */
   public static Object getOrPut(Object key, int storeId, Object value) {
-    //noinspection All: intentionally use lookup key without reference overhead
-    Object existing = weakMap.get(new LookupKey(key, storeId));
+    Object existing = get(key, storeId);
     if (existing == null && value != null && checkCapacity()) {
       existing = weakMap.putIfAbsent(new StoreKey(key, storeId), value);
     }
@@ -160,8 +163,7 @@ public final class GlobalObjectStore {
    */
   @SuppressWarnings({"rawtypes", "unchecked"})
   public static Object getOrCompute(Object key, int storeId, Function valueFunction) {
-    //noinspection All: intentionally use lookup key without reference overhead
-    Object existing = weakMap.get(new LookupKey(key, storeId));
+    Object existing = get(key, storeId);
     if (existing == null && checkCapacity()) {
       existing =
           weakMap.computeIfAbsent(
@@ -179,8 +181,13 @@ public final class GlobalObjectStore {
    */
   @Nullable
   public static Object remove(Object key, int storeId) {
-    //noinspection All: intentionally use lookup key without reference overhead
-    return weakMap.remove(new LookupKey(key, storeId));
+    LookupKey lookupKey = LookupKey.with(key, storeId);
+    try {
+      //noinspection All: intentionally use lookup key without reference overhead
+      return weakMap.remove(lookupKey);
+    } finally {
+      lookupKey.reset();
+    }
   }
 
   /**
@@ -244,14 +251,34 @@ public final class GlobalObjectStore {
 
   /** Temporary key used for lookup purposes without the reference tracking overhead. */
   private static final class LookupKey {
-    final Object key;
-    final int hash;
-    final int storeId;
 
-    LookupKey(Object key, int storeId) {
-      this.key = key;
-      this.hash = (31 * storeId) + System.identityHashCode(key);
-      this.storeId = storeId;
+    /** Avoid allocation by maintaining a reusable lookup key per-thread. */
+    private static final ThreadLocal<LookupKey> LOOKUP_KEY_CACHE =
+        ThreadLocal.withInitial(LookupKey::new);
+
+    Object key;
+    int hash;
+    int storeId;
+
+    /**
+     * Returns a temporary lookup key for the current thread with the given object key and store-id.
+     * This key must be reset by calling {@link #reset} as soon as the get/remove request completes.
+     *
+     * @param key the key
+     * @param storeId the store-id
+     * @return temporary key that can only be used to get or remove values from the global map
+     */
+    static LookupKey with(Object key, int storeId) {
+      LookupKey thiz = LOOKUP_KEY_CACHE.get();
+      thiz.key = key;
+      thiz.hash = (31 * storeId) + System.identityHashCode(key);
+      thiz.storeId = storeId;
+      return thiz;
+    }
+
+    /** Resets this temporary lookup key so it can be reused in a future get/remove request. */
+    void reset() {
+      this.key = null; // only need to clear the object key so it can be collected
     }
 
     @Override
