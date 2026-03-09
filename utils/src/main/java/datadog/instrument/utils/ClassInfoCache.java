@@ -7,7 +7,7 @@
 package datadog.instrument.utils;
 
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Shares class information from multiple classloaders in a single cache.
@@ -28,7 +28,7 @@ public final class ClassInfoCache<T> {
   private static final int ALL_CLASS_LOADERS = -1;
 
   // global monotonic counter; cheap way to track aging as info is shared
-  static final AtomicLong TICKS = new AtomicLong();
+  static final AtomicInteger TICKS = new AtomicInteger(Integer.MIN_VALUE);
 
   // fixed-size hashtable of shared information, indexed by class-name
   private final SharedInfo[] shared;
@@ -190,7 +190,7 @@ public final class ClassInfoCache<T> {
     // always wrap info in a new wrapper to avoid consistency issues
     final SharedInfo update = new SharedInfo(className, info, classLoaderKeyId);
 
-    long oldestTick = Long.MAX_VALUE;
+    int oldestTick = Integer.MAX_VALUE;
     int oldestSlot = -1;
 
     // search by repeated hashing; stop when we find an empty slot,
@@ -200,7 +200,7 @@ public final class ClassInfoCache<T> {
       SharedInfo existing = shared[slot];
       if (existing != null && !existing.equals(update)) {
         // slot already used by a different class
-        long tick = existing.accessed;
+        int tick = existing.accessed;
         if (i < MAX_HASH_ATTEMPTS) {
           // still more slots to search
           if (tick < oldestTick) {
@@ -246,7 +246,7 @@ public final class ClassInfoCache<T> {
     // optional class-loader key
     final int classLoaderKeyId;
 
-    long accessed;
+    int accessed;
 
     SharedInfo(String className, Object classInfo, int classLoaderKeyId) {
       this.className = className;
