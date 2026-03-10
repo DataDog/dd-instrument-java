@@ -146,7 +146,9 @@ public final class GlobalObjectStore {
    */
   public static Object getOrPut(Object key, int storeId, Object value) {
     Object existing = get(key, storeId);
-    if (existing == null && value != null && checkCapacity()) {
+    if (existing != null || value == null) {
+      return existing;
+    } else if (checkCapacity()) {
       existing = weakMap.putIfAbsent(new StoreKey(key, storeId), value);
     }
     return existing != null ? existing : value;
@@ -164,12 +166,13 @@ public final class GlobalObjectStore {
   @SuppressWarnings({"rawtypes", "unchecked"})
   public static Object getOrCompute(Object key, int storeId, Function valueFunction) {
     Object existing = get(key, storeId);
-    if (existing == null && checkCapacity()) {
-      existing =
-          weakMap.computeIfAbsent(
-              new StoreKey(key, storeId), storeKey -> valueFunction.apply(storeKey.get()));
+    if (existing != null) {
+      return existing;
+    } else if (checkCapacity()) {
+      return weakMap.computeIfAbsent(
+          new StoreKey(key, storeId), storeKey -> valueFunction.apply(storeKey.get()));
     }
-    return existing != null ? existing : valueFunction.apply(key);
+    return valueFunction.apply(key);
   }
 
   /**
