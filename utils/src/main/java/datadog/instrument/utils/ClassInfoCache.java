@@ -114,10 +114,7 @@ public final class ClassInfoCache<T> {
         if (existing.className.contentEquals(className)) {
           // match on class-loader key, -1 on either side matches all
           if ((classLoaderKeyId ^ existing.classLoaderKeyId) <= 0) {
-            // use global TICKS as a substitute for access time
-            // TICKS is only incremented in 'share' for performance reasons
-            existing.accessed = TICKS.get();
-            return (T) existing.classInfo;
+            return (T) access(existing).classInfo;
           }
           // fall-through and quit; name matched but class-loader didn't
         } else if (i < MAX_HASH_ATTEMPTS) {
@@ -155,10 +152,7 @@ public final class ClassInfoCache<T> {
           // apply custom matcher to class-loader key, -1 always matches
           if (existing.classLoaderKeyId < 0
               || classLoaderKeyMatcher.test(existing.classLoaderKeyId)) {
-            // use global TICKS as a substitute for access time
-            // TICKS is only incremented in 'share' for performance reasons
-            existing.accessed = TICKS.get();
-            return (T) existing.classInfo;
+            return (T) access(existing).classInfo;
           }
           // fall-through and quit; name matched but class-loader didn't
         } else if (i < MAX_HASH_ATTEMPTS) {
@@ -232,6 +226,17 @@ public final class ClassInfoCache<T> {
 
   private static int rehash(int oldHash) {
     return Integer.reverseBytes(oldHash * 0x9e3775cd) * 0x9e3775cd;
+  }
+
+  /** Access the given shared class information, updating the accessed tick count if changed. */
+  private static SharedInfo access(SharedInfo info) {
+    // use global TICKS as a substitute for access time
+    // TICKS is only incremented in 'share' for performance reasons
+    int tick = TICKS.get();
+    if (tick != info.accessed) {
+      info.accessed = tick;
+    }
+    return info;
   }
 
   /**
