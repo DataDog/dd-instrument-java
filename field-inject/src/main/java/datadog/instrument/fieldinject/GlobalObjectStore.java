@@ -127,7 +127,7 @@ public final class GlobalObjectStore {
    * @param storeId the store-id
    * @param value the new value
    */
-  public static void put(Object key, int storeId, Object value) {
+  public static void put(Object key, int storeId, @Nullable Object value) {
     if (value == null) {
       remove(key, storeId);
     } else if (checkCapacity()) {
@@ -144,7 +144,7 @@ public final class GlobalObjectStore {
    * @param value the new value
    * @return existing value if present, otherwise the new value
    */
-  public static Object getOrPut(Object key, int storeId, Object value) {
+  public static Object getOrPut(Object key, int storeId, @Nullable Object value) {
     Object existing = get(key, storeId);
     if (existing != null || value == null) {
       return existing;
@@ -160,7 +160,7 @@ public final class GlobalObjectStore {
    *
    * @param key the key
    * @param storeId the store-id
-   * @param valueFunction the value function
+   * @param valueFunction function to compute values from keys
    * @return existing value if present, otherwise the new computed value
    */
   @SuppressWarnings({"rawtypes", "unchecked"})

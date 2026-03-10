@@ -89,7 +89,7 @@ public final class ObjectStore<K, V> {
    * @param key the key
    * @param value the new value
    */
-  public void put(K key, V value) {
+  public void put(K key, @Nullable V value) {
     GlobalObjectStore.put(key, storeId, value);
   }
 
@@ -101,7 +101,7 @@ public final class ObjectStore<K, V> {
    * @param value the new value
    * @return existing value if present, otherwise the new value
    */
-  public V getOrPut(K key, V value) {
+  public V getOrPut(K key, @Nullable V value) {
     return (V) GlobalObjectStore.getOrPut(key, storeId, value);
   }
 
@@ -110,7 +110,7 @@ public final class ObjectStore<K, V> {
    * key with a value computed by the given function and return that.
    *
    * @param key the key
-   * @param valueFunction the value function
+   * @param valueFunction function to compute values from keys
    * @return existing value if present, otherwise the new computed value
    */
   public V getOrCompute(K key, Function<K, V> valueFunction) {
