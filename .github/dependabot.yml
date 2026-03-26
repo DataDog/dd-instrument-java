@@ -16,3 +16,5 @@ updates:
         patterns:
           - "*"
 
+    cooldown:
+      default-days: 2
