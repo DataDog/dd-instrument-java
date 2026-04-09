@@ -64,19 +64,28 @@ public final class ClassNameFilter {
     final long[] members = this.members;
     final int slotMask = this.slotMask;
 
-    // try to find matching slot, rehashing after each attempt
-    for (int i = 1, h = hash; true; i++, h = rehash(h)) {
-      long codeAndHash = members[slotMask & h];
-      if (codeAndHash != 0) {
-        // check hash first as it's cheap, then check class-code
-        if ((int) codeAndHash == hash) {
-          return checkClassCode(className, (int) (codeAndHash >>> 32));
-        } else if (i < MAX_HASH_ATTEMPTS) {
-          continue; // rehash and try again
-        }
-      }
+    // first probe without rehash (most common path)
+    long codeAndHash = members[slotMask & hash];
+    if (codeAndHash == 0) {
       return false;
     }
+    if ((int) codeAndHash == hash) {
+      return checkClassCode(className, (int) (codeAndHash >>> 32));
+    }
+
+    // subsequent probes with rehash (collision path)
+    int h = hash;
+    for (int i = 2; i <= MAX_HASH_ATTEMPTS; i++) {
+      h = Integer.reverseBytes(h * 0x9e3775cd) * 0x9e3775cd;
+      codeAndHash = members[slotMask & h];
+      if (codeAndHash == 0) {
+        return false;
+      }
+      if ((int) codeAndHash == hash) {
+        return checkClassCode(className, (int) (codeAndHash >>> 32));
+      }
+    }
+    return false;
   }
 
   /**
