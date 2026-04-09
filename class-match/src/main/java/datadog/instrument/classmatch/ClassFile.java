@@ -6,6 +6,7 @@
 
 package datadog.instrument.classmatch;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 import java.util.Arrays;
@@ -353,8 +354,10 @@ public final class ClassFile {
     }
 
     if (chars == null) {
-      // fast-path for ASCII-only, avoids intermediate char array
-      return new String(bytecode, utfStart, utfLen, US_ASCII);
+      // fast-path for ASCII-only: use ISO_8859_1 because on Java 9+ the JVM
+      // can adopt the byte array directly as the compact string encoding,
+      // avoiding a byte-by-byte transcoding step that US_ASCII requires
+      return new String(bytecode, utfStart, utfLen, ISO_8859_1);
     }
 
     int charLen = 0;
