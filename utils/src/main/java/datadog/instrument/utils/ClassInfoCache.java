@@ -181,9 +181,6 @@ public final class ClassInfoCache<T> {
     final SharedInfo[] shared = this.shared;
     final int slotMask = this.slotMask;
 
-    // always wrap info in a new wrapper to avoid consistency issues
-    final SharedInfo update = new SharedInfo(className, info, classLoaderKeyId);
-
     int oldestTick = Integer.MAX_VALUE;
     int oldestSlot = -1;
 
@@ -192,7 +189,7 @@ public final class ClassInfoCache<T> {
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
       int slot = slotMask & h;
       SharedInfo existing = shared[slot];
-      if (existing != null && !existing.equals(update)) {
+      if (existing != null && !existing.className.equals(className)) {
         // slot already used by a different class
         int tick = existing.accessed;
         if (i < MAX_HASH_ATTEMPTS) {
@@ -211,6 +208,8 @@ public final class ClassInfoCache<T> {
           // last hashed slot is least-recently-used, re-use it
         }
       }
+      // wrap info in a new wrapper (deferred to avoid allocation on early match)
+      SharedInfo update = new SharedInfo(className, info, classLoaderKeyId);
       shared[slot] = update;
       // increment global TICKS whenever info is shared
       // avoid incrementing it in 'find' for performance reasons
