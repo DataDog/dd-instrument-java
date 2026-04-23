@@ -129,7 +129,7 @@ public final class ClassNameTrie {
    * @return the number the class-name maps to; {@code -1} if not mapped
    */
   public int apply(String key) {
-    return apply(trieData, longJumps, key);
+    return apply(trieData, longJumps, key, 0);
   }
 
   /**
@@ -141,18 +141,6 @@ public final class ClassNameTrie {
    */
   public int apply(String key, int fromIndex) {
     return apply(trieData, longJumps, key, fromIndex);
-  }
-
-  /**
-   * Returns the number in the given trie the class-name maps to.
-   *
-   * @param data the encoded trie data
-   * @param longJumps the long-jumps table
-   * @param key the class-name key
-   * @return the number the class-name maps to; {@code -1} if not mapped
-   */
-  public static int apply(char[] data, int[] longJumps, String key) {
-    return apply(data, longJumps, key, 0);
   }
 
   /**
@@ -291,11 +279,6 @@ public final class ClassNameTrie {
   /** Builds an in-memory trie that represents a mapping of {class-name} to {number}. */
   public static class Builder {
 
-    /**
-     * @deprecated use {@link ClassNameTrie#EMPTY_TRIE} instead.
-     */
-    @Deprecated public static final ClassNameTrie EMPTY_TRIE = ClassNameTrie.EMPTY_TRIE;
-
     private static final Pattern MAPPING_LINE = Pattern.compile("^\\s*(?:([0-9]+)\\s+)?([^\\s#]+)");
 
     private char[] trieData;
@@ -334,7 +317,7 @@ public final class ClassNameTrie {
      * @return the number the class-name maps to; {@code -1} if not mapped
      */
     public int apply(String key) {
-      return trieLength > 0 ? ClassNameTrie.apply(trieData, longJumps, key) : -1;
+      return trieLength > 0 ? ClassNameTrie.apply(trieData, longJumps, key, 0) : -1;
     }
 
     /**
@@ -935,9 +918,9 @@ public final class ClassNameTrie {
       lines.add("");
       lines.add("  public static int apply(String key) {");
       if (hasLongJumps) {
-        lines.add("    return ClassNameTrie.apply(TRIE_DATA, LONG_JUMPS, key);");
+        lines.add("    return ClassNameTrie.apply(TRIE_DATA, LONG_JUMPS, key, 0);");
       } else {
-        lines.add("    return ClassNameTrie.apply(TRIE_DATA, null, key);");
+        lines.add("    return ClassNameTrie.apply(TRIE_DATA, null, key, 0);");
       }
       lines.add("  }");
       lines.add("");
