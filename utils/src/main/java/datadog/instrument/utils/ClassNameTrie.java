@@ -427,50 +427,6 @@ public final class ClassNameTrie {
       }
     }
 
-    /** Makes a hole in the current trie data to fit a new node/branch, etc. */
-    private void makeHole(int start, int length) {
-      char[] oldData = trieData;
-      if (trieLength + length > oldData.length) {
-        trieData = new char[Math.max(trieLength + length, oldData.length + (oldData.length >> 1))];
-        System.arraycopy(oldData, 0, trieData, 0, start);
-      }
-      System.arraycopy(oldData, start, trieData, start + length, trieLength - start);
-      trieLength += length;
-    }
-
-    /** Moves jump values that won't fit into the long-jump table and replaces them with an id. */
-    private char setJump(int jump) {
-      if (jump < LONG_JUMP_MARKER) {
-        return (char) jump; // jump is small enough to fit into the trie
-      }
-      if (longJumpCount == 0) {
-        longJumps = new int[16]; // create table on first long-jump
-      } else if (longJumpCount == longJumps.length) {
-        int[] oldJumps = longJumps;
-        // expand table by 50% to fit additional long-jumps
-        longJumps = new int[longJumpCount + (longJumpCount >> 1)];
-        System.arraycopy(oldJumps, 0, longJumps, 0, longJumpCount);
-      }
-      longJumps[longJumpCount] = jump;
-      return (char) (longJumpCount++ | LONG_JUMP_MARKER);
-    }
-
-    /** Restores jump values previously moved into the long-jump table. */
-    private int getJump(char jump) {
-      return (jump & LONG_JUMP_MARKER) == 0 ? jump : longJumps[jump & ~LONG_JUMP_MARKER];
-    }
-
-    /**
-     * Increases jump by the given offset, this may result in it moving into the long-jump table.
-     */
-    private char updateJump(char jump, int offset) {
-      if (jump < LONG_JUMP_MARKER) {
-        return setJump(jump + offset);
-      }
-      longJumps[jump & ~LONG_JUMP_MARKER] += offset;
-      return jump;
-    }
-
     private void insertMapping(String key, char valueToInsert) {
       BitSet jumpsToOffset = new BitSet();
 
@@ -658,7 +614,7 @@ public final class ClassNameTrie {
         j += branchCount;
         precedingJump = newBranch > 0 ? getJump(trieData[i - 1]) : 0;
         // calculate jump for next branch, using previous jump as a reference
-        trieData[i++] = setJump(precedingJump + remainingKeyLength);
+        trieData[i++] = newJump(precedingJump + remainingKeyLength);
         for (int b = newBranch + 1; b < branchCount; b++) {
           // update old branch jumps on right to account for added content
           trieData[i++] = updateJump(trieData[j++], remainingKeyLength);
@@ -670,7 +626,7 @@ public final class ClassNameTrie {
         j += branchCount - 1;
         // calculate jump needed to reach our new branch based on the size of the old sub-trie
         precedingJump = subTrieEnd - subTrieStart;
-        trieData[i++] = setJump(precedingJump);
+        trieData[i++] = newJump(precedingJump);
       }
 
       // now move up the sub-trie content before our new branch
@@ -802,7 +758,7 @@ public final class ClassNameTrie {
       trieData[i++] = key.charAt(keyIndex);
       trieData[i++] = (char) (collapseLeft ? trieData[j + 1] : segmentEnd - pivot);
       trieData[i++] = (char) (collapseRight ? value | LEAF_MARKER : remainingKeyLength - 1);
-      trieData[i++] = setJump(subTrieEnd - pivot);
+      trieData[i++] = newJump(subTrieEnd - pivot);
       System.arraycopy(trieData, pivot + insertedCharacters, trieData, i, subTrieEnd - pivot);
       i += subTrieEnd - pivot;
       if (!collapseRight) {
@@ -849,6 +805,52 @@ public final class ClassNameTrie {
       trieData[i++] = (char) (value | LEAF_MARKER);
 
       return insertedCharacters;
+    }
+
+    /** Makes a hole in the current trie data to fit a new node/branch, etc. */
+    private void makeHole(int dataIndex, int hole) {
+      char[] oldData = trieData;
+      int newLength = trieLength + hole;
+      if (newLength > oldData.length) {
+        // expand buffer to fit the new content and copy over the preceding trie data
+        trieData = new char[Math.max(newLength, oldData.length + (oldData.length >> 1))];
+        System.arraycopy(oldData, 0, trieData, 0, dataIndex);
+      }
+      // shift the remaining trie data to create the hole (no need to zero fill it)
+      System.arraycopy(oldData, dataIndex, trieData, dataIndex + hole, trieLength - dataIndex);
+      trieLength = newLength;
+    }
+
+    /** Checks a new jump value; long jumps are replaced with an index into the long-jump table. */
+    private char newJump(int jump) {
+      if (jump < LONG_JUMP_MARKER) {
+        return (char) jump; // jump is small enough to fit into the trie
+      }
+      if (longJumps == null) {
+        longJumps = new int[16]; // create table on first long-jump
+      } else if (longJumpCount == longJumps.length) {
+        int[] oldJumps = longJumps;
+        // expand table by 50% to fit additional long-jumps
+        longJumps = new int[longJumpCount + (longJumpCount >> 1)];
+        System.arraycopy(oldJumps, 0, longJumps, 0, longJumpCount);
+      }
+      longJumps[longJumpCount] = jump;
+      return (char) (longJumpCount++ | LONG_JUMP_MARKER);
+    }
+
+    /** Retrieves the true jump value, consulting the long-jump table if necessary. */
+    private int getJump(char jump) {
+      return (jump & LONG_JUMP_MARKER) == 0 ? jump : longJumps[jump & ~LONG_JUMP_MARKER];
+    }
+
+    /** Increases jump by the given delta, this may result in it becoming a long-jump. */
+    private char updateJump(char jump, int delta) {
+      if ((jump & LONG_JUMP_MARKER) == 0) {
+        return newJump(jump + delta);
+      }
+      // already a long-jump, just update table value
+      longJumps[jump & ~LONG_JUMP_MARKER] += delta;
+      return jump;
     }
   }
 
