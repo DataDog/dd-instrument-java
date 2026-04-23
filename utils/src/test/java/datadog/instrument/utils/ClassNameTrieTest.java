@@ -26,6 +26,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.tools.JavaCompiler;
@@ -198,8 +199,13 @@ class ClassNameTrieTest {
     ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
 
     assertThrows(IllegalArgumentException.class, () -> builder.put(null, 1));
+    assertThrows(IllegalArgumentException.class, () -> builder.put("", 1));
+    assertThrows(IllegalArgumentException.class, () -> builder.put("*", 1));
     assertThrows(IllegalArgumentException.class, () -> builder.put("test", -1));
     assertThrows(IllegalArgumentException.class, () -> builder.put("test", 8192));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> builder.put(Stream.generate(() -> "_").limit(8192).collect(Collectors.joining()), 1));
 
     // check that a bad magic header fails
     assertThrows(
@@ -313,10 +319,19 @@ class ClassNameTrieTest {
     assertTrue(builder.isEmpty());
     assertEquals(-1, builder.apply("test"));
 
-    builder.put("test", 42);
+    builder.put("abcde", 42);
+    builder.put("ab.de", 67);
+    builder.put("a/c/e", 76);
 
     assertFalse(builder.isEmpty());
-    assertEquals(42, builder.apply("test"));
+
+    assertEquals(42, builder.apply("abcde"));
+
+    assertEquals(67, builder.apply("ab.de"));
+    assertEquals(67, builder.apply("ab/de"));
+
+    assertEquals(76, builder.apply("a.c.e"));
+    assertEquals(76, builder.apply("a/c/e"));
   }
 
   private String randomKey(int unused) {
