@@ -23,8 +23,9 @@ import java.util.regex.Pattern;
 
 /**
  * Immutable space-efficient trie that captures a mapping of package/class names to numbers.
+ * ClassNameTries can match against both dot-separated and slash-separated (internal) names.
  *
- * <p>Each node of the trie is represented as a series of {@code char}s using this layout:
+ * <p>Trie nodes are encoded as a series of {@code char}s using this layout:
  *
  * <pre>
  * +--------------------------------------+
@@ -34,7 +35,7 @@ import java.util.regex.Pattern;
  * +--------------------------------------+--------------------------------------+----
  * | segment-length/leaf/bud for branch 0 | segment-length/leaf/bud for branch 1 | ...
  * +--------------------------------------+--------------------------------------+----
- * | offset to jump to branch 1           | offset to jump to branch 2           | ...
+ * | offset to jump to branch 1 segment   | offset to jump to branch 2 segment   | ...
  * +--------------------------------------+--------------------------------------+----
  * </pre>
  *
@@ -43,12 +44,13 @@ import java.util.regex.Pattern;
  * branches are followed by a leaf character instead of a child node.
  *
  * <p>Leaves mark a definite end of the match, while buds mark a potential end that could continue
- * to a different result if there are more characters to match. A match is a success when either the
- * entire key is matched or the match is a glob.
+ * to a different result if there are more characters to match. Globs mark when a partial match is
+ * allowed, otherwise the entire key must match. Matching is greedy; as much of the key is matched
+ * as possible.
  *
- * <p>The jump for branch 0 is assumed to be 0 and is always omitted, that is any continuation of
- * the trie for branch 0 immediately follows the current node. Long jumps that don't fit into a char
- * are replaced by an index into a long jump table.
+ * <p>Jump offsets are relative to the end of the current node. The jump offset for branch 0 is
+ * omitted because its segment immediately follows the current node. Jump offsets that don't fit
+ * into a char are replaced by an index into a "long jump" table.
  *
  * <p>For example this mapping:
  *
@@ -111,8 +113,8 @@ public final class ClassNameTrie {
   /** A branch has at most 3 control characters: key, value, and optional jump offset/id. */
   private static final int BRANCH_CONTROL_CHARS = 3;
 
-  /** Constant to account for the fact that the last branch doesn't have a jump offset/id. */
-  private static final int NO_END_JUMP = 1;
+  /** Constant to account for the fact the jump offset for branch 0 is always omitted. */
+  private static final int FIRST_JUMP_OMITTED = 1;
 
   private static final int FILE_MAGIC = 0xDD097213;
 
@@ -187,9 +189,9 @@ public final class ClassNameTrie {
         segmentLength = value; // value is the length of the segment before the next node
       }
 
-      // move on to the segment/node for the picked branch...
+      // jump to the segment/node for the matched branch (branch 0 requires no jump)
       if (branchIndex > dataIndex) {
-        int branchJump = data[valueIndex + branchCount - 1];
+        int branchJump = data[valueIndex + branchCount - FIRST_JUMP_OMITTED];
         if ((branchJump & LONG_JUMP_MARKER) != 0) {
           branchJump = longJumps[branchJump & ~LONG_JUMP_MARKER];
         }
@@ -197,7 +199,7 @@ public final class ClassNameTrie {
       }
 
       // ...always include moving past the current node
-      dataIndex += (branchCount * BRANCH_CONTROL_CHARS) - NO_END_JUMP;
+      dataIndex += (branchCount * BRANCH_CONTROL_CHARS) - FIRST_JUMP_OMITTED;
 
       // attempt to match any inline segment that precedes the next node
       if (segmentLength > 0) {
@@ -239,7 +241,7 @@ public final class ClassNameTrie {
       throw new IOException("Unexpected file magic " + magic);
     }
     int trieLength = in.readInt();
-    if (trieLength == 0) {
+    if (trieLength < 3) { // non-empty trie has 3+ chars
       return EMPTY_TRIE;
     }
     char[] trieData = new char[trieLength];
@@ -295,11 +297,11 @@ public final class ClassNameTrie {
      * @param trie existing trie
      */
     public Builder(ClassNameTrie trie) {
-      if (trie.trieData.length > 1) { // non-empty trie (branch count + content)
+      if (trie.trieData.length >= 3) { // non-empty trie has 3+ chars
         trieData = trie.trieData;
         trieLength = trieData.length;
         longJumps = trie.longJumps;
-        longJumpCount = null != longJumps ? longJumps.length : 0;
+        longJumpCount = longJumps != null ? longJumps.length : 0;
       }
     }
 
@@ -307,7 +309,7 @@ public final class ClassNameTrie {
      * @return {@code true} if the trie is empty; otherwise {@code false}
      */
     public boolean isEmpty() {
-      return trieLength == 0;
+      return trieData == null;
     }
 
     /**
@@ -317,21 +319,21 @@ public final class ClassNameTrie {
      * @return the number the class-name maps to; {@code -1} if not mapped
      */
     public int apply(String key) {
-      return trieLength > 0 ? ClassNameTrie.apply(trieData, longJumps, key, 0) : -1;
+      return trieData != null ? ClassNameTrie.apply(trieData, longJumps, key, 0) : -1;
     }
 
     /**
      * @return trie built from the registered mappings
      */
     public ClassNameTrie buildTrie() {
-      if (trieLength == 0) {
+      if (trieData == null) {
         return ClassNameTrie.EMPTY_TRIE;
       }
       // avoid unnecessary allocation when compaction isn't required
       if (trieData.length > trieLength) {
         trieData = Arrays.copyOfRange(trieData, 0, trieLength);
       }
-      if (null != longJumps && longJumps.length > longJumpCount) {
+      if (longJumps != null && longJumps.length > longJumpCount) {
         longJumps = Arrays.copyOfRange(longJumps, 0, longJumpCount);
       }
       return new ClassNameTrie(trieData, longJumps);
@@ -388,15 +390,18 @@ public final class ClassNameTrie {
      *
      * @param className the class-name key
      * @param number the number to map to
+     * @throws IllegalArgumentException if the class-name or number doesn't fit in the trie
      */
     public void put(String className, int number) {
-      if (null == className || className.isEmpty()) {
-        throw new IllegalArgumentException("Null or empty class name");
-      }
-      if (number < 0) {
+      if (className == null) {
+        throw new IllegalArgumentException("Class-name is null");
+      } else if (className.isEmpty() || className.charAt(0) == '*') {
+        throw new IllegalArgumentException("Class-name is too short");
+      } else if (className.length() > MAX_NODE_VALUE) {
+        throw new IllegalArgumentException("Class-name is too long: " + className);
+      } else if (number < 0) {
         throw new IllegalArgumentException("Number for " + className + " is negative: " + number);
-      }
-      if (number > MAX_NODE_VALUE) {
+      } else if (number > MAX_NODE_VALUE) {
         throw new IllegalArgumentException("Number for " + className + " is too big: " + number);
       }
 
@@ -411,17 +416,20 @@ public final class ClassNameTrie {
         value = (char) number;
       }
 
-      if (trieLength == 0) {
+      key = key.replace('/', '.'); // store class-name in dot-separated form
+
+      if (trieData == null) {
         int keyLength = key.length();
-        trieLength = (keyLength > 1 ? 3 : 2) + keyLength;
-        trieData = new char[8192]; // create table on first mapping
+        trieData = new char[Math.max(keyLength + 3, 8192)];
         trieData[0] = (char) 1;
         trieData[1] = key.charAt(0);
+        trieLength = 2;
         if (keyLength > 1) {
           trieData[2] = (char) (keyLength - 1);
           key.getChars(1, keyLength, trieData, 3);
+          trieLength += keyLength;
         }
-        trieData[trieLength - 1] = (char) (value | LEAF_MARKER);
+        trieData[trieLength++] = (char) (value | LEAF_MARKER);
       } else {
         insertMapping(key, value);
       }
@@ -472,7 +480,10 @@ public final class ClassNameTrie {
 
           // update subTrieEnd to reflect we've moved down a left/centre branch
           subTrieEnd =
-              dataIndex + (branchCount * BRANCH_CONTROL_CHARS) - NO_END_JUMP + nextBranchJump;
+              dataIndex
+                  + (branchCount * BRANCH_CONTROL_CHARS)
+                  - FIRST_JUMP_OMITTED
+                  + nextBranchJump;
 
           // remember to update jump offsets on right once we know how much we've added
           for (int b = branch + 1; b < branchCount; b++) {
@@ -486,7 +497,7 @@ public final class ClassNameTrie {
         }
 
         // ...always include moving past the current node
-        dataIndex += (branchCount * BRANCH_CONTROL_CHARS) - NO_END_JUMP;
+        dataIndex += (branchCount * BRANCH_CONTROL_CHARS) - FIRST_JUMP_OMITTED;
 
         if ((value & LEAF_MARKER) != 0) {
           // change leaf branch to a bud and append our new leaf node below it
@@ -604,7 +615,7 @@ public final class ClassNameTrie {
       // insert our new branch value
       trieData[i++] = (char) (collapseRight ? value | LEAF_MARKER : remainingKeyLength - 1);
 
-      int subTrieStart = dataIndex + (branchCount * BRANCH_CONTROL_CHARS) - NO_END_JUMP;
+      int subTrieStart = dataIndex + (branchCount * BRANCH_CONTROL_CHARS) - FIRST_JUMP_OMITTED;
 
       int precedingJump;
       if (newBranch < branchCount) {
@@ -885,7 +896,7 @@ public final class ClassNameTrie {
       }
     }
 
-    /** Converts snake-case trie names to camel-case Java class names. */
+    /** Converts snake-case trie names to camel-case Java class-names. */
     private static String toClassName(String trieName) {
       StringBuilder className = new StringBuilder();
       boolean upperNext = true;
