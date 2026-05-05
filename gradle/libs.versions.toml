@@ -1,10 +1,10 @@
 [versions]
 asm = "9.9.1"
-junit-jupiter = "5.14.3"
-junit-platform = "1.14.3"
+junit-jupiter = "5.14.4"
+junit-platform = "1.14.4"
 assertj = "3.27.7"
 spotless = "8.4.0"
-spotbugs = "6.5.1"
+spotbugs = "6.5.4"
 spotbugs-annotations = "4.9.8"
 axion-release = "1.21.1"
 nexus-publish = "2.0.0"
