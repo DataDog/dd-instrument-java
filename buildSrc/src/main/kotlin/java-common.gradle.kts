@@ -90,7 +90,7 @@ val sampleBytecode by configurations.creating {
 // copy sample bytecode jars to a known location for testing/benchmarking
 val sampleBytecodeDir = layout.buildDirectory.dir("sampleBytecode")
 val copySampleBytecode = tasks.register<Copy>("sampleBytecode") {
-  val versionJarSuffix = "-[0-9.]*\\.jar$".toRegex()
+  val versionJarSuffix = "-[0-9][^/]*\\.jar$".toRegex()
   rename { name -> name.replace(versionJarSuffix, ".jar") }
   into(sampleBytecodeDir)
   from(sampleBytecode)

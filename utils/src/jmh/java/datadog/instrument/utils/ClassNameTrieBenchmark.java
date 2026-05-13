@@ -1,309 +1,438 @@
 package datadog.instrument.utils;
 
-import static java.util.concurrent.TimeUnit.MICROSECONDS;
-import static org.openjdk.jmh.annotations.Mode.AverageTime;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.openjdk.jmh.annotations.Mode.SingleShotTime;
 
-import datadog.instrument.testing.SampleClasses;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
+import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 @State(Scope.Benchmark)
-@BenchmarkMode(AverageTime)
-@OutputTimeUnit(MICROSECONDS)
+@BenchmarkMode(SingleShotTime)
+@OutputTimeUnit(MILLISECONDS)
+@Warmup(iterations = 0)
+@Measurement(iterations = 1)
 @SuppressWarnings("unused")
 public class ClassNameTrieBenchmark {
 
   private List<String> classNames;
-  private ClassNameTrie trie;
+  private ClassNameTrie classNameTrie;
+  private RadixTrieNode radixTrie;
 
   @Setup(Level.Trial)
   public void setup() {
-    classNames = SampleClasses.loadClassNames("spring-web.jar");
-    trie = buildTrie();
+    try {
+      classNames = Files.readAllLines(Paths.get("src/test/resources/sample_class_names.txt"));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+    classNameTrie = buildClassNameTrie();
+    radixTrie = buildRadixTrie();
   }
 
   @Benchmark
-  @Fork(value = 1)
+  @Fork(value = 20)
   @Threads(value = 1)
-  public void singleThreadedTrie(Blackhole blackhole) {
-    testTrie(blackhole);
+  public void classNameTrie(Blackhole blackhole) {
+    testClassNameTrie(blackhole);
   }
 
   @Benchmark
-  @Fork(value = 1)
-  @Threads(value = 10)
-  public void multiThreadedTrie(Blackhole blackhole) {
-    testTrie(blackhole);
-  }
-
-  @Benchmark
-  @Fork(value = 1)
+  @Fork(value = 20)
   @Threads(value = 1)
-  public void singleThreadedCode(Blackhole blackhole) {
-    testCode(blackhole);
+  public void radixTrie(Blackhole blackhole) {
+    testRadixTrie(blackhole);
   }
 
   @Benchmark
-  @Fork(value = 1)
-  @Threads(value = 10)
-  public void multiThreadedCode(Blackhole blackhole) {
-    testCode(blackhole);
+  @Fork(value = 20)
+  @Threads(value = 1)
+  public void legacyCode(Blackhole blackhole) {
+    testLegacyCode(blackhole);
   }
 
-  private void testTrie(Blackhole blackhole) {
+  private void testClassNameTrie(Blackhole blackhole) {
     for (String name : classNames) {
-      blackhole.consume(trie.apply(name));
+      blackhole.consume(classNameTrie.apply(name));
     }
   }
 
-  private void testCode(Blackhole blackhole) {
+  private void testRadixTrie(Blackhole blackhole) {
+    for (String name : classNames) {
+      blackhole.consume(applyRadixTrie(radixTrie, name));
+    }
+  }
+
+  private void testLegacyCode(Blackhole blackhole) {
     for (String name : classNames) {
       blackhole.consume(match(name));
     }
   }
 
-  private static ClassNameTrie buildTrie() {
+  private static ClassNameTrie buildClassNameTrie() {
     ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
-    builder.put("cinnamon.*", 1);
-    builder.put("clojure.*", 1);
-    builder.put("co.elastic.apm.*", 1);
-    builder.put("com.appdynamics.*", 1);
-    builder.put("com.contrastsecurity.*", 1);
-    builder.put("com.dynatrace.*", 1);
-    builder.put("com.intellij.rt.debugger.*", 1);
-    builder.put("com.jinspired.*", 1);
-    builder.put("com.jloadtrace.*", 1);
-    builder.put("com.newrelic.*", 1);
-    builder.put("com.p6spy.*", 1);
-    builder.put("com.singularity.*", 1);
-    builder.put("com.sun.*", 1);
-    builder.put("com.sun.jersey.api.client.*", 0);
-    builder.put("com.sun.messaging.*", 0);
-    builder.put("datadog.opentracing.*", 1);
-    builder.put("datadog.slf4j.*", 1);
-    builder.put("datadog.trace.*", 1);
-    builder.put("datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper", 0);
-    builder.put("datadog.trace.core.*", 1);
-    builder.put("io.micrometer.*", 1);
-    builder.put("io.micronaut.tracing.*", 1);
-    builder.put("java.*", 1);
-    builder.put("java.lang.Throwable", 0);
-    builder.put("java.net.HttpURLConnection", 0);
-    builder.put("java.net.URL", 0);
-    builder.put("java.rmi.*", 0);
-    builder.put("java.util.concurrent.*", 0);
-    builder.put("java.util.logging.*", 0);
-    builder.put("java.util.logging.LogManager$Cleaner", 1);
-    builder.put("jdk.*", 1);
-    builder.put("net.bytebuddy.*", 1);
-    builder.put("org.apache.felix.framework.URLHandlers", 1);
-    builder.put("org.apache.felix.framework.URLHandlersActivator", 1);
-    builder.put("org.apache.felix.framework.URLHandlersBundleStreamHandler", 1);
-    builder.put("org.apache.felix.framework.URLHandlersBundleURLConnection", 1);
-    builder.put("org.apache.felix.framework.URLHandlersContentHandlerProxy", 1);
-    builder.put("org.apache.felix.framework.URLHandlersStreamHandlerProxy", 1);
-    builder.put("org.apache.groovy.*", 1);
-    builder.put("org.aspectj.*", 1);
-    builder.put("org.codehaus.groovy.*", 1);
-    builder.put("org.codehaus.groovy.runtime.*", 0);
-    builder.put("org.eclipse.osgi.internal.url.*", 1);
-    builder.put("org.groovy.*", 1);
-    builder.put("org.jinspired.*", 1);
-    builder.put("org.springframework.context.support.ContextTypeMatchClassLoader", 1);
-    builder.put("org.springframework.core.DecoratingClassLoader", 1);
-    builder.put("org.springframework.core.OverridingClassLoader", 1);
-    builder.put("org.springframework.core.$Proxy", 1);
-    builder.put("org.springframework.instrument.classloading.ShadowingClassLoader", 1);
-    builder.put("org.springframework.instrument.classloading.SimpleThrowawayClassLoader", 1);
-    builder.put("org.eclipse.osgi.framework.internal.protocol.*", 1);
-    builder.put("sun.*", 1);
-    builder.put("sun.net.www.http.HttpClient", 0);
-    builder.put("sun.net.www.protocol.*", 0);
-    builder.put("sun.net.www.protocol.jrt", 1);
-    builder.put("sun.rmi.server.*", 0);
-    builder.put("sun.rmi.transport.*", 0);
-    builder.put("akka.actor.*", 2);
-    builder.put("akka.actor.ActorCell", 0);
-    builder.put("akka.actor.ActorSystem$*", 0);
-    builder.put("akka.actor.ActorSystemImpl$*", 0);
-    builder.put("akka.actor.CoordinatedShutdown$*", 0);
-    builder.put("akka.actor.LightArrayRevolverScheduler$*", 0);
-    builder.put("akka.actor.Scheduler$*", 0);
-    builder.put("akka.http.impl.*", 2);
-    builder.put("akka.http.impl.engine.client.PoolMasterActor", 0);
-    builder.put("akka.http.impl.engine.client.pool.NewHostConnectionPool$*", 0);
-    builder.put("akka.http.impl.engine.http2.Http2Ext", 0);
-    builder.put("akka.http.impl.engine.server.HttpServerBluePrint$TimeoutAccessImpl$*", 0);
-    builder.put("akka.http.impl.util.StreamUtils$*", 0);
-    builder.put("akka.http.scaladsl.*", 2);
-    builder.put("akka.http.scaladsl.Http2Ext", 0);
-    builder.put("akka.http.scaladsl.HttpExt", 0);
-    builder.put("akka.stream.*", 2);
-    builder.put("akka.stream.impl.FanIn$SubInput", 0);
-    builder.put("akka.stream.impl.FanOut$SubstreamSubscription", 0);
-    builder.put("akka.stream.impl.fusing.ActorGraphInterpreter$*", 0);
-    builder.put("akka.stream.stage.GraphStageLogic$*", 0);
-    builder.put("akka.stream.stage.TimerGraphStageLogic$*", 0);
-    builder.put("ch.qos.logback.*", 2);
-    builder.put("ch.qos.logback.classic.Logger", 0);
-    builder.put("ch.qos.logback.classic.spi.LoggingEvent", 0);
-    builder.put("ch.qos.logback.classic.spi.LoggingEventVO", 0);
-    builder.put("ch.qos.logback.core.AsyncAppenderBase$Worker", 0);
-    builder.put("com.beust.jcommander.*", 2);
-    builder.put("com.carrotsearch.hppc.*", 2);
-    builder.put("com.carrotsearch.hppc.HashOrderMixing$*", 0);
-    builder.put("com.codahale.metrics.*", 2);
-    builder.put("com.codahale.metrics.servlets.*", 0);
-    builder.put("com.couchbase.client.deps.*", 2);
-    builder.put("com.couchbase.client.deps.com.lmax.disruptor.*", 0);
-    builder.put("com.couchbase.client.deps.io.netty.*", 0);
-    builder.put("com.couchbase.client.deps.org.LatencyUtils.*", 0);
-    builder.put("com.fasterxml.classmate.*", 2);
-    builder.put("com.fasterxml.jackson.*", 2);
-    builder.put("com.fasterxml.jackson.module.afterburner.util.MyClassLoader", 0);
-    builder.put("com.github.mustachejava.*", 2);
-    builder.put("com.google.api.*", 2);
-    builder.put("com.google.api.client.http.HttpRequest", 0);
-    builder.put("com.google.cloud.*", 2);
-    builder.put("com.google.common.*", 2);
-    builder.put("com.google.common.base.internal.Finalizer", 0);
-    builder.put("com.google.common.util.concurrent.*", 0);
-    builder.put("com.google.gson.*", 2);
-    builder.put("com.google.inject.*", 2);
-    builder.put("com.google.inject.internal.AbstractBindingProcessor$*", 0);
-    builder.put("com.google.inject.internal.BytecodeGen$*", 0);
-    builder.put("com.google.inject.internal.cglib.core.internal.$LoadingCache", 0);
-    builder.put("com.google.inject.internal.cglib.core.internal.$LoadingCache$*", 0);
-    builder.put("com.google.instrumentation.*", 2);
-    builder.put("com.google.j2objc.*", 2);
-    builder.put("com.google.logging.*", 2);
-    builder.put("com.google.longrunning.*", 2);
-    builder.put("com.google.protobuf.*", 2);
-    builder.put("com.google.rpc.*", 2);
-    builder.put("com.google.thirdparty.*", 2);
-    builder.put("com.google.type.*", 2);
-    builder.put("com.jayway.jsonpath.*", 2);
-    builder.put("com.lightbend.lagom.*", 2);
-    builder.put("javax.el.*", 2);
-    builder.put("javax.xml.*", 2);
-    builder.put("kotlin.*", 2);
-    builder.put("net.sf.cglib.*", 2);
-    builder.put("org.apache.bcel.*", 2);
-    builder.put("org.apache.html.*", 2);
-    builder.put("org.apache.log4j.*", 2);
-    builder.put("org.apache.log4j.Category", 0);
-    builder.put("org.apache.log4j.MDC", 0);
-    builder.put("org.apache.log4j.spi.LoggingEvent", 0);
-    builder.put("org.apache.lucene.*", 2);
-    builder.put("org.apache.regexp.*", 2);
-    builder.put("org.apache.tartarus.*", 2);
-    builder.put("org.apache.wml.*", 2);
-    builder.put("org.apache.xalan.*", 2);
-    builder.put("org.apache.xerces.*", 2);
-    builder.put("org.apache.xml.*", 2);
-    builder.put("org.apache.xpath.*", 2);
-    builder.put("org.h2.*", 2);
-    builder.put("org.h2.Driver", 0);
-    builder.put("org.h2.engine.DatabaseCloser", 0);
-    builder.put("org.h2.engine.OnExitDatabaseCloser", 0);
-    builder.put("org.h2.jdbc.*", 0);
-    builder.put("org.h2.jdbcx.*", 0);
-    builder.put("org.h2.store.FileLock", 0);
-    builder.put("org.h2.store.WriterThread", 0);
-    builder.put("org.h2.tools.Server", 0);
-    builder.put("org.h2.util.MathUtils$1", 0);
-    builder.put("org.h2.util.Task", 0);
-    builder.put("org.json.simple.*", 2);
-    builder.put("org.springframework.*", 0);
-    builder.put("org.springframework.amqp.*", 0);
-    builder.put("org.springframework.aop.*", 2);
-    builder.put("org.springframework.aop.interceptor.AsyncExecutionInterceptor", 0);
-    builder.put("org.springframework.beans.*", 2);
-    builder.put("org.springframework.beans.factory.groovy.GroovyBeanDefinitionReader$*", 0);
-    builder.put("org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory", 0);
-    builder.put("org.springframework.beans.factory.support.AbstractBeanFactory", 0);
-    builder.put("org.springframework.beans.factory.support.DefaultListableBeanFactory", 0);
-    builder.put("org.springframework.beans.factory.support.DisposableBeanAdapter", 0);
-    builder.put("org.springframework.boot.*", 2);
-    builder.put("org.springframework.boot.autoconfigure.BackgroundPreinitializer$*", 0);
-    builder.put("org.springframework.boot.autoconfigure.condition.OnClassCondition$*", 0);
-    builder.put(
+    buildTrieEntries(builder::put);
+    return builder.buildTrie();
+  }
+
+  private static void putArrayNode(ArrayTrieNode root, String className, int number) {
+    boolean isGlob = className.charAt(className.length() - 1) == '*';
+    String key = isGlob ? className.substring(0, className.length() - 1) : className;
+    ArrayTrieNode node = root;
+    for (int i = 0, len = key.length(); i < len; i++) {
+      char c = normalize(key.charAt(i));
+      int pos = Arrays.binarySearch(node.keys, 0, node.size, c);
+      if (pos < 0) {
+        int insertAt = -(pos + 1);
+        if (node.size == node.keys.length) {
+          int newCap = node.size == 0 ? 4 : node.size * 2;
+          node.keys = Arrays.copyOf(node.keys, newCap);
+          node.children = Arrays.copyOf(node.children, newCap);
+        }
+        System.arraycopy(node.keys, insertAt, node.keys, insertAt + 1, node.size - insertAt);
+        System.arraycopy(
+            node.children, insertAt, node.children, insertAt + 1, node.size - insertAt);
+        node.keys[insertAt] = c;
+        node.children[insertAt] = new ArrayTrieNode();
+        node.size++;
+        pos = insertAt;
+      }
+      node = node.children[pos];
+    }
+    node.result = number;
+    node.glob = isGlob;
+  }
+
+  private static RadixTrieNode buildRadixTrie() {
+    ArrayTrieNode regular = new ArrayTrieNode();
+    buildTrieEntries((name, value) -> putArrayNode(regular, name, value));
+    return compressArrayNodeTrie(regular, new StringBuilder());
+  }
+
+  private static RadixTrieNode compressArrayNodeTrie(ArrayTrieNode source, StringBuilder scratch) {
+    RadixTrieNode dest = new RadixTrieNode();
+    dest.result = source.result;
+    dest.glob = source.glob;
+    if (source.size == 0) {
+      return dest;
+    }
+    dest.keys = new char[source.size];
+    dest.segments = new String[source.size];
+    dest.children = new RadixTrieNode[source.size];
+    dest.size = source.size;
+    for (int i = 0; i < source.size; i++) {
+      ArrayTrieNode node = source.children[i];
+      scratch.setLength(0);
+      while (node.size == 1 && node.result < 0 && !node.glob) {
+        scratch.append(node.keys[0]);
+        node = node.children[0];
+      }
+      dest.keys[i] = source.keys[i];
+      dest.segments[i] = scratch.toString();
+      dest.children[i] = compressArrayNodeTrie(node, scratch);
+    }
+    return dest;
+  }
+
+  private static int applyRadixTrie(RadixTrieNode root, String key) {
+    RadixTrieNode node = root;
+    int result = -1;
+    int keyLen = key.length();
+    int keyIdx = 0;
+    while (keyIdx < keyLen) {
+      char c = normalize(key.charAt(keyIdx++));
+      int pos = Arrays.binarySearch(node.keys, 0, node.size, c);
+      if (pos < 0) return result;
+      String segment = node.segments[pos];
+      int segmentLen = segment.length();
+      if (keyLen - keyIdx < segmentLen) return result;
+      for (int t = 0; t < segmentLen; t++) {
+        if (normalize(key.charAt(keyIdx + t)) != segment.charAt(t)) return result;
+      }
+      keyIdx += segmentLen;
+      node = node.children[pos];
+      if (node.glob) result = node.result;
+    }
+    if (!node.glob && node.result >= 0) result = node.result;
+    return result;
+  }
+
+  private static char normalize(char c) {
+    return c == '/' ? '.' : c;
+  }
+
+  private static void buildTrieEntries(BiConsumer<String, Integer> builder) {
+    builder.accept("cinnamon.*", 1);
+    builder.accept("clojure.*", 1);
+    builder.accept("co.elastic.apm.*", 1);
+    builder.accept("com.appdynamics.*", 1);
+    builder.accept("com.contrastsecurity.*", 1);
+    builder.accept("com.dynatrace.*", 1);
+    builder.accept("com.intellij.rt.debugger.*", 1);
+    builder.accept("com.jinspired.*", 1);
+    builder.accept("com.jloadtrace.*", 1);
+    builder.accept("com.newrelic.*", 1);
+    builder.accept("com.p6spy.*", 1);
+    builder.accept("com.singularity.*", 1);
+    builder.accept("com.sun.*", 1);
+    builder.accept("com.sun.jersey.api.client.*", 0);
+    builder.accept("com.sun.messaging.*", 0);
+    builder.accept("datadog.opentracing.*", 1);
+    builder.accept("datadog.slf4j.*", 1);
+    builder.accept("datadog.trace.*", 1);
+    builder.accept("datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper", 0);
+    builder.accept("datadog.trace.core.*", 1);
+    builder.accept("io.micrometer.*", 1);
+    builder.accept("io.micronaut.tracing.*", 1);
+    builder.accept("java.*", 1);
+    builder.accept("java.lang.Throwable", 0);
+    builder.accept("java.net.HttpURLConnection", 0);
+    builder.accept("java.net.URL", 0);
+    builder.accept("java.rmi.*", 0);
+    builder.accept("java.util.concurrent.*", 0);
+    builder.accept("java.util.logging.*", 0);
+    builder.accept("java.util.logging.LogManager$Cleaner", 1);
+    builder.accept("jdk.*", 1);
+    builder.accept("net.bytebuddy.*", 1);
+    builder.accept("org.apache.felix.framework.URLHandlers", 1);
+    builder.accept("org.apache.felix.framework.URLHandlersActivator", 1);
+    builder.accept("org.apache.felix.framework.URLHandlersBundleStreamHandler", 1);
+    builder.accept("org.apache.felix.framework.URLHandlersBundleURLConnection", 1);
+    builder.accept("org.apache.felix.framework.URLHandlersContentHandlerProxy", 1);
+    builder.accept("org.apache.felix.framework.URLHandlersStreamHandlerProxy", 1);
+    builder.accept("org.apache.groovy.*", 1);
+    builder.accept("org.aspectj.*", 1);
+    builder.accept("org.codehaus.groovy.*", 1);
+    builder.accept("org.codehaus.groovy.runtime.*", 0);
+    builder.accept("org.eclipse.osgi.internal.url.*", 1);
+    builder.accept("org.groovy.*", 1);
+    builder.accept("org.jinspired.*", 1);
+    builder.accept("org.springframework.context.support.ContextTypeMatchClassLoader", 1);
+    builder.accept("org.springframework.core.DecoratingClassLoader", 1);
+    builder.accept("org.springframework.core.OverridingClassLoader", 1);
+    builder.accept("org.springframework.core.$Proxy", 1);
+    builder.accept("org.springframework.instrument.classloading.ShadowingClassLoader", 1);
+    builder.accept("org.springframework.instrument.classloading.SimpleThrowawayClassLoader", 1);
+    builder.accept("org.eclipse.osgi.framework.internal.protocol.*", 1);
+    builder.accept("sun.*", 1);
+    builder.accept("sun.net.www.http.HttpClient", 0);
+    builder.accept("sun.net.www.protocol.*", 0);
+    builder.accept("sun.net.www.protocol.jrt", 1);
+    builder.accept("sun.rmi.server.*", 0);
+    builder.accept("sun.rmi.transport.*", 0);
+    builder.accept("akka.actor.*", 2);
+    builder.accept("akka.actor.ActorCell", 0);
+    builder.accept("akka.actor.ActorSystem$*", 0);
+    builder.accept("akka.actor.ActorSystemImpl$*", 0);
+    builder.accept("akka.actor.CoordinatedShutdown$*", 0);
+    builder.accept("akka.actor.LightArrayRevolverScheduler$*", 0);
+    builder.accept("akka.actor.Scheduler$*", 0);
+    builder.accept("akka.http.impl.*", 2);
+    builder.accept("akka.http.impl.engine.client.PoolMasterActor", 0);
+    builder.accept("akka.http.impl.engine.client.pool.NewHostConnectionPool$*", 0);
+    builder.accept("akka.http.impl.engine.http2.Http2Ext", 0);
+    builder.accept("akka.http.impl.engine.server.HttpServerBluePrint$TimeoutAccessImpl$*", 0);
+    builder.accept("akka.http.impl.util.StreamUtils$*", 0);
+    builder.accept("akka.http.scaladsl.*", 2);
+    builder.accept("akka.http.scaladsl.Http2Ext", 0);
+    builder.accept("akka.http.scaladsl.HttpExt", 0);
+    builder.accept("akka.stream.*", 2);
+    builder.accept("akka.stream.impl.FanIn$SubInput", 0);
+    builder.accept("akka.stream.impl.FanOut$SubstreamSubscription", 0);
+    builder.accept("akka.stream.impl.fusing.ActorGraphInterpreter$*", 0);
+    builder.accept("akka.stream.stage.GraphStageLogic$*", 0);
+    builder.accept("akka.stream.stage.TimerGraphStageLogic$*", 0);
+    builder.accept("ch.qos.logback.*", 2);
+    builder.accept("ch.qos.logback.classic.Logger", 0);
+    builder.accept("ch.qos.logback.classic.spi.LoggingEvent", 0);
+    builder.accept("ch.qos.logback.classic.spi.LoggingEventVO", 0);
+    builder.accept("ch.qos.logback.core.AsyncAppenderBase$Worker", 0);
+    builder.accept("com.beust.jcommander.*", 2);
+    builder.accept("com.carrotsearch.hppc.*", 2);
+    builder.accept("com.carrotsearch.hppc.HashOrderMixing$*", 0);
+    builder.accept("com.codahale.metrics.*", 2);
+    builder.accept("com.codahale.metrics.servlets.*", 0);
+    builder.accept("com.couchbase.client.deps.*", 2);
+    builder.accept("com.couchbase.client.deps.com.lmax.disruptor.*", 0);
+    builder.accept("com.couchbase.client.deps.io.netty.*", 0);
+    builder.accept("com.couchbase.client.deps.org.LatencyUtils.*", 0);
+    builder.accept("com.fasterxml.classmate.*", 2);
+    builder.accept("com.fasterxml.jackson.*", 2);
+    builder.accept("com.fasterxml.jackson.module.afterburner.util.MyClassLoader", 0);
+    builder.accept("com.github.mustachejava.*", 2);
+    builder.accept("com.google.api.*", 2);
+    builder.accept("com.google.api.client.http.HttpRequest", 0);
+    builder.accept("com.google.cloud.*", 2);
+    builder.accept("com.google.common.*", 2);
+    builder.accept("com.google.common.base.internal.Finalizer", 0);
+    builder.accept("com.google.common.util.concurrent.*", 0);
+    builder.accept("com.google.gson.*", 2);
+    builder.accept("com.google.inject.*", 2);
+    builder.accept("com.google.inject.internal.AbstractBindingProcessor$*", 0);
+    builder.accept("com.google.inject.internal.BytecodeGen$*", 0);
+    builder.accept("com.google.inject.internal.cglib.core.internal.$LoadingCache", 0);
+    builder.accept("com.google.inject.internal.cglib.core.internal.$LoadingCache$*", 0);
+    builder.accept("com.google.instrumentation.*", 2);
+    builder.accept("com.google.j2objc.*", 2);
+    builder.accept("com.google.logging.*", 2);
+    builder.accept("com.google.longrunning.*", 2);
+    builder.accept("com.google.protobuf.*", 2);
+    builder.accept("com.google.rpc.*", 2);
+    builder.accept("com.google.thirdparty.*", 2);
+    builder.accept("com.google.type.*", 2);
+    builder.accept("com.jayway.jsonpath.*", 2);
+    builder.accept("com.lightbend.lagom.*", 2);
+    builder.accept("javax.el.*", 2);
+    builder.accept("javax.xml.*", 2);
+    builder.accept("kotlin.*", 2);
+    builder.accept("net.sf.cglib.*", 2);
+    builder.accept("org.apache.bcel.*", 2);
+    builder.accept("org.apache.html.*", 2);
+    builder.accept("org.apache.log4j.*", 2);
+    builder.accept("org.apache.log4j.Category", 0);
+    builder.accept("org.apache.log4j.MDC", 0);
+    builder.accept("org.apache.log4j.spi.LoggingEvent", 0);
+    builder.accept("org.apache.lucene.*", 2);
+    builder.accept("org.apache.regexp.*", 2);
+    builder.accept("org.apache.tartarus.*", 2);
+    builder.accept("org.apache.wml.*", 2);
+    builder.accept("org.apache.xalan.*", 2);
+    builder.accept("org.apache.xerces.*", 2);
+    builder.accept("org.apache.xml.*", 2);
+    builder.accept("org.apache.xpath.*", 2);
+    builder.accept("org.h2.*", 2);
+    builder.accept("org.h2.Driver", 0);
+    builder.accept("org.h2.engine.DatabaseCloser", 0);
+    builder.accept("org.h2.engine.OnExitDatabaseCloser", 0);
+    builder.accept("org.h2.jdbc.*", 0);
+    builder.accept("org.h2.jdbcx.*", 0);
+    builder.accept("org.h2.store.FileLock", 0);
+    builder.accept("org.h2.store.WriterThread", 0);
+    builder.accept("org.h2.tools.Server", 0);
+    builder.accept("org.h2.util.MathUtils$1", 0);
+    builder.accept("org.h2.util.Task", 0);
+    builder.accept("org.json.simple.*", 2);
+    builder.accept("org.springframework.*", 0);
+    builder.accept("org.springframework.amqp.*", 0);
+    builder.accept("org.springframework.aop.*", 2);
+    builder.accept("org.springframework.aop.interceptor.AsyncExecutionInterceptor", 0);
+    builder.accept("org.springframework.beans.*", 2);
+    builder.accept("org.springframework.beans.factory.groovy.GroovyBeanDefinitionReader$*", 0);
+    builder.accept(
+        "org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory", 0);
+    builder.accept("org.springframework.beans.factory.support.AbstractBeanFactory", 0);
+    builder.accept("org.springframework.beans.factory.support.DefaultListableBeanFactory", 0);
+    builder.accept("org.springframework.beans.factory.support.DisposableBeanAdapter", 0);
+    builder.accept("org.springframework.boot.*", 2);
+    builder.accept("org.springframework.boot.autoconfigure.BackgroundPreinitializer$*", 0);
+    builder.accept("org.springframework.boot.autoconfigure.condition.OnClassCondition$*", 0);
+    builder.accept(
         "org.springframework.boot.context.embedded.AnnotationConfigEmbeddedWebApplicationContext",
         0);
-    builder.put("org.springframework.boot.context.embedded.EmbeddedWebApplicationContext", 0);
-    builder.put(
+    builder.accept("org.springframework.boot.context.embedded.EmbeddedWebApplicationContext", 0);
+    builder.accept(
         "org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer$*", 0);
-    builder.put(
+    builder.accept(
         "org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedWebappClassLoader", 0);
-    builder.put("org.springframework.boot.web.embedded.netty.NettyWebServer$*", 0);
-    builder.put("org.springframework.boot.web.embedded.tomcat.TomcatEmbeddedWebappClassLoader", 0);
-    builder.put("org.springframework.boot.web.embedded.tomcat.TomcatWebServer$1", 0);
-    builder.put(
+    builder.accept("org.springframework.boot.web.embedded.netty.NettyWebServer$*", 0);
+    builder.accept(
+        "org.springframework.boot.web.embedded.tomcat.TomcatEmbeddedWebappClassLoader", 0);
+    builder.accept("org.springframework.boot.web.embedded.tomcat.TomcatWebServer$1", 0);
+    builder.accept(
         "org.springframework.boot.web.servlet.context.AnnotationConfigServletWebServerApplicationContext",
         0);
-    builder.put(
+    builder.accept(
         "org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext", 0);
-    builder.put("org.springframework.cache.*", 2);
-    builder.put("org.springframework.cglib.*", 2);
-    builder.put("org.springframework.cglib.core.internal.LoadingCache", 0);
-    builder.put("org.springframework.cglib.core.internal.LoadingCache$*", 0);
-    builder.put("org.springframework.context.*", 2);
-    builder.put("org.springframework.context.support.AbstractApplicationContext$*", 0);
-    builder.put("org.springframework.core.*", 2);
-    builder.put("org.springframework.core.task.*", 0);
-    builder.put("org.springframework.dao.*", 2);
-    builder.put("org.springframework.data.*", 2);
-    builder.put("org.springframework.data.convert.ClassGeneratingEntityInstantiator$*", 0);
-    builder.put("org.springframework.data.jpa.repository.config.InspectionClassLoader", 0);
-    builder.put("org.springframework.data.repository.core.support.RepositoryFactorySupport", 0);
-    builder.put("org.springframework.ejb.*", 2);
-    builder.put("org.springframework.expression.*", 2);
-    builder.put("org.springframework.format.*", 2);
-    builder.put("org.springframework.http.*", 2);
-    builder.put("org.springframework.http.server.reactive.*", 0);
-    builder.put("org.springframework.instrument.*", 2);
-    builder.put("org.springframework.jca.*", 2);
-    builder.put("org.springframework.jdbc.*", 2);
-    builder.put("org.springframework.jms.*", 2);
-    builder.put("org.springframework.jms.listener.*", 0);
-    builder.put("org.springframework.jmx.*", 2);
-    builder.put("org.springframework.jndi.*", 2);
-    builder.put("org.springframework.lang.*", 2);
-    builder.put("org.springframework.messaging.*", 2);
-    builder.put("org.springframework.objenesis.*", 2);
-    builder.put("org.springframework.orm.*", 2);
-    builder.put("org.springframework.remoting.*", 2);
-    builder.put("org.springframework.scripting.*", 2);
-    builder.put("org.springframework.stereotype.*", 2);
-    builder.put("org.springframework.transaction.*", 2);
-    builder.put("org.springframework.ui.*", 2);
-    builder.put("org.springframework.util.*", 2);
-    builder.put("org.springframework.util.concurrent.*", 0);
-    builder.put("org.springframework.validation.*", 2);
-    builder.put("org.springframework.web.*", 2);
-    builder.put("org.springframework.web.context.request.async.*", 0);
-    builder.put(
+    builder.accept("org.springframework.cache.*", 2);
+    builder.accept("org.springframework.cglib.*", 2);
+    builder.accept("org.springframework.cglib.core.internal.LoadingCache", 0);
+    builder.accept("org.springframework.cglib.core.internal.LoadingCache$*", 0);
+    builder.accept("org.springframework.context.*", 2);
+    builder.accept("org.springframework.context.support.AbstractApplicationContext$*", 0);
+    builder.accept("org.springframework.core.*", 2);
+    builder.accept("org.springframework.core.task.*", 0);
+    builder.accept("org.springframework.dao.*", 2);
+    builder.accept("org.springframework.data.*", 2);
+    builder.accept("org.springframework.data.convert.ClassGeneratingEntityInstantiator$*", 0);
+    builder.accept("org.springframework.data.jpa.repository.config.InspectionClassLoader", 0);
+    builder.accept("org.springframework.data.repository.core.support.RepositoryFactorySupport", 0);
+    builder.accept("org.springframework.ejb.*", 2);
+    builder.accept("org.springframework.expression.*", 2);
+    builder.accept("org.springframework.format.*", 2);
+    builder.accept("org.springframework.http.*", 2);
+    builder.accept("org.springframework.http.server.reactive.*", 0);
+    builder.accept("org.springframework.instrument.*", 2);
+    builder.accept("org.springframework.jca.*", 2);
+    builder.accept("org.springframework.jdbc.*", 2);
+    builder.accept("org.springframework.jms.*", 2);
+    builder.accept("org.springframework.jms.listener.*", 0);
+    builder.accept("org.springframework.jmx.*", 2);
+    builder.accept("org.springframework.jndi.*", 2);
+    builder.accept("org.springframework.lang.*", 2);
+    builder.accept("org.springframework.messaging.*", 2);
+    builder.accept("org.springframework.objenesis.*", 2);
+    builder.accept("org.springframework.orm.*", 2);
+    builder.accept("org.springframework.remoting.*", 2);
+    builder.accept("org.springframework.scripting.*", 2);
+    builder.accept("org.springframework.stereotype.*", 2);
+    builder.accept("org.springframework.transaction.*", 2);
+    builder.accept("org.springframework.ui.*", 2);
+    builder.accept("org.springframework.util.*", 2);
+    builder.accept("org.springframework.util.concurrent.*", 0);
+    builder.accept("org.springframework.validation.*", 2);
+    builder.accept("org.springframework.web.*", 2);
+    builder.accept("org.springframework.web.context.request.async.*", 0);
+    builder.accept(
         "org.springframework.web.context.support.AbstractRefreshableWebApplicationContext", 0);
-    builder.put("org.springframework.web.context.support.GenericWebApplicationContext", 0);
-    builder.put("org.springframework.web.context.support.XmlWebApplicationContext", 0);
-    builder.put("org.springframework.web.reactive.*", 0);
-    builder.put("org.springframework.web.servlet.*", 0);
-    builder.put("org.xml.*", 2);
-    builder.put("org.yaml.snakeyaml.*", 2);
-    builder.put("scala.collection.*", 2);
-    return builder.buildTrie();
+    builder.accept("org.springframework.web.context.support.GenericWebApplicationContext", 0);
+    builder.accept("org.springframework.web.context.support.XmlWebApplicationContext", 0);
+    builder.accept("org.springframework.web.reactive.*", 0);
+    builder.accept("org.springframework.web.servlet.*", 0);
+    builder.accept("org.xml.*", 2);
+    builder.accept("org.yaml.snakeyaml.*", 2);
+    builder.accept("scala.collection.*", 2);
+  }
+
+  private static final class ArrayTrieNode {
+    private static final char[] EMPTY_KEYS = new char[0];
+    private static final ArrayTrieNode[] EMPTY_CHILDREN = new ArrayTrieNode[0];
+
+    private char[] keys = EMPTY_KEYS;
+    private ArrayTrieNode[] children = EMPTY_CHILDREN;
+    private int size;
+    private int result = -1;
+    private boolean glob;
+  }
+
+  private static final class RadixTrieNode {
+    private static final char[] EMPTY_KEYS = new char[0];
+    private static final String[] EMPTY_SEGMENTS = new String[0];
+    private static final RadixTrieNode[] EMPTY_CHILDREN = new RadixTrieNode[0];
+
+    private char[] keys = EMPTY_KEYS;
+    private String[] segments = EMPTY_SEGMENTS;
+    private RadixTrieNode[] children = EMPTY_CHILDREN;
+    private int size;
+    private int result = -1;
+    private boolean glob;
   }
 
   private static final Set<String> SPRING_CLASSLOADER_IGNORES =
