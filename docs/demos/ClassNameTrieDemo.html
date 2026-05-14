@@ -9,6 +9,7 @@
     --panel: #1a1d24;
     --panel-2: #232730;
     --text: #e6e8eb;
+    --cell-text: #b0b8c8;
     --muted: #9aa3b2;
     --accent: #4fc3f7;
     --accent-text: #0b1014;
@@ -32,9 +33,9 @@
     --cbg-value-seg:    rgba(77,208,225,0.30);
     --cbg-jump:         rgba(77,124,232,0.32);
     --cbg-segment:      rgba(77,208,225,0.14);
-    --cbg-match:        rgba(129,199,132,0.35);
+    --cbg-match:        rgba(129,199,132,0.55);
     --cbg-fail:         rgba(229,115,115,0.35);
-    --cbg-consumed:     rgba(255,183,77,0.18);
+    --cbg-consumed:     rgba(255,183,77,0.55);
     --code-bg:          rgba(79,195,247,0.12);
   }
   :root[data-theme="light"] {
@@ -42,6 +43,7 @@
     --panel: #ffffff;
     --panel-2: #eef0fa;
     --text: #1a1d2e;
+    --cell-text: #1a1d2e;
     --muted: #5a5f7a;
     --accent: #0066bb;
     --accent-text: #ffffff;
@@ -65,9 +67,9 @@
     --cbg-value-seg:    rgba(26,138,154,0.18);
     --cbg-jump:         rgba(30,79,199,0.18);
     --cbg-segment:      rgba(26,138,154,0.09);
-    --cbg-match:        rgba(46,125,79,0.25);
+    --cbg-match:        rgba(46,125,79,0.45);
     --cbg-fail:         rgba(192,48,48,0.2);
-    --cbg-consumed:     rgba(192,120,0,0.12);
+    --cbg-consumed:     rgba(192,120,0,0.45);
     --code-bg:          rgba(0,102,187,0.1);
   }
   * { box-sizing: border-box; }
@@ -100,6 +102,12 @@
     background: var(--border);
     flex-shrink: 0;
   }
+  .header-title {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex: 1;
+  }
   header h1 {
     margin: 0;
     font-size: 16px;
@@ -108,7 +116,6 @@
   header .sub {
     color: var(--muted);
     font-size: 13px;
-    flex: 1;
   }
   main {
     display: flex;
@@ -172,7 +179,7 @@
   }
   button.secondary {
     background: var(--panel-2);
-    color: var(--text);
+    color: var(--cell-text);
     border: 1px solid var(--border);
   }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -257,6 +264,7 @@
   .cell .val {
     font-size: 14px;
     font-weight: 600;
+    color: var(--cell-text);
   }
   /* Roles */
   .cell.branch-count { background: var(--cbg-branch-count); border-color: var(--branch-count); }
@@ -294,6 +302,7 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 14px;
     font-weight: 600;
+    color: var(--cell-text);
     padding: 2px;
     transition: background 0.2s, border-color 0.2s;
   }
@@ -311,6 +320,7 @@
     align-items: flex-start;
   }
   .desc-body { flex: 1; }
+  #descBody { margin-top: 6px; }
   .result-display {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -354,6 +364,16 @@
     margin-top: 12px;
     flex-wrap: wrap;
   }
+  .controls button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 88px;
+    height: 34px;
+    box-sizing: border-box;
+  }
+  .controls button .ico { line-height: 1; display: flex; align-items: center; }
   .controls .spacer { flex: 1; }
   .speed { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12px; }
   input[type=range] { accent-color: var(--accent); }
@@ -376,7 +396,7 @@
     font-size: 11px;
   }
   .err { color: var(--nomatch); }
-  .ok { color: var(--match); }
+  .ok, .result-display .v.ok { color: var(--match); }
   .no-transition .cell,
   .no-transition .key-cell { transition: none; }
 
@@ -477,10 +497,12 @@
     </svg>
   </a>
   <span class="header-divider"></span>
+  <div class="header-title">
   <h1>ClassNameTrie demo</h1>
   <span class="sub">Animated walkthrough of <code>ClassNameTrie.apply()</code> from
     <a href="https://github.com/DataDog/dd-instrument-java/blob/main/utils/src/main/java/datadog/instrument/utils/ClassNameTrie.java" style="color:var(--accent)" target="_blank">dd-instrument-java</a>.
   </span>
+  </div>
   <button id="themeBtn" class="theme-toggle" title="Toggle theme" aria-label="Toggle theme" aria-pressed="true">
     <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor" aria-hidden="true">
       <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
@@ -509,11 +531,11 @@
     </div>
 
     <div class="controls">
-      <button id="first" class="secondary" aria-label="First step">⏮ First</button>
-      <button id="prev" class="secondary" aria-label="Previous step">◀ Step</button>
-      <button id="play" aria-pressed="false" aria-label="Play">▶ Play</button>
-      <button id="next" class="secondary" aria-label="Next step">Step ▶</button>
-      <button id="last" class="secondary" aria-label="Last step">Last ⏭</button>
+      <button id="first" class="secondary" aria-label="First step"><span class="ico">⏮</span><span>First</span></button>
+      <button id="prev" class="secondary" aria-label="Previous step"><span class="ico">◀</span><span>Step</span></button>
+      <button id="play" aria-pressed="false" aria-label="Play"><span class="ico">▶</span><span>Play</span></button>
+      <button id="next" class="secondary" aria-label="Next step"><span>Step</span><span class="ico">▶</span></button>
+      <button id="last" class="secondary" aria-label="Last step"><span>Last</span><span class="ico">⏭</span></button>
       <span class="spacer"></span>
       <span class="speed">
         <label for="speed">Speed</label>
@@ -541,18 +563,6 @@
       <span class="li"><span class="chip" style="background:var(--cbg-jump);border:1px solid var(--jump)">jmp</span>jump to branch ≥ 1</span>
       <span class="li"><span class="chip" style="background:var(--cbg-segment);border:1px dashed var(--segment)">seg</span>inline segment character</span>
     </div>
-
-    <details style="margin-top:8px">
-      <summary>About the encoding</summary>
-      <div class="small" style="margin-top:6px">
-        Each node is laid out as: <code>[branchCount, key₀..keyₙ, val₀..valₙ, jump₁..jumpₙ]</code>.
-        Branch 0's segment immediately follows the node so its jump offset is omitted.
-        A value's high bits encode markers — <code>0x8000</code> leaf, <code>0x4000</code> bud,
-        <code>0x2000</code> glob — with the result number in the low 13 bits (<code>0x1FFF</code>).
-        Jump offsets that don't fit in a <code>char</code> use the long-jump table via
-        <code>0x8000</code>.
-      </div>
-    </details>
 
     <h2 style="margin-top:18px">Mappings</h2>
     <div class="small">One entry per line: <code>&lt;number&gt; &lt;class-name&gt;</code>. Suffix <code>*</code> = glob.</div>
@@ -1324,7 +1334,8 @@ const resultValueEl = $("resultVal");
 function stopPlay() {
   if (!playTimer) return;
   clearInterval(playTimer); playTimer = null;
-  playBtn.textContent = "▶ Play";
+  playBtn.children[0].textContent = "▶";
+  playBtn.children[1].textContent = "Play";
   playBtn.setAttribute("aria-pressed", "false");
   playBtn.setAttribute("aria-label", "Play");
 }
@@ -1418,6 +1429,7 @@ function applyStep(step) {
   }
 
   resultValueEl.textContent = step.result === -1 ? "−1 (none)" : step.result;
+  resultValueEl.classList.toggle("ok", step.result !== -1);
 
   descStepNumEl.classList.remove("err");
   descStepNumEl.textContent = `Step ${stepIndex + 1} / ${currentSteps.length}${step.terminal ? " · final" : ""}`;
@@ -1441,7 +1453,8 @@ function startInterval() {
 
 function play() {
   if (playTimer) { stopPlay(); return; }
-  playBtn.textContent = "⏸ Pause";
+  playBtn.children[0].textContent = "⏸";
+  playBtn.children[1].textContent = "Pause";
   playBtn.setAttribute("aria-pressed", "true");
   playBtn.setAttribute("aria-label", "Pause");
   playTimer = startInterval();
