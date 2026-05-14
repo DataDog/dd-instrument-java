@@ -3,7 +3,10 @@ package datadog.instrument.utils;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static org.openjdk.jmh.annotations.Mode.AverageTime;
 
-import datadog.instrument.testing.SampleClasses;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -31,7 +34,11 @@ public class ClassNameFilterBenchmark {
 
   @Setup(Level.Trial)
   public void setup() {
-    classNames = SampleClasses.loadClassNames("spring-web.jar");
+    try {
+      classNames = Files.readAllLines(Paths.get("src/test/resources/sample_class_names.txt"));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
     cache = new ClassNameFilter(cacheSize);
   }
 
