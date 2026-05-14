@@ -217,6 +217,14 @@
     margin: 0 5px;
     flex-shrink: 0;
   }
+  .trie-seg-sep {
+    width: 1px;
+    background: var(--border);
+    align-self: stretch;
+    margin: 0 3px;
+    flex-shrink: 0;
+    opacity: 0.4;
+  }
   .cell {
     min-width: 36px;
     border: 1px solid var(--border);
@@ -1300,7 +1308,7 @@ function stopPlay() {
   playBtn.setAttribute("aria-label", "Play");
 }
 
-function fmtCell(c) {
+function fmtCell(c, role) {
   const kind = (c & LEAF_MARKER) ? "leaf" : (c & BUD_MARKER) ? "bud" : null;
   if (kind) {
     return { val: kind + ((c & GLOB_MARKER) ? "*" : "") + " " + (c & MAX_NODE_VALUE), role: roleFor(c) };
@@ -1308,7 +1316,9 @@ function fmtCell(c) {
   if ((c & LONG_JUMP_MARKER) !== 0) {
     return { val: "L" + (c & ~LONG_JUMP_MARKER), role: "jump" };
   }
-  if (c >= 0x20 && c < 0x80) return { val: String.fromCharCode(c), role: null };
+  if (c >= 0x20 && c < 0x80 && (role === "branch-key" || role === "segment-char")) {
+    return { val: String.fromCharCode(c), role: null };
+  }
   return { val: c.toString(), role: null };
 }
 
@@ -1322,12 +1332,17 @@ function renderTrie(trieData, roles) {
       const sep = document.createElement("div");
       sep.className = "trie-sep";
       row.appendChild(sep);
+    } else if (i > 0 && roles[i] === "segment-char" && roles[i - 1] !== "segment-char") {
+      const sep = document.createElement("div");
+      sep.className = "trie-seg-sep";
+      row.appendChild(sep);
     }
     const c = trieData[i];
-    const f = fmtCell(c);
-    const role = roles[i] && roles[i] !== "unknown" ? roles[i] : f.role;
+    const role = roles[i] !== "unknown" ? roles[i] : null;
+    const f = fmtCell(c, role);
+    const displayRole = role ?? f.role;
     const cell = document.createElement("div");
-    cell.className = "cell" + (role ? " " + role : "");
+    cell.className = "cell" + (displayRole ? " " + displayRole : "");
     cell.innerHTML = `<div class="val">${escapeHtml(f.val)}</div>`;
     row.appendChild(cell);
     cellEls.push(cell);
