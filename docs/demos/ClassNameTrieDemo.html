@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<title>ClassNameTrie demo</title>
+<style>
+  :root[data-theme="dark"] {
+    --bg: #0f1115;
+    --panel: #1a1d24;
+    --panel-2: #232730;
+    --text: #e6e8eb;
+    --muted: #9aa3b2;
+    --accent: #4fc3f7;
+    --accent-text: #0b1014;
+    --accent-2: #ffd54f;
+    --leaf: #66bb6a;
+    --bud: #ab47bc;
+    --glob: #ff7043;
+    --segment: #4dd0e1;
+    --branch-key: #fff176;
+    --jump: #4d7ce8;
+    --branch-count: #f48fb1;
+    --read: #ffb74d;
+    --match: #81c784;
+    --nomatch: #e57373;
+    --border: #2a2f3a;
+    --cbg-branch-count: rgba(244,143,177,0.32);
+    --cbg-branch-key:   rgba(255,241,118,0.30);
+    --cbg-value-leaf:   rgba(102,187,106,0.32);
+    --cbg-value-bud:    rgba(171,71,188,0.32);
+    --cbg-value-glob:   rgba(255,112,67,0.32);
+    --cbg-value-seg:    rgba(77,208,225,0.30);
+    --cbg-jump:         rgba(77,124,232,0.32);
+    --cbg-segment:      rgba(77,208,225,0.14);
+    --cbg-match:        rgba(129,199,132,0.35);
+    --cbg-fail:         rgba(229,115,115,0.35);
+    --cbg-consumed:     rgba(129,199,132,0.2);
+    --code-bg:          rgba(79,195,247,0.12);
+  }
+  :root[data-theme="light"] {
+    --bg: #f0f2fa;
+    --panel: #ffffff;
+    --panel-2: #eef0fa;
+    --text: #1a1d2e;
+    --muted: #5a5f7a;
+    --accent: #0066bb;
+    --accent-text: #ffffff;
+    --accent-2: #b08000;
+    --leaf: #2e7d4f;
+    --bud: #7b3d9e;
+    --glob: #c0440a;
+    --segment: #1a8a9a;
+    --branch-key: #7a6800;
+    --jump: #1e4fc7;
+    --branch-count: #b83060;
+    --read: #c07800;
+    --match: #1e6e3a;
+    --nomatch: #c03030;
+    --border: #d0d4f0;
+    --cbg-branch-count: rgba(184,48,96,0.18);
+    --cbg-branch-key:   rgba(160,140,0,0.18);
+    --cbg-value-leaf:   rgba(46,125,79,0.18);
+    --cbg-value-bud:    rgba(123,61,158,0.18);
+    --cbg-value-glob:   rgba(192,68,10,0.18);
+    --cbg-value-seg:    rgba(26,138,154,0.18);
+    --cbg-jump:         rgba(30,79,199,0.18);
+    --cbg-segment:      rgba(26,138,154,0.09);
+    --cbg-match:        rgba(46,125,79,0.25);
+    --cbg-fail:         rgba(192,48,48,0.2);
+    --cbg-consumed:     rgba(46,125,79,0.15);
+    --code-bg:          rgba(0,102,187,0.1);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  header {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    align-items: center;
+  }
+  .dd-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+  .header-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: 13px;
+    flex: 1;
+  }
+  main {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .panel h2 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  textarea, input[type=text] {
+    width: 100%;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    padding: 8px;
+  }
+  textarea { min-height: 100px; resize: vertical; }
+  textarea:focus, input[type=text]:focus {
+    border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+  }
+  button {
+    background: var(--accent);
+    color: var(--accent-text);
+    border: 0;
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  button.secondary {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row + .row { margin-top: 8px; }
+  label.field { display: block; margin: 8px 0 4px; color: var(--muted); font-size: 12px; }
+
+  .legend {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px 12px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+  .legend .li {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+  }
+  .legend .chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 20px;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--text);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  /* Trie array visualization */
+  .trie-area {
+    overflow-x: auto;
+    padding: 14px 4px 8px;
+    margin-top: -14px; /* reclaim space taken by padding-top without changing visual gap */
+  }
+  .trie-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 2px;
+    align-items: stretch;
+    width: max-content;
+  }
+  .trie-sep {
+    width: 1px;
+    background: var(--border);
+    align-self: stretch;
+    margin: 0 5px;
+    flex-shrink: 0;
+  }
+  .cell {
+    min-width: 36px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    position: relative;
+    padding: 2px;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .cell .val {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  /* Roles */
+  .cell.branch-count { background: var(--cbg-branch-count); border-color: var(--branch-count); }
+  .cell.branch-key   { background: var(--cbg-branch-key);   border-color: var(--branch-key); }
+  .cell.value-leaf   { background: var(--cbg-value-leaf);   border-color: var(--leaf); }
+  .cell.value-bud    { background: var(--cbg-value-bud);    border-color: var(--bud); }
+  .cell.value-glob   { background: var(--cbg-value-glob);   border-color: var(--glob); }
+  .cell.value-seg    { background: var(--cbg-value-seg);    border-color: var(--segment); }
+  .cell.jump         { background: var(--cbg-jump);         border-color: var(--jump); }
+  .cell.segment-char { background: var(--cbg-segment);      border-color: var(--segment); border-style: dashed; }
+
+  /* Active highlights */
+  .cell.read, .key-cell.read   { box-shadow: 0 0 0 2px var(--read), 0 0 12px var(--read); }
+  .cell.cursor, .key-cell.cursor { box-shadow: 0 0 0 2px var(--accent); }
+  .cell.read { z-index: 2; }
+  .cell.match-success { background: var(--cbg-match); border-color: var(--match); }
+  .cell.match-fail    { background: var(--cbg-fail);  border-color: var(--nomatch); }
+
+  /* Key visualization */
+  .key-row {
+    display: flex;
+    gap: 2px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+    padding-left: 4px;
+  }
+  .key-cell {
+    min-width: 36px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 2px;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .key-cell.consumed { background: var(--cbg-consumed); border-color: var(--match); }
+
+  .desc {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-top: 8px;
+    min-height: 48px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .desc-body { flex: 1; }
+  .result-display {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    flex-shrink: 0;
+    min-width: 70px;
+    text-align: center;
+  }
+  .result-display .k {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .result-display .v {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent-2);
+  }
+  .desc .step-num {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+  .desc code {
+    background: var(--code-bg);
+    color: var(--accent);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .controls .spacer { flex: 1; }
+  .speed { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12px; }
+  input[type=range] { accent-color: var(--accent); }
+
+  .small {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  details { margin-top: 8px; }
+
+  .pill {
+    display: inline-block;
+    padding: 1px 6px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+  }
+  .err { color: var(--nomatch); }
+  .ok { color: var(--match); }
+  .no-transition .cell,
+  .no-transition .key-cell { transition: none; }
+
+  /* Theme toggle */
+  .theme-toggle {
+    margin-left: auto;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: none;
+    border: none;
+    padding: 4px 2px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .theme-toggle:hover { color: var(--text); }
+  .toggle-track {
+    width: 40px;
+    height: 22px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    position: relative;
+    transition: background 0.25s, border-color 0.25s;
+    flex-shrink: 0;
+  }
+  :root[data-theme="light"] .toggle-track {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: transform 0.25s, background 0.25s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+  :root[data-theme="light"] .toggle-knob {
+    transform: translateX(18px);
+    background: #fff;
+  }
+
+  .branch-bracket {
+    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+  .branch-bracket .b-label {
+    font-size: 10px;
+    color: var(--muted);
+    width: 100%;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <a href="https://datadoghq.com" class="dd-brand" target="_blank" rel="noopener noreferrer" aria-label="Datadog">
+    <svg height="32" viewBox="0 0 800.5 907.77" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect width="800.5" height="907.77" rx="140" fill="#774AA4"/>
+      <path fill="#fff" d="M303.36,238.61c31.36-21.37,71.76-12.97,65-6.53c-12.89,12.28,4.26,8.65,6.11,31.31
+	c1.36,16.69-4.09,25.88-8.78,31.11c-9.79,1.28-21.69,3.67-36.02,8.33c-8.48,2.76-15.85,5.82-22.31,8.9
+	c-1.7-1.11-3.55-2.47-5.74-4.36C279.5,288.19,280.24,254.37,303.36,238.61 M490.68,370.72c5.69-4.41,31.55-12.72,55.49-15.55
+	c12.57-1.48,30.49-2.34,34.31-0.2c7.59,4.19,7.59,17.16,2.39,29.14c-7.57,17.4-18.27,36.63-30.39,38.21
+	c-19.77,2.61-38.46-8.09-59.8-24.03C485.06,392.56,480.38,378.68,490.68,370.72 M526.75,201.27c29.19,13.58,25.37,39.42,26.18,54.6
+	c0.22,4.36,0.15,7.3-0.22,9.32c-4.04-2.19-10.43-3.8-20.56-3.35c-2.96,0.12-5.84,0.47-8.63,0.91c-10.77-5.77-17.21-17.06-23.1-29.06
+	c-0.54-1.11-0.96-2.1-1.36-3.06c-0.17-0.44-0.35-0.91-0.52-1.31c-0.07-0.22-0.12-0.39-0.2-0.59c-3.23-10.25-1.06-12.3,0.3-15.46
+	c1.41-3.23,6.68-5.89-1.11-8.58c-0.67-0.25-1.5-0.39-2.44-0.57C500.25,197.72,515.7,196.17,526.75,201.27 M367.62,510.22
+	c-31.45-20.19-63.99-49.15-78.22-65.18c-2.39-1.8-2-9.79-2-9.79c12.84,9.98,66.11,48.04,122.44,65.42
+	c19.87,6.14,50.36,8.46,76.81-6.53c20.21-11.46,44.54-31.43,59.06-52.01l2.66,4.61c-0.1,3.06-6.78,17.97-10.18,23.96
+	c6.14,3.53,10.72,4.49,17.55,6.36l46.64-7.27c16.74-27.04,28.74-70.65,15.95-112.16c-7.3-23.81-45.36-71.22-48.09-73.83
+	c-9.56-9.19,1.6-44.69-17.35-83.42C532.86,159.41,480.67,116.69,458,98.1c6.68,4.88,47.82,21.47,67,44.62
+	c1.8-2.39,2.54-14.82,4.19-17.97c-16.47-21.57-17.75-59.95-17.75-70.21c0-18.81-9.56-40.13-9.56-40.13s16.47,13.04,20.73,35.5
+	c5.03,26.6,15.75,47.55,29.93,65.28c26.84,33.43,51.08,50.58,63.33,38.23C630.53,138.58,601,72.2,563.28,35.15
+	C519.25-8.09,507.74-2.52,481.91,6.7c-20.61,7.35-31.75,65.87-85.47,64.71c-9.1-1.06-32.54-1.63-44.13-1.53
+	c6.04-8.43,11.22-14.94,11.22-14.94s-18.02,7.25-33.38,16.44l-1.18-1.77c5.18-10.92,10.75-17.82,10.75-17.82s-14.4,8.65-27.54,19.01
+	c2.39-13.02,11.44-21.27,11.44-21.27s-18.19,3.28-41.36,28.77c-26.33,7.2-32.66,11.93-53.64,21.22
+	c-34.12-7.44-50.21-19.45-65.55-41.56c-11.68-16.89-32.47-19.45-53.71-10.72c-30.97,12.8-70.14,30.33-70.14,30.33
+	s12.77-0.52,26.08,0.05c-18.22,6.9-35.72,16.39-35.72,16.39s8.53-0.3,19.06-0.12c-7.27,6.04-11.29,8.92-18.22,13.51
+	c-16.66,12.1-30.17,26.08-30.17,26.08s11.31-5.15,21.47-8.04c-7.1,16.27-21.18,28.25-18.59,48.17
+	c2.49,18.19,24.82,55.66,53.64,78.66c2.49,2,41.86,38.43,71.56,23.47c29.68-14.94,41.39-28.25,46.27-48.66
+	c5.74-23.44,2.47-41.17-9.79-92.05c-4.04-16.79-14.57-51.37-19.65-67.91l1.13-0.81c9.71,20.49,34.56,74.5,44.57,110.78
+	c15.63,56.57,10.75,85.27,3.6,95.79c-21.57,31.73-76.84,35.92-101.98,18.34c-3.85,60.91,9.76,87.73,14.37,101.24
+	c-2.29,15.53,7.77,44.37,7.77,44.37s1.13-13.11,5.74-20.02c1.23,15.41,9,33.72,9,33.72s-0.47-11.31,3.06-21.08
+	c4.98,8.43,8.63,10.43,13.34,16.76c4.71,16.47,14.15,28.5,14.15,28.5s-1.53-8.83-0.69-18.02c23.05,22.14,27.02,54.45,29.31,79.28
+	c6.46,68.26-107.63,122.54-129.74,165.24c-16.76,25.29-26.8,65.3,1.58,88.89c68.6,56.97,42.25,72.65,76.59,97.69
+	c47.11,34.34,106.05,18.96,126.11-8.97c27.93-38.92,20.76-75.63,10.38-109.97c-8.11-26.85-30.15-71.46-57.41-88.72
+	c-27.86-17.65-54.95-20.95-77.9-18.59l2.12-2.44c33.01-6.56,67.52-2.96,92.49,13.14c28.35,18.22,54.28,49.47,67.84,97.37
+	c15.38-2.19,17.55-3.18,31.63-5.18l-31.7-246.76L367.62,510.22z M385.94,819.52l-3.65-34.22l71.29-108.74l80.93,23.64l69.59-116.23
+	L687.52,639l63.38-132.92l22.53,242.07L385.94,819.52z M774.27,456.51l-254.72,46.17c-6.31,8.13-21.91,22.41-29.41,26.13
+	c-32.17,16.2-53.91,11.51-72.7,6.63c-12.08-3.06-19.08-4.78-29.11-9.29l-62.17,8.53l37.74,314.87l436.35-78.66L774.27,456.51z"/>
+    </svg>
+  </a>
+  <span class="header-divider"></span>
+  <h1>ClassNameTrie demo</h1>
+  <span class="sub">Animated walkthrough of <code>ClassNameTrie.apply()</code> from
+    <a href="https://github.com/DataDog/dd-instrument-java/blob/main/utils/src/main/java/datadog/instrument/utils/ClassNameTrie.java" style="color:var(--accent)" target="_blank">dd-instrument-java</a>.
+  </span>
+  <button id="themeBtn" class="theme-toggle" title="Toggle theme" aria-label="Toggle theme" aria-pressed="true">
+    <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor" aria-hidden="true">
+      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+    </svg>
+    <span class="toggle-track"><span class="toggle-knob"></span></span>
+    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
+      <circle cx="10" cy="10" r="3" fill="currentColor"/>
+      <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+            d="M10 1v2M10 17v2M1 10h2M17 10h2M3.636 3.636l1.414 1.414M14.95 14.95l1.414 1.414M14.95 5.05l1.414-1.414M3.636 16.364l1.414-1.414"/>
+    </svg>
+  </button>
+</header>
+
+<main>
+  <!-- TOP: visualization -->
+  <section class="panel" aria-label="Trie visualization">
+    <div class="desc" id="desc">
+      <div class="desc-body">
+        <div class="step-num" id="descStepNum">Idle</div>
+        <div id="descBody" aria-live="polite" aria-atomic="true">Press <strong>Build example</strong> to begin.</div>
+      </div>
+      <div class="result-display">
+        <div class="k">result</div>
+        <div class="v" id="resultVal">—</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="first" class="secondary" aria-label="First step">⏮ First</button>
+      <button id="prev" class="secondary" aria-label="Previous step">◀ Step</button>
+      <button id="play" aria-pressed="false" aria-label="Play">▶ Play</button>
+      <button id="next" class="secondary" aria-label="Next step">Step ▶</button>
+      <button id="last" class="secondary" aria-label="Last step">Last ⏭</button>
+      <span class="spacer"></span>
+      <span class="speed">
+        <label for="speed">Speed</label>
+        <input id="speed" type="range" min="100" max="2000" step="50" value="700" aria-valuetext="700ms">
+        <span id="speedLabel" class="pill">700ms</span>
+      </span>
+    </div>
+    <h2 style="margin-top:14px">Key</h2>
+    <div class="key-row" id="keyRow" aria-hidden="true"></div>
+
+    <h2 style="margin-top:14px">Trie data <span class="small" id="trieMeta"></span></h2>
+    <div class="trie-area" id="trieArea" aria-hidden="true"></div>
+  </section>
+
+  <!-- BOTTOM: configuration -->
+  <section class="panel" aria-label="Configuration">
+    <h2>Legend</h2>
+    <div class="legend">
+      <span class="li"><span class="chip" style="background:var(--cbg-branch-count);border:1px solid var(--branch-count)">N</span>branch count</span>
+      <span class="li"><span class="chip" style="background:var(--cbg-branch-key);border:1px solid var(--branch-key)">k</span>branch key char</span>
+      <span class="li"><span class="chip" style="background:var(--cbg-value-seg);border:1px solid var(--segment)">L</span>segment length</span>
+      <span class="li"><span class="chip" style="background:var(--cbg-value-leaf);border:1px solid var(--leaf)">leaf</span>terminal — stop and return</span>
+      <span class="li"><span class="chip" style="background:var(--cbg-value-bud);border:1px solid var(--bud)">bud</span>match recorded, trie continues</span>
+      <span class="li"><span class="chip" style="background:var(--cbg-value-glob);border:1px solid var(--glob)">glob</span>wildcard — accepts partial match</span>
+      <span class="li"><span class="chip" style="background:var(--cbg-jump);border:1px solid var(--jump)">jmp</span>jump to branch ≥ 1</span>
+      <span class="li"><span class="chip" style="background:var(--cbg-segment);border:1px dashed var(--segment)">seg</span>inline segment character</span>
+    </div>
+
+    <details style="margin-top:8px">
+      <summary>About the encoding</summary>
+      <div class="small" style="margin-top:6px">
+        Each node is laid out as: <code>[branchCount, key₀..keyₙ, val₀..valₙ, jump₁..jumpₙ]</code>.
+        Branch 0's segment immediately follows the node so its jump offset is omitted.
+        A value's high bits encode markers — <code>0x8000</code> leaf, <code>0x4000</code> bud,
+        <code>0x2000</code> glob — with the result number in the low 13 bits (<code>0x1FFF</code>).
+        Jump offsets that don't fit in a <code>char</code> use the long-jump table via
+        <code>0x8000</code>.
+      </div>
+    </details>
+
+    <h2 style="margin-top:18px">Mappings</h2>
+    <div class="small">One entry per line: <code>&lt;number&gt; &lt;class-name&gt;</code>. Suffix <code>*</code> = glob.</div>
+    <label class="field" for="mappings">Trie content</label>
+    <textarea id="mappings" spellcheck="false">1 java.*
+0 java.lang.Throwable
+0 java.net.HttpURLConnection
+0 java.net.URL
+0 java.rmi.*
+0 java.util.concurrent.*
+0 java.util.logging.*
+1 java.util.logging.LogManager$Cleaner
+2 akka.actor.*
+0 akka.actor.ActorCell
+0 akka.actor.ActorSystem$*
+0 akka.actor.CoordinatedShutdown$*
+2 akka.stream.*
+0 akka.stream.impl.FanIn$SubInput
+0 akka.stream.impl.FanOut$SubstreamSubscription
+0 akka.stream.impl.fusing.ActorGraphInterpreter$*
+0 akka.stream.stage.GraphStageLogic$*
+0 akka.stream.stage.TimerGraphStageLogic$*
+2 ch.qos.logback.*
+0 ch.qos.logback.classic.Logger
+0 ch.qos.logback.classic.spi.LoggingEvent
+0 ch.qos.logback.classic.spi.LoggingEventVO
+0 ch.qos.logback.core.AsyncAppenderBase$Worker
+2 com.google.common.*
+0 com.google.common.base.internal.Finalizer
+0 com.google.common.util.concurrent.*
+2 com.google.inject.*
+0 com.google.inject.internal.BytecodeGen$*
+0 com.google.inject.internal.cglib.core.internal.$LoadingCache
+0 org.springframework.*
+2 org.springframework.aop.*
+0 org.springframework.aop.interceptor.AsyncExecutionInterceptor
+2 org.springframework.boot.*
+0 org.springframework.boot.autoconfigure.BackgroundPreinitializer$*
+0 org.springframework.boot.web.embedded.tomcat.TomcatEmbeddedWebappClassLoader
+0 org.springframework.boot.web.embedded.tomcat.TomcatWebServer$1
+2 org.springframework.web.*
+0 org.springframework.web.servlet.*
+0 org.springframework.web.context.support.GenericWebApplicationContext
+2 org.apache.log4j.*
+0 org.apache.log4j.Category
+0 org.apache.log4j.MDC
+0 org.apache.log4j.spi.LoggingEvent</textarea>
+
+    <label class="field" for="key">Lookup key</label>
+    <input id="key" type="text" value="ch.qos.logback.classic.spi.LoggingEventVO" spellcheck="false">
+
+    <div class="row" style="margin-top:10px">
+      <button id="run">Build example</button>
+      <button id="loadBenchmark" class="secondary">Reset example</button>
+    </div>
+
+  </section>
+
+</main>
+
+<script>
+"use strict";
+
+const LEAF_MARKER = 0x8000;
+const BUD_MARKER  = 0x4000;
+const GLOB_MARKER = 0x2000;
+const MAX_NODE_VALUE = 0x1FFF;
+const LONG_JUMP_MARKER = 0x8000; // same bit as LEAF_MARKER — safe because jump slots and value slots occupy disjoint positions
+const BRANCH_CONTROL_CHARS = 3;
+const FIRST_JUMP_OMITTED = 1;
+
+function resolveJump(longJumps, c) {
+  return (c & LONG_JUMP_MARKER) === 0 ? c : longJumps[c & ~LONG_JUMP_MARKER];
+}
+function roleFor(v) {
+  if ((v & LEAF_MARKER) !== 0) return (v & GLOB_MARKER) !== 0 ? "value-glob" : "value-leaf";
+  if ((v & BUD_MARKER) !== 0)  return (v & GLOB_MARKER) !== 0 ? "value-glob" : "value-bud";
+  return "value-seg";
+}
+
+/* =========================================================================
+ * Builder — port of ClassNameTrie.Builder from the Java source.
+ * ========================================================================= */
+class Builder {
+  constructor() {
+    this.trieData = null;       // Uint16Array
+    this.trieLength = 0;
+    this.longJumps = null;      // Int32Array-like (regular array)
+    this.longJumpCount = 0;
+  }
+
+  put(className, number) {
+    if (!className) throw new Error("class-name is empty");
+    if (className[0] === '*') throw new Error("class-name starts with *");
+    if (className.length > MAX_NODE_VALUE) throw new Error("class-name too long");
+    if (number < 0 || number > MAX_NODE_VALUE) throw new Error("number out of range");
+
+    let key, value;
+    if (className.charCodeAt(className.length - 1) === 0x2A /* '*' */) {
+      key = className.slice(0, -1);
+      value = number | GLOB_MARKER;
+    } else {
+      key = className;
+      value = number;
+    }
+    key = key.replaceAll('/', '.');
+
+    if (this.trieData === null) {
+      const keyLength = key.length;
+      this.trieData = new Uint16Array(Math.max(keyLength + 3, 256));
+      this.trieData[0] = 1;
+      this.trieData[1] = key.charCodeAt(0);
+      this.trieLength = 2;
+      if (keyLength > 1) {
+        this.trieData[2] = keyLength - 1;
+        for (let i = 1; i < keyLength; i++) this.trieData[2 + i] = key.charCodeAt(i);
+        this.trieLength += keyLength;
+      }
+      this.trieData[this.trieLength++] = value | LEAF_MARKER;
+    } else {
+      this._insertMapping(key, value);
+    }
+  }
+
+  // Java-style binary search: returns index if found, else -insertion-1
+  _bsearch(lo, hi, c) {
+    let l = lo, h = hi;
+    while (l < h) {
+      const mid = (l + h) >>> 1;
+      const v = this.trieData[mid];
+      if (v < c) l = mid + 1;
+      else if (v > c) h = mid;
+      else return mid;
+    }
+    return -l - 1;
+  }
+
+  _insertMapping(key, valueToInsert) {
+    const jumpsToOffset = new Set();
+    const keyLength = key.length;
+    let keyIndex = 0;
+    let dataIndex = 0;
+    let subTrieEnd = this.trieLength;
+    let jumpOffset = 0;
+
+    while (keyIndex < keyLength) {
+      const c = key.charCodeAt(keyIndex++);
+      const branchCount = this.trieData[dataIndex++];
+
+      const branchIndex = this._bsearch(dataIndex, dataIndex + branchCount, c);
+      if (branchIndex < 0) {
+        jumpOffset = this._insertBranch(
+          dataIndex, key, keyIndex - 1, valueToInsert,
+          branchCount, ~branchIndex - dataIndex, subTrieEnd
+        );
+        break;
+      }
+
+      const valueIndex = branchIndex + branchCount;
+      let value = this.trieData[valueIndex];
+
+      if ((value & (LEAF_MARKER | BUD_MARKER)) !== 0 && keyIndex === keyLength) {
+        this.trieData[valueIndex] = (value & ~MAX_NODE_VALUE) | valueToInsert;
+        return;
+      }
+
+      const branch = branchIndex - dataIndex;
+      if (branch < branchCount - 1) {
+        let nextJumpIndex = valueIndex + branchCount;
+        const nextBranchJump = resolveJump(this.longJumps, this.trieData[nextJumpIndex]);
+        subTrieEnd = dataIndex + (branchCount * BRANCH_CONTROL_CHARS) - FIRST_JUMP_OMITTED + nextBranchJump;
+        for (let b = branch + 1; b < branchCount; b++) {
+          jumpsToOffset.add(nextJumpIndex++);
+        }
+      }
+
+      if (branch > 0) {
+        dataIndex += resolveJump(this.longJumps, this.trieData[valueIndex + branchCount - 1]);
+      }
+      dataIndex += (branchCount * BRANCH_CONTROL_CHARS) - FIRST_JUMP_OMITTED;
+
+      if ((value & LEAF_MARKER) !== 0) {
+        this.trieData[valueIndex] = ((value & ~LEAF_MARKER) | BUD_MARKER) & 0xFFFF;
+        jumpOffset = this._appendLeaf(dataIndex, key, keyIndex, valueToInsert);
+        break;
+      } else if ((value & BUD_MARKER) !== 0) {
+        continue;
+      } else if (keyIndex === keyLength) {
+        this.trieData[valueIndex] = (valueToInsert | BUD_MARKER) & 0xFFFF;
+        if (value > 0) {
+          jumpOffset = this._prependNode(dataIndex, value - 1);
+        }
+        break;
+      }
+
+      // segment
+      if (value > 0) {
+        const segmentLength = value;
+        const segmentEnd = dataIndex + segmentLength;
+        let cc = 0;
+        while (keyIndex < keyLength && dataIndex < segmentEnd) {
+          cc = key.charCodeAt(keyIndex);
+          if (cc !== this.trieData[dataIndex]) break;
+          keyIndex++;
+          dataIndex++;
+        }
+        if (dataIndex < segmentEnd) {
+          if (keyIndex === keyLength) {
+            this.trieData[valueIndex] -= (segmentEnd - (dataIndex - 1));
+            jumpOffset = this._insertBud(dataIndex - 1, valueToInsert, segmentEnd);
+          } else {
+            this.trieData[valueIndex] -= (segmentEnd - dataIndex);
+            if (cc < this.trieData[dataIndex]) {
+              jumpOffset = this._insertLeafLeft(dataIndex, key, keyIndex, valueToInsert, segmentEnd);
+            } else {
+              jumpOffset = this._insertLeafRight(dataIndex, key, keyIndex, valueToInsert, segmentEnd, subTrieEnd);
+            }
+          }
+          break;
+        }
+
+        value = this.trieData[dataIndex];
+        if ((value & LEAF_MARKER) !== 0) {
+          if (keyIndex < keyLength) {
+            this.trieData[valueIndex]--;
+            jumpOffset = this._appendLeaf(dataIndex, key, keyIndex, valueToInsert);
+            break;
+          } else {
+            this.trieData[dataIndex] = ((value & ~MAX_NODE_VALUE) | valueToInsert) & 0xFFFF;
+            return;
+          }
+        } else {
+          if (keyIndex === keyLength) {
+            this.trieData[valueIndex]--;
+            jumpOffset = this._prependNode(dataIndex - 1, valueToInsert | BUD_MARKER);
+            break;
+          }
+        }
+      }
+    }
+
+    if (jumpOffset > 0) {
+      for (const i of jumpsToOffset) {
+        this.trieData[i] = this._updateJump(this.trieData[i], jumpOffset);
+      }
+    }
+  }
+
+  _insertBranch(dataIndex, key, keyIndex, value, branchCount, newBranch, subTrieEnd) {
+    let remainingKeyLength = key.length - keyIndex;
+    let insertedCharacters = 3 + remainingKeyLength;
+    const collapseRight = remainingKeyLength === 1;
+    if (collapseRight) {
+      remainingKeyLength = 0;
+      insertedCharacters = 3;
+    }
+
+    let i = dataIndex + newBranch, j = i + insertedCharacters;
+    this._makeHole(i, insertedCharacters);
+
+    this.trieData[dataIndex - 1] = branchCount + 1;
+
+    this.trieData[i++] = key.charCodeAt(keyIndex);
+    this._copyWithin(j, i, branchCount);
+    i += branchCount; j += branchCount;
+
+    this.trieData[i++] = collapseRight ? (value | LEAF_MARKER) : (remainingKeyLength - 1);
+
+    const subTrieStart = dataIndex + (branchCount * BRANCH_CONTROL_CHARS) - FIRST_JUMP_OMITTED;
+    let precedingJump;
+    if (newBranch < branchCount) {
+      this._copyWithin(j, i, branchCount);
+      i += branchCount; j += branchCount;
+      precedingJump = newBranch > 0 ? resolveJump(this.longJumps, this.trieData[i - 1]) : 0;
+      this.trieData[i++] = this._newJump(precedingJump + remainingKeyLength);
+      for (let b = newBranch + 1; b < branchCount; b++) {
+        this.trieData[i++] = this._updateJump(this.trieData[j++], remainingKeyLength);
+      }
+    } else {
+      this._copyWithin(j, i, branchCount - 1);
+      i += branchCount - 1; j += branchCount - 1;
+      precedingJump = subTrieEnd - subTrieStart;
+      this.trieData[i++] = this._newJump(precedingJump);
+    }
+
+    this._copyWithin(subTrieStart + insertedCharacters, i, precedingJump);
+    i += precedingJump;
+
+    if (!collapseRight) {
+      for (let k = 1; k < remainingKeyLength; k++) {
+        this.trieData[i++] = key.charCodeAt(keyIndex + k);
+      }
+      this.trieData[i++] = (value | LEAF_MARKER) & 0xFFFF;
+    }
+
+    return insertedCharacters;
+  }
+
+  _prependNode(dataIndex, value) {
+    let insertedCharacters = 2;
+    const collapseRight = value === 0 && (this.trieData[dataIndex + 1] & LEAF_MARKER) !== 0;
+    if (collapseRight) insertedCharacters--;
+
+    let i = dataIndex, j = i + insertedCharacters;
+    this._makeHole(i, insertedCharacters);
+
+    this.trieData[i++] = 1;
+    this.trieData[i++] = this.trieData[j];
+    if (!collapseRight) this.trieData[i++] = value & 0xFFFF;
+
+    return insertedCharacters;
+  }
+
+  _insertBud(dataIndex, value, segmentEnd) {
+    let insertedCharacters = 4;
+    const pivot = dataIndex + 2;
+    const collapseRight = pivot === segmentEnd && (this.trieData[segmentEnd] & LEAF_MARKER) !== 0;
+    if (collapseRight) insertedCharacters = 3;
+
+    let i = dataIndex, j = i + insertedCharacters;
+    this._makeHole(i, insertedCharacters);
+
+    this.trieData[i++] = 1;
+    this.trieData[i++] = this.trieData[j];
+    this.trieData[i++] = (value | BUD_MARKER) & 0xFFFF;
+    this.trieData[i++] = 1;
+    this.trieData[i++] = this.trieData[j + 1];
+    if (!collapseRight) this.trieData[i++] = segmentEnd - pivot;
+
+    return insertedCharacters;
+  }
+
+  _insertLeafLeft(dataIndex, key, keyIndex, value, segmentEnd) {
+    const remainingKeyLength = key.length - keyIndex;
+    let insertedCharacters = 5 + remainingKeyLength;
+    let pivot = dataIndex + 1;
+
+    const collapseLeft = remainingKeyLength === 1;
+    if (collapseLeft) insertedCharacters--;
+    const collapseRight = pivot === segmentEnd && (this.trieData[segmentEnd] & LEAF_MARKER) !== 0;
+    if (collapseRight) { insertedCharacters--; pivot++; }
+
+    let i = dataIndex, j = i + insertedCharacters;
+    this._makeHole(i, insertedCharacters);
+
+    this.trieData[i++] = 2;
+    this.trieData[i++] = key.charCodeAt(keyIndex);
+    this.trieData[i++] = this.trieData[j];
+    this.trieData[i++] = collapseLeft ? ((value | LEAF_MARKER) & 0xFFFF) : (remainingKeyLength - 1);
+    this.trieData[i++] = collapseRight ? this.trieData[j + 1] : (segmentEnd - pivot);
+    if (!collapseLeft) {
+      this.trieData[i++] = remainingKeyLength;
+      for (let k = 1; k < remainingKeyLength; k++) {
+        this.trieData[i++] = key.charCodeAt(keyIndex + k);
+      }
+      this.trieData[i++] = (value | LEAF_MARKER) & 0xFFFF;
+    } else {
+      this.trieData[i++] = 0;
+    }
+    return insertedCharacters;
+  }
+
+  _insertLeafRight(dataIndex, key, keyIndex, value, segmentEnd, subTrieEnd) {
+    const remainingKeyLength = key.length - keyIndex;
+    let insertedCharacters = 5 + remainingKeyLength;
+    let pivot = dataIndex + 1;
+
+    const collapseLeft = pivot === segmentEnd && (this.trieData[segmentEnd] & LEAF_MARKER) !== 0;
+    if (collapseLeft) { insertedCharacters--; pivot++; }
+    const collapseRight = remainingKeyLength === 1;
+    if (collapseRight) insertedCharacters--;
+
+    let i = dataIndex, j = i + insertedCharacters;
+    this._makeHole(i, insertedCharacters);
+
+    this.trieData[i++] = 2;
+    this.trieData[i++] = this.trieData[j];
+    this.trieData[i++] = key.charCodeAt(keyIndex);
+    this.trieData[i++] = collapseLeft ? this.trieData[j + 1] : (segmentEnd - pivot);
+    this.trieData[i++] = collapseRight ? ((value | LEAF_MARKER) & 0xFFFF) : (remainingKeyLength - 1);
+    this.trieData[i++] = this._newJump(subTrieEnd - pivot);
+    this._copyWithin(pivot + insertedCharacters, i, subTrieEnd - pivot);
+    i += subTrieEnd - pivot;
+    if (!collapseRight) {
+      for (let k = 1; k < remainingKeyLength; k++) {
+        this.trieData[i++] = key.charCodeAt(keyIndex + k);
+      }
+      this.trieData[i++] = (value | LEAF_MARKER) & 0xFFFF;
+    }
+    return insertedCharacters;
+  }
+
+  _appendLeaf(dataIndex, key, keyIndex, value) {
+    const remainingKeyLength = key.length - keyIndex;
+    let insertedCharacters = 3 + remainingKeyLength;
+
+    const insertBud = dataIndex < this.trieLength && (this.trieData[dataIndex] & LEAF_MARKER) !== 0;
+    if (insertBud) insertedCharacters++;
+    const collapseRight = remainingKeyLength === 1;
+    if (collapseRight) insertedCharacters--;
+
+    let i = dataIndex, j = i + insertedCharacters;
+    this._makeHole(i, insertedCharacters);
+
+    if (insertBud) {
+      const c = this.trieData[i - 1];
+      this.trieData[i - 1] = 1;
+      this.trieData[i++] = c;
+      this.trieData[i++] = ((this.trieData[j] & ~LEAF_MARKER) | BUD_MARKER) & 0xFFFF;
+    }
+    this.trieData[i++] = 1;
+    this.trieData[i++] = key.charCodeAt(keyIndex);
+    if (!collapseRight) {
+      this.trieData[i++] = remainingKeyLength - 1;
+      for (let k = 1; k < remainingKeyLength; k++) {
+        this.trieData[i++] = key.charCodeAt(keyIndex + k);
+      }
+    }
+    this.trieData[i++] = (value | LEAF_MARKER) & 0xFFFF;
+
+    return insertedCharacters;
+  }
+
+  _makeHole(dataIndex, hole) {
+    const oldData = this.trieData;
+    const oldLength = this.trieLength;
+    const newLength = oldLength + hole;
+    if (newLength > oldData.length) {
+      const next = new Uint16Array(Math.max(newLength, oldData.length + (oldData.length >> 1)));
+      next.set(oldData.subarray(0, dataIndex), 0);
+      if (oldLength > dataIndex) {
+        next.set(oldData.subarray(dataIndex, oldLength), dataIndex + hole);
+      }
+      this.trieData = next;
+    } else if (oldLength > dataIndex) {
+      this.trieData.copyWithin(dataIndex + hole, dataIndex, oldLength);
+    }
+    this.trieLength = newLength;
+  }
+
+  _copyWithin(srcStart, dstStart, length) {
+    if (length <= 0) return;
+    this.trieData.copyWithin(dstStart, srcStart, srcStart + length);
+  }
+
+  _newJump(jump) {
+    if (jump < LONG_JUMP_MARKER) return jump & 0xFFFF;
+    if (this.longJumps === null) this.longJumps = new Array(16).fill(0);
+    else if (this.longJumpCount === this.longJumps.length) {
+      const grown = this.longJumps.concat(new Array(this.longJumpCount >> 1).fill(0));
+      this.longJumps = grown;
+    }
+    this.longJumps[this.longJumpCount] = jump;
+    return ((this.longJumpCount++) | LONG_JUMP_MARKER) & 0xFFFF;
+  }
+
+  _updateJump(jump, delta) {
+    if ((jump & LONG_JUMP_MARKER) === 0) return this._newJump(jump + delta);
+    this.longJumps[jump & ~LONG_JUMP_MARKER] += delta;
+    return jump;
+  }
+
+  finalize() {
+    return {
+      trieData: this.trieData ? this.trieData.slice(0, this.trieLength) : new Uint16Array([0]),
+      longJumps: this.longJumps ? this.longJumps.slice(0, this.longJumpCount) : null
+    };
+  }
+}
+
+/* =========================================================================
+ * apply() — instrumented to record per-step snapshots for animation.
+ * Each step: { desc, keyIndex, dataIndex, branchCount, value, segmentLength,
+ *              result, hl, role, ... }
+ * ========================================================================= */
+function applyTraced(data, longJumps, key, fromIndex) {
+  const steps = [];
+  const keyLength = key.length;
+  let keyIndex = fromIndex;
+  let dataIndex = 0;
+  let result = -1;
+
+  function snap(desc, extras = {}) {
+    steps.push({
+      desc,
+      keyIndex,
+      dataIndex,
+      result,
+      ...extras
+    });
+  }
+
+  snap("Start. <code>keyIndex = " + keyIndex + "</code>, <code>dataIndex = 0</code>, <code>result = -1</code>. Loop while there are key characters left.", {
+    highlight: { data: [], key: [] }
+  });
+
+  outer:
+  while (keyIndex < keyLength) {
+    const c = key.charCodeAt(keyIndex);
+    const cView = c === 0x2F /* '/' */ ? 0x2E /* '.' */ : c;
+    snap(`Read next key character <code>'${String.fromCharCode(c)}'</code> at index ${keyIndex}.${c === 0x2F ? " (Slashes are normalized to dots before matching.)" : ""}`, {
+      highlight: { key: [{ i: keyIndex, kind: "read" }], data: [] }
+    });
+    keyIndex++;
+
+    const branchCount = data[dataIndex];
+    snap(`Read <code>branchCount = ${branchCount}</code> at <code>data[${dataIndex}]</code>.`, {
+      highlight: {
+        data: [{ i: dataIndex, kind: "read", role: "branch-count" }],
+        key: [{ i: keyIndex - 1, kind: "consumed" }]
+      }
+    });
+    dataIndex++;
+
+    const keysLo = dataIndex, keysHi = dataIndex + branchCount;
+    const branchKeys = [];
+    for (let k = keysLo; k < keysHi; k++) branchKeys.push(k);
+    snap(`Binary-search the ${branchCount} branch key${branchCount === 1 ? "" : "s"} for <code>'${String.fromCharCode(cView)}'</code>.`, {
+      highlight: {
+        data: branchKeys.map(i => ({ i, kind: "scan", role: "branch-key" })),
+        key: [{ i: keyIndex - 1, kind: "consumed" }]
+      }
+    });
+
+    let lo = keysLo, hi = keysHi, branchIndex = -1;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      const v = data[mid];
+      if (v < cView) lo = mid + 1;
+      else if (v > cView) hi = mid;
+      else { branchIndex = mid; break; }
+    }
+    if (branchIndex < 0) {
+      snap(`No branch matches <code>'${String.fromCharCode(cView)}'</code> — return current result <code>${result}</code>.`, {
+        highlight: {
+          data: branchKeys.map(i => ({ i, kind: "fail", role: "branch-key" })),
+          key: [{ i: keyIndex - 1, kind: "fail" }]
+        },
+        terminal: true
+      });
+      return { result, steps };
+    }
+
+    snap(`Found <code>'${String.fromCharCode(cView)}'</code> at <code>data[${branchIndex}]</code> — branch ${branchIndex - keysLo}.`, {
+      highlight: {
+        data: [{ i: branchIndex, kind: "match", role: "branch-key" }],
+        key: [{ i: keyIndex - 1, kind: "consumed" }]
+      }
+    });
+
+    const valueIndex = branchIndex + branchCount;
+    const value = data[valueIndex];
+
+    let segmentLength = 0;
+    if ((value & (LEAF_MARKER | BUD_MARKER)) !== 0) {
+      const isLeaf = (value & LEAF_MARKER) !== 0;
+      const isGlob = (value & GLOB_MARKER) !== 0;
+      const num = value & MAX_NODE_VALUE;
+      const kind = isLeaf ? "leaf" : "bud";
+      snap(`Branch value at <code>data[${valueIndex}]</code> is a <strong>${kind}${isGlob ? "+glob" : ""}</strong> with number <code>${num}</code> (raw <code>0x${value.toString(16).padStart(4,"0")}</code>).`, {
+        highlight: {
+          data: [{ i: valueIndex, kind: "read", role: roleFor(value) }],
+          key: [{ i: keyIndex - 1, kind: "consumed" }]
+        }
+      });
+
+      if (keyIndex === keyLength || isGlob) {
+        result = num;
+        snap(keyIndex === keyLength
+          ? `Key is fully consumed — accept this match. <code>result = ${num}</code>.`
+          : `Glob marker is set — partial matches are allowed. Tentative <code>result = ${num}</code> (we may still match more).`, {
+          highlight: {
+            data: [{ i: valueIndex, kind: "match", role: roleFor(value) }],
+          }
+        });
+      }
+      if (keyIndex === keyLength || isLeaf) {
+        snap(keyIndex === keyLength
+          ? `No more key characters — return <code>${result}</code>.`
+          : `Leaf marker is set — no further trie below. Return <code>${result}</code>.`, {
+          highlight: {
+            data: [{ i: valueIndex, kind: isLeaf ? "fail" : "match", role: roleFor(value) }],
+          },
+          terminal: true
+        });
+        return { result, steps };
+      }
+      // bud, no glob, more key — fall through to advance past the node header
+    } else {
+      segmentLength = value;
+      snap(`Branch value at <code>data[${valueIndex}]</code> is segment-length <code>${segmentLength}</code>. ${segmentLength} inline characters precede the next node.`, {
+        highlight: {
+          data: [{ i: valueIndex, kind: "read", role: "value-seg" }],
+          key: [{ i: keyIndex - 1, kind: "consumed" }]
+        }
+      });
+    }
+
+    if (branchIndex > keysLo) {
+      const jumpIdx = valueIndex + branchCount - FIRST_JUMP_OMITTED;
+      const rawJump = data[jumpIdx];
+      const jump = resolveJump(longJumps, rawJump);
+      const isLong = (rawJump & LONG_JUMP_MARKER) !== 0;
+      snap(`Branch ${branchIndex - keysLo} ≥ 1, so apply its jump offset at <code>data[${jumpIdx}]</code> = ${isLong ? "long-jump → " + jump : jump}.`, {
+        highlight: {
+          data: [{ i: jumpIdx, kind: "read", role: "jump" }]
+        }
+      });
+      dataIndex += jump;
+    }
+
+    const advance = (branchCount * BRANCH_CONTROL_CHARS) - FIRST_JUMP_OMITTED;
+    dataIndex += advance;
+    snap(`Advance past the node header (<code>${branchCount} branches × 3 − 1 = ${advance}</code> cells${branchIndex > keysLo ? ", on top of the jump" : ""}). <code>dataIndex = ${dataIndex}</code>.`, {
+      highlight: {
+        data: [{ i: dataIndex, kind: "cursor" }]
+      }
+    });
+
+    if (segmentLength > 0) {
+      if (keyLength - keyIndex < segmentLength) {
+        snap(`Only ${keyLength - keyIndex} key characters left, but the segment needs ${segmentLength}. Return <code>${result}</code>.`, {
+          terminal: true
+        });
+        return { result, steps };
+      }
+      const segmentEnd = dataIndex + segmentLength;
+      const segCells = [];
+      for (let k = dataIndex; k < segmentEnd; k++) segCells.push(k);
+      snap(`Match segment of ${segmentLength} char${segmentLength === 1 ? "" : "s"}: <code>data[${dataIndex}..${segmentEnd - 1}]</code> against <code>key[${keyIndex}..${keyIndex + segmentLength - 1}]</code>.`, {
+        highlight: {
+          data: segCells.map(i => ({ i, kind: "scan", role: "segment-char" })),
+          key: rangeHl(keyIndex, keyIndex + segmentLength, "scan")
+        }
+      });
+
+      while (dataIndex < segmentEnd) {
+        const kc = key.charCodeAt(keyIndex);
+        const kView = kc === 0x2F ? 0x2E : kc;
+        if (kView !== data[dataIndex]) {
+          snap(`Mismatch: <code>'${String.fromCharCode(kView)}'</code> ≠ <code>'${String.fromCharCode(data[dataIndex])}'</code>. Return <code>${result}</code>.`, {
+            highlight: {
+              data: [{ i: dataIndex, kind: "fail", role: "segment-char" }],
+              key: [{ i: keyIndex, kind: "fail" }]
+            },
+            terminal: true
+          });
+          return { result, steps };
+        }
+        keyIndex++;
+        dataIndex++;
+      }
+      snap(`Segment matches. <code>keyIndex = ${keyIndex}</code>, <code>dataIndex = ${dataIndex}</code>.`, {
+        highlight: {
+          data: segCells.map(i => ({ i, kind: "match", role: "segment-char" })),
+          key: rangeHl(keyIndex - segmentLength, keyIndex, "consumed")
+        }
+      });
+
+      const peek = data[dataIndex];
+      if ((peek & LEAF_MARKER) !== 0) {
+        const isGlob = (peek & GLOB_MARKER) !== 0;
+        const num = peek & MAX_NODE_VALUE;
+        snap(`Peek at <code>data[${dataIndex}]</code> = leaf${isGlob ? "+glob" : ""} (<code>0x${peek.toString(16).padStart(4,"0")}</code>, number ${num}).`, {
+          highlight: {
+            data: [{ i: dataIndex, kind: "read", role: roleFor(peek) }]
+          }
+        });
+        if (keyIndex === keyLength || isGlob) {
+          result = num;
+          snap(keyIndex === keyLength
+            ? `Key fully consumed — <code>result = ${num}</code>.`
+            : `Glob — accept partial match. <code>result = ${num}</code>.`, {
+            highlight: { data: [{ i: dataIndex, kind: "match", role: roleFor(peek) }] }
+          });
+        }
+        snap(`Leaf reached. Return <code>${result}</code>.`, { terminal: true });
+        return { result, steps };
+      }
+    }
+  }
+
+  snap(`Outer loop done — no more key characters. Return <code>${result}</code>.`, { terminal: true });
+  return { result, steps };
+
+  function rangeHl(lo, hi, kind) {
+    const out = [];
+    for (let i = lo; i < hi; i++) out.push({ i, kind });
+    return out;
+  }
+}
+
+/* =========================================================================
+ * Compute role annotation for each cell in the trie array (for the
+ * static visualization). Walks the encoded structure assigning roles.
+ * ========================================================================= */
+function annotateTrie(data, longJumps) {
+  const roles = new Array(data.length).fill("unknown");
+  function walk(idx) {
+    if (idx >= data.length) return;
+    if (roles[idx] !== "unknown") return;
+    const branchCount = data[idx];
+    roles[idx] = "branch-count";
+    for (let b = 0; b < branchCount; b++) roles[idx + 1 + b] = "branch-key";
+    for (let b = 0; b < branchCount; b++) {
+      roles[idx + 1 + branchCount + b] = roleFor(data[idx + 1 + branchCount + b]);
+    }
+    for (let b = 1; b < branchCount; b++) {
+      roles[idx + 1 + 2 * branchCount + b - 1] = "jump";
+    }
+    const headerEnd = idx + branchCount * BRANCH_CONTROL_CHARS - FIRST_JUMP_OMITTED + 1;
+    for (let b = 0; b < branchCount; b++) {
+      const v = data[idx + 1 + branchCount + b];
+      let target;
+      if (b === 0) target = headerEnd;
+      else target = headerEnd + resolveJump(longJumps, data[idx + 1 + 2 * branchCount + b - 1]);
+      const isMarker = (v & (LEAF_MARKER | BUD_MARKER)) !== 0;
+      if (isMarker) {
+        // bud branch → next node is at target (no segment)
+        if ((v & LEAF_MARKER) === 0) walk(target);
+      } else {
+        const segLen = v;
+        for (let k = 0; k < segLen; k++) roles[target + k] = "segment-char";
+        // peek
+        const peekIdx = target + segLen;
+        if (peekIdx < data.length) {
+          const peek = data[peekIdx];
+          if ((peek & LEAF_MARKER) !== 0) {
+            roles[peekIdx] = (peek & GLOB_MARKER) ? "value-glob" : "value-leaf";
+          } else {
+            walk(peekIdx);
+          }
+        }
+      }
+    }
+  }
+  walk(0);
+  return roles;
+}
+
+/* =========================================================================
+ * UI
+ * ========================================================================= */
+const $ = id => document.getElementById(id);
+const trieAreaEl  = $("trieArea");
+const keyRowEl    = $("keyRow");
+const trieMetaEl  = $("trieMeta");
+const speedEl     = $("speed"), speedLabel = $("speedLabel");
+const firstBtn   = $("first"), prevBtn = $("prev"), nextBtn = $("next"), lastBtn = $("last"), playBtn = $("play");
+
+const HTML_ESCAPE = {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"};
+const KIND_CLASS  = {read:"read",scan:"read",match:"match-success",fail:"match-fail",cursor:"cursor",consumed:"consumed"};
+
+let currentSteps = [];
+let stepIndex = 0;
+let playTimer = null;
+let cellEls = [], keyCellEls = [];
+
+const descStepNumEl = $("descStepNum");
+const descBodyEl    = $("descBody");
+const resultValueEl = $("resultVal");
+
+function stopPlay() {
+  if (!playTimer) return;
+  clearInterval(playTimer); playTimer = null;
+  playBtn.textContent = "▶ Play";
+  playBtn.setAttribute("aria-pressed", "false");
+  playBtn.setAttribute("aria-label", "Play");
+}
+
+function fmtCell(c) {
+  const kind = (c & LEAF_MARKER) ? "leaf" : (c & BUD_MARKER) ? "bud" : null;
+  if (kind) {
+    return { val: kind + ((c & GLOB_MARKER) ? "*" : "") + " " + (c & MAX_NODE_VALUE), role: roleFor(c) };
+  }
+  if ((c & LONG_JUMP_MARKER) !== 0) {
+    return { val: "L" + (c & ~LONG_JUMP_MARKER), role: "jump" };
+  }
+  if (c >= 0x20 && c < 0x80) return { val: String.fromCharCode(c), role: null };
+  return { val: c.toString(), role: null };
+}
+
+function renderTrie(trieData, roles) {
+  trieAreaEl.innerHTML = "";
+  const row = document.createElement("div");
+  row.className = "trie-row";
+  cellEls = [];
+  for (let i = 0; i < trieData.length; i++) {
+    if (i > 0 && roles[i] === "branch-count") {
+      const sep = document.createElement("div");
+      sep.className = "trie-sep";
+      row.appendChild(sep);
+    }
+    const c = trieData[i];
+    const f = fmtCell(c);
+    const role = roles[i] && roles[i] !== "unknown" ? roles[i] : f.role;
+    const cell = document.createElement("div");
+    cell.className = "cell" + (role ? " " + role : "");
+    cell.innerHTML = `<div class="val">${escapeHtml(f.val)}</div>`;
+    row.appendChild(cell);
+    cellEls.push(cell);
+  }
+  trieAreaEl.appendChild(row);
+  trieMetaEl.textContent = `(${trieData.length} chars)`;
+}
+
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => HTML_ESCAPE[c]);
+}
+
+function renderKey(key) {
+  keyRowEl.innerHTML = "";
+  keyCellEls = [];
+  for (let i = 0; i < key.length; i++) {
+    const cell = document.createElement("div");
+    cell.className = "key-cell";
+    cell.textContent = key[i] === " " ? "·" : key[i];
+    keyRowEl.appendChild(cell);
+    keyCellEls.push(cell);
+  }
+}
+
+function applyHl(hls, els) {
+  for (const h of hls) {
+    const cls = KIND_CLASS[h.kind];
+    if (cls) els[h.i]?.classList.add(cls);
+  }
+}
+
+function clearHighlights() {
+  for (const el of cellEls)    el.classList.remove("read", "cursor", "match-success", "match-fail");
+  for (const el of keyCellEls) el.classList.remove("read", "cursor", "consumed", "match-success", "match-fail");
+}
+
+function applyStep(step) {
+  clearHighlights();
+
+  for (let i = 0; i < step.keyIndex; i++) keyCellEls[i]?.classList.add("consumed");
+
+  const hl = step.highlight || {};
+  applyHl(hl.data || [], cellEls);
+  applyHl(hl.key || [], keyCellEls);
+
+  const ACTIVE = ["read", "match-success", "match-fail"];
+  const cursorEl = cellEls[step.dataIndex];
+  if (cursorEl && !ACTIVE.some(c => cursorEl.classList.contains(c))) cursorEl.classList.add("cursor");
+  const keyCursorEl = keyCellEls[step.keyIndex];
+  if (keyCursorEl && !ACTIVE.some(c => keyCursorEl.classList.contains(c))) keyCursorEl.classList.add("cursor");
+
+  cursorEl?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+
+  resultValueEl.textContent = step.result === -1 ? "−1 (none)" : step.result;
+
+  descStepNumEl.classList.remove("err");
+  descStepNumEl.textContent = `Step ${stepIndex + 1} / ${currentSteps.length}${step.terminal ? " · final" : ""}`;
+  descBodyEl.innerHTML = step.desc;
+}
+
+function gotoStep(i) {
+  if (currentSteps.length === 0) return;
+  stepIndex = Math.max(0, Math.min(currentSteps.length - 1, i));
+  applyStep(currentSteps[stepIndex]);
+  prevBtn.disabled = firstBtn.disabled = stepIndex === 0;
+  nextBtn.disabled = lastBtn.disabled  = stepIndex === currentSteps.length - 1;
+}
+
+function startInterval() {
+  return setInterval(() => {
+    if (stepIndex >= currentSteps.length - 1) { stopPlay(); return; }
+    gotoStep(stepIndex + 1);
+  }, +speedEl.value);
+}
+
+function play() {
+  if (playTimer) { stopPlay(); return; }
+  playBtn.textContent = "⏸ Pause";
+  playBtn.setAttribute("aria-pressed", "true");
+  playBtn.setAttribute("aria-label", "Pause");
+  playTimer = startInterval();
+}
+
+function parseMappings(text) {
+  const out = [];
+  for (const line of text.split(/\r?\n/)) {
+    const m = /^\s*(?:([0-9]+)\s+)?([^\s#]+)/.exec(line);
+    if (m) out.push({ name: m[2], num: m[1] != null ? +m[1] : 1 });
+  }
+  return out;
+}
+
+function build() {
+  const mappings = parseMappings($("mappings").value);
+  const builder = new Builder();
+  for (const m of mappings) builder.put(m.name, m.num);
+  return builder.finalize();
+}
+
+function run() {
+  stopPlay();
+  try {
+    const trie = build();
+    const roles = annotateTrie(trie.trieData, trie.longJumps);
+    const key = $("key").value;
+    renderTrie(trie.trieData, roles);
+    renderKey(key);
+    const { result, steps } = applyTraced(trie.trieData, trie.longJumps, key, 0);
+    currentSteps = steps;
+    gotoStep(0);
+  } catch (e) {
+    descStepNumEl.className = "step-num err";
+    descStepNumEl.textContent = "Error";
+    descBodyEl.textContent = e.message || String(e);
+  }
+}
+
+const BENCHMARK_MAPPINGS = $("mappings").value;
+const BENCHMARK_KEY      = $("key").value;
+
+$("run").onclick = run;
+firstBtn.onclick = () => gotoStep(0);
+prevBtn.onclick  = () => gotoStep(stepIndex - 1);
+nextBtn.onclick  = () => gotoStep(stepIndex + 1);
+lastBtn.onclick  = () => gotoStep(currentSteps.length - 1);
+playBtn.onclick  = play;
+speedEl.oninput  = () => {
+  const label = speedEl.value + "ms";
+  speedLabel.textContent = label;
+  speedEl.setAttribute("aria-valuetext", label);
+  if (playTimer) { clearInterval(playTimer); playTimer = startInterval(); }
+};
+
+$("loadBenchmark").onclick = () => {
+  $("mappings").value = BENCHMARK_MAPPINGS;
+  $("key").value = BENCHMARK_KEY;
+  run();
+};
+
+// Theme toggle
+$("themeBtn").onclick = () => {
+  const h = document.documentElement;
+  h.classList.add("no-transition");
+  h.dataset.theme = h.dataset.theme === "dark" ? "light" : "dark";
+  $("themeBtn").setAttribute("aria-pressed", String(h.dataset.theme === "dark"));
+  try { localStorage.setItem("cntTheme", h.dataset.theme); } catch(e) {}
+  requestAnimationFrame(() => h.classList.remove("no-transition"));
+};
+try {
+  const saved = localStorage.getItem("cntTheme");
+  if (saved) {
+    document.documentElement.dataset.theme = saved;
+    $("themeBtn").setAttribute("aria-pressed", String(saved === "dark"));
+  }
+} catch(e) {}
+
+// auto-run on load
+run();
+</script>
+</body>
+</html>
