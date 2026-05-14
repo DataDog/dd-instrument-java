@@ -140,7 +140,17 @@
     font-size: 13px;
     padding: 8px;
   }
-  textarea { min-height: 100px; resize: vertical; }
+  textarea {
+    min-height: 100px;
+    resize: vertical;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--muted) 40%, var(--border)) transparent;
+  }
+  textarea::-webkit-scrollbar { width: 6px; }
+  textarea::-webkit-scrollbar-track { background: transparent; }
+  textarea::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 40%, var(--border)); border-radius: 3px; }
+  textarea::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  textarea::-webkit-resizer { background-color: var(--panel-2); }
   textarea:focus, input[type=text]:focus {
     border-color: var(--accent);
     outline: 2px solid var(--accent);
@@ -202,7 +212,13 @@
     overflow-x: auto;
     padding: 14px 4px 8px;
     margin-top: -14px; /* reclaim space taken by padding-top without changing visual gap */
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
   }
+  .trie-area::-webkit-scrollbar { height: 6px; }
+  .trie-area::-webkit-scrollbar-track { background: transparent; }
+  .trie-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .trie-area::-webkit-scrollbar-thumb:hover { background: var(--muted); }
   .trie-row {
     display: flex;
     flex-wrap: nowrap;
@@ -286,7 +302,6 @@
   .desc {
     background: var(--panel-2);
     border: 1px solid var(--border);
-    border-left: 3px solid var(--accent);
     border-radius: 6px;
     padding: 10px 12px;
     margin-top: 8px;
