@@ -2,6 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClassNameTrie demo</title>
 <style>
   :root[data-theme="dark"] {
@@ -34,9 +35,9 @@
     --cbg-value-seg:    transparent;
     --cbg-jump:         rgba(77,124,232,0.32);
     --cbg-segment:        rgba(77,208,225,0.14);
-    --cbg-match:        rgba(129,199,132,0.55);
+    --cbg-match:        rgba(20,100,30,0.9);
     --cbg-fail:         rgba(229,115,115,0.35);
-    --cbg-consumed:     rgba(255,183,77,0.55);
+    --cbg-consumed:     rgba(130,70,0,0.9);
     --code-bg:          rgba(79,195,247,0.12);
   }
   :root[data-theme="light"] {
@@ -285,6 +286,9 @@
   .cell.read { z-index: 2; }
   .cell.match-success, .key-cell.match-success { background: var(--cbg-match); border-color: var(--match); }
   .cell.match-fail    { background: var(--cbg-fail);  border-color: var(--nomatch); }
+  .cell.match-success .val, .cell.match-glow .val,
+  .key-cell.match-success, .key-cell.match-glow,
+  .key-cell.consumed { color: var(--text); }
 
   /* Key visualization */
   .key-row {
@@ -386,9 +390,6 @@
     color: var(--muted);
   }
 
-  details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
-  details { margin-top: 8px; }
-
   .pill {
     display: inline-block;
     padding: 1px 6px;
@@ -417,6 +418,7 @@
     color: var(--muted);
   }
   .theme-toggle:hover { color: var(--text); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
   .toggle-track {
     width: 40px;
     height: 22px;
@@ -458,6 +460,9 @@
     color: var(--muted);
     width: 100%;
     margin-top: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cell, .key-cell, .toggle-track, .toggle-knob { transition: none; }
   }
 </style>
 </head>
@@ -527,13 +532,13 @@
         <div class="step-num" id="descStepNum">Idle</div>
         <div id="descBody" aria-live="polite" aria-atomic="true">Press <strong>Build example</strong> to begin.</div>
       </div>
-      <div class="result-display">
+      <div class="result-display" aria-live="polite" aria-atomic="true">
         <div class="k">result</div>
         <div class="v" id="resultVal">—</div>
       </div>
     </div>
 
-    <div class="controls">
+    <div class="controls" role="group" aria-label="Playback controls">
       <button id="first" class="secondary" aria-label="First step"><span class="ico">⏮</span><span>First</span></button>
       <button id="prev" class="secondary" aria-label="Previous step"><span class="ico">◀</span><span>Step</span></button>
       <button id="play" aria-pressed="false" aria-label="Play"><span class="ico">▶</span><span class="lbl">Play</span></button>
@@ -1431,7 +1436,7 @@ function applyStep(step) {
   if (step.showDataCursor) {
     const cursorEl = cellEls[step.cursorAt ?? step.dataIndex];
     if (cursorEl && !CURSOR_BLOCKS.some(c => cursorEl.classList.contains(c))) cursorEl.classList.add("cursor");
-    cursorEl?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    cursorEl?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", inline: "center", block: "nearest" });
   }
 
   resultValueEl.textContent = step.result === -1 ? "−1 (none)" : step.result;
@@ -1479,7 +1484,7 @@ function build() {
   return builder.finalize();
 }
 
-function run() {
+function run(moveFocus = false) {
   stopPlay();
   try {
     const trie = build();
@@ -1490,6 +1495,7 @@ function run() {
     const { result, steps } = applyTraced(trie.trieData, trie.longJumps, key, 0);
     currentSteps = steps;
     gotoStep(0);
+    if (moveFocus) playBtn.focus();
   } catch (e) {
     descStepNumEl.classList.add("err");
     descStepNumEl.textContent = "Error";
@@ -1500,7 +1506,7 @@ function run() {
 const BENCHMARK_MAPPINGS = $("mappings").value;
 const BENCHMARK_KEY      = $("key").value;
 
-$("run").onclick = run;
+$("run").onclick = () => run(true);
 firstBtn.onclick = () => { stopPlay(); gotoStep(0); };
 prevBtn.onclick  = () => { stopPlay(); gotoStep(stepIndex - 1); };
 nextBtn.onclick  = () => { stopPlay(); gotoStep(stepIndex + 1); };
@@ -1516,7 +1522,7 @@ speedEl.oninput  = () => {
 $("loadBenchmark").onclick = () => {
   $("mappings").value = BENCHMARK_MAPPINGS;
   $("key").value = BENCHMARK_KEY;
-  run();
+  run(true);
 };
 
 // Theme toggle
