@@ -34,7 +34,7 @@
     --cbg-segment:      rgba(77,208,225,0.14);
     --cbg-match:        rgba(129,199,132,0.35);
     --cbg-fail:         rgba(229,115,115,0.35);
-    --cbg-consumed:     rgba(129,199,132,0.2);
+    --cbg-consumed:     rgba(255,183,77,0.18);
     --code-bg:          rgba(79,195,247,0.12);
   }
   :root[data-theme="light"] {
@@ -67,7 +67,7 @@
     --cbg-segment:      rgba(26,138,154,0.09);
     --cbg-match:        rgba(46,125,79,0.25);
     --cbg-fail:         rgba(192,48,48,0.2);
-    --cbg-consumed:     rgba(46,125,79,0.15);
+    --cbg-consumed:     rgba(192,120,0,0.12);
     --code-bg:          rgba(0,102,187,0.1);
   }
   * { box-sizing: border-box; }
@@ -272,7 +272,7 @@
   .cell.read, .key-cell.read   { box-shadow: 0 0 0 2px var(--read), 0 0 12px var(--read); }
   .cell.cursor, .key-cell.cursor { box-shadow: 0 0 0 2px var(--accent); }
   .cell.read { z-index: 2; }
-  .cell.match-success { background: var(--cbg-match); border-color: var(--match); }
+  .cell.match-success, .key-cell.match-success { background: var(--cbg-match); border-color: var(--match); }
   .cell.match-fail    { background: var(--cbg-fail);  border-color: var(--nomatch); }
 
   /* Key visualization */
@@ -297,7 +297,7 @@
     padding: 2px;
     transition: background 0.2s, border-color 0.2s;
   }
-  .key-cell.consumed { background: var(--cbg-consumed); border-color: var(--match); }
+  .key-cell.consumed { background: var(--cbg-consumed); border-color: var(--read); }
 
   .desc {
     background: var(--panel-2);
@@ -1048,7 +1048,7 @@ function applyTraced(data, longJumps, key, fromIndex) {
   }
 
   snap("Start. <code>keyIndex = " + keyIndex + "</code>, <code>dataIndex = 0</code>, <code>result = -1</code>. Loop while there are key characters left.", {
-    highlight: { data: [], key: [] }
+    highlight: { data: [], key: [] }, showDataCursor: true
   });
 
   outer:
@@ -1056,7 +1056,7 @@ function applyTraced(data, longJumps, key, fromIndex) {
     const c = key.charCodeAt(keyIndex);
     const cView = c === 0x2F /* '/' */ ? 0x2E /* '.' */ : c;
     snap(`Read next key character <code>'${String.fromCharCode(c)}'</code> at index ${keyIndex}.${c === 0x2F ? " (Slashes are normalized to dots before matching.)" : ""}`, {
-      highlight: { key: [{ i: keyIndex, kind: "read" }], data: [] }
+      highlight: { key: [{ i: keyIndex, kind: "read" }], data: [] }, showDataCursor: true
     });
     keyIndex++;
 
@@ -1102,7 +1102,8 @@ function applyTraced(data, longJumps, key, fromIndex) {
       highlight: {
         data: [{ i: branchIndex, kind: "match", role: "branch-key" }],
         key: [{ i: keyIndex - 1, kind: "consumed" }]
-      }
+      },
+      showDataCursor: true, cursorAt: branchIndex
     });
 
     const valueIndex = branchIndex + branchCount;
@@ -1118,7 +1119,8 @@ function applyTraced(data, longJumps, key, fromIndex) {
         highlight: {
           data: [{ i: valueIndex, kind: "read", role: roleFor(value) }],
           key: [{ i: keyIndex - 1, kind: "consumed" }]
-        }
+        },
+        showDataCursor: true, cursorAt: valueIndex
       });
 
       if (keyIndex === keyLength || isGlob) {
@@ -1128,7 +1130,8 @@ function applyTraced(data, longJumps, key, fromIndex) {
           : `Glob marker is set — partial matches are allowed. Tentative <code>result = ${num}</code> (we may still match more).`, {
           highlight: {
             data: [{ i: valueIndex, kind: "match", role: roleFor(value) }],
-          }
+          },
+          showDataCursor: true, cursorAt: valueIndex
         });
       }
       if (keyIndex === keyLength || isLeaf) {
@@ -1138,6 +1141,7 @@ function applyTraced(data, longJumps, key, fromIndex) {
           highlight: {
             data: [{ i: valueIndex, kind: isLeaf ? "fail" : "match", role: roleFor(value) }],
           },
+          showDataCursor: true, cursorAt: valueIndex,
           terminal: true
         });
         return { result, steps };
@@ -1168,11 +1172,7 @@ function applyTraced(data, longJumps, key, fromIndex) {
 
     const advance = (branchCount * BRANCH_CONTROL_CHARS) - FIRST_JUMP_OMITTED;
     dataIndex += advance;
-    snap(`Advance past the node header (<code>${branchCount} branches × 3 − 1 = ${advance}</code> cells${branchIndex > keysLo ? ", on top of the jump" : ""}). <code>dataIndex = ${dataIndex}</code>.`, {
-      highlight: {
-        data: [{ i: dataIndex, kind: "cursor" }]
-      }
-    });
+    snap(`Advance past the node header (<code>${branchCount} branches × 3 − 1 = ${advance}</code> cells${branchIndex > keysLo ? ", on top of the jump" : ""}). <code>dataIndex = ${dataIndex}</code>.`, { showDataCursor: true });
 
     if (segmentLength > 0) {
       if (keyLength - keyIndex < segmentLength) {
@@ -1211,7 +1211,8 @@ function applyTraced(data, longJumps, key, fromIndex) {
         highlight: {
           data: segCells.map(i => ({ i, kind: "match", role: "segment-char" })),
           key: rangeHl(keyIndex - segmentLength, keyIndex, "consumed")
-        }
+        },
+        showDataCursor: true
       });
 
       const peek = data[dataIndex];
@@ -1221,17 +1222,19 @@ function applyTraced(data, longJumps, key, fromIndex) {
         snap(`Peek at <code>data[${dataIndex}]</code> = leaf${isGlob ? "+glob" : ""} (<code>0x${peek.toString(16).padStart(4,"0")}</code>, number ${num}).`, {
           highlight: {
             data: [{ i: dataIndex, kind: "read", role: roleFor(peek) }]
-          }
+          },
+          showDataCursor: true, cursorAt: dataIndex
         });
         if (keyIndex === keyLength || isGlob) {
           result = num;
           snap(keyIndex === keyLength
             ? `Key fully consumed — <code>result = ${num}</code>.`
             : `Glob — accept partial match. <code>result = ${num}</code>.`, {
-            highlight: { data: [{ i: dataIndex, kind: "match", role: roleFor(peek) }] }
+            highlight: { data: [{ i: dataIndex, kind: "match", role: roleFor(peek) }] },
+            showDataCursor: true, cursorAt: dataIndex
           });
         }
-        snap(`Leaf reached. Return <code>${result}</code>.`, { terminal: true });
+        snap(`Leaf reached. Return <code>${result}</code>.`, { showDataCursor: true, cursorAt: dataIndex, terminal: true });
         return { result, steps };
       }
     }
@@ -1307,6 +1310,7 @@ const firstBtn   = $("first"), prevBtn = $("prev"), nextBtn = $("next"), lastBtn
 
 const HTML_ESCAPE = {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"};
 const KIND_CLASS  = {read:"read",scan:"read",match:"match-success",fail:"match-fail",cursor:"cursor",consumed:"consumed"};
+const CURSOR_BLOCKS = ["read", "match-fail"]; // classes that prevent the cursor ring from overlapping
 
 let currentSteps = [];
 let stepIndex = 0;
@@ -1400,19 +1404,18 @@ function clearHighlights() {
 function applyStep(step) {
   clearHighlights();
 
-  for (let i = 0; i < step.keyIndex; i++) keyCellEls[i]?.classList.add("consumed");
+  const keyClass = step.result !== -1 ? "match-success" : "consumed";
+  for (let i = 0; i < step.keyIndex; i++) keyCellEls[i]?.classList.add(keyClass);
 
   const hl = step.highlight || {};
   applyHl(hl.data || [], cellEls);
   applyHl(hl.key || [], keyCellEls);
 
-  const ACTIVE = ["read", "match-success", "match-fail"];
-  const cursorEl = cellEls[step.dataIndex];
-  if (cursorEl && !ACTIVE.some(c => cursorEl.classList.contains(c))) cursorEl.classList.add("cursor");
-  const keyCursorEl = keyCellEls[step.keyIndex];
-  if (keyCursorEl && !ACTIVE.some(c => keyCursorEl.classList.contains(c))) keyCursorEl.classList.add("cursor");
-
-  cursorEl?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  if (step.showDataCursor) {
+    const cursorEl = cellEls[step.cursorAt ?? step.dataIndex];
+    if (cursorEl && !CURSOR_BLOCKS.some(c => cursorEl.classList.contains(c))) cursorEl.classList.add("cursor");
+    cursorEl?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }
 
   resultValueEl.textContent = step.result === -1 ? "−1 (none)" : step.result;
 
