@@ -557,52 +557,54 @@
     <h2 style="margin-top:18px">Mappings</h2>
     <div class="small">One entry per line: <code>&lt;number&gt; &lt;class-name&gt;</code>. Suffix <code>*</code> = glob.</div>
     <label class="field" for="mappings">Trie content</label>
-    <textarea id="mappings" spellcheck="false">1 java.*
-0 java.lang.Throwable
-0 java.net.HttpURLConnection
-0 java.net.URL
-0 java.rmi.*
-0 java.util.concurrent.*
-0 java.util.logging.*
-1 java.util.logging.LogManager$Cleaner
-2 akka.actor.*
-0 akka.actor.ActorCell
-0 akka.actor.ActorSystem$*
-0 akka.actor.CoordinatedShutdown$*
-2 akka.stream.*
-0 akka.stream.impl.FanIn$SubInput
-0 akka.stream.impl.FanOut$SubstreamSubscription
-0 akka.stream.impl.fusing.ActorGraphInterpreter$*
-0 akka.stream.stage.GraphStageLogic$*
-0 akka.stream.stage.TimerGraphStageLogic$*
-2 ch.qos.logback.*
-0 ch.qos.logback.classic.Logger
-0 ch.qos.logback.classic.spi.LoggingEvent
-0 ch.qos.logback.classic.spi.LoggingEventVO
-0 ch.qos.logback.core.AsyncAppenderBase$Worker
-2 com.google.common.*
-0 com.google.common.base.internal.Finalizer
-0 com.google.common.util.concurrent.*
-2 com.google.inject.*
-0 com.google.inject.internal.BytecodeGen$*
-0 com.google.inject.internal.cglib.core.internal.$LoadingCache
-0 org.springframework.*
+    <textarea id="mappings" spellcheck="false">0 org.springframework.*
 2 org.springframework.aop.*
 0 org.springframework.aop.interceptor.AsyncExecutionInterceptor
+2 org.springframework.beans.*
+0 org.springframework.beans.factory.groovy.GroovyBeanDefinitionReader$*
+0 org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory
+0 org.springframework.beans.factory.support.AbstractBeanFactory
+0 org.springframework.beans.factory.support.DefaultListableBeanFactory
+0 org.springframework.beans.factory.support.DisposableBeanAdapter
 2 org.springframework.boot.*
 0 org.springframework.boot.autoconfigure.BackgroundPreinitializer$*
+0 org.springframework.boot.autoconfigure.condition.OnClassCondition$*
+0 org.springframework.boot.web.embedded.netty.NettyWebServer$*
 0 org.springframework.boot.web.embedded.tomcat.TomcatEmbeddedWebappClassLoader
-0 org.springframework.boot.web.embedded.tomcat.TomcatWebServer$1
+0 org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
+2 org.springframework.cglib.*
+0 org.springframework.cglib.core.internal.LoadingCache
+0 org.springframework.cglib.core.internal.LoadingCache$*
+2 org.springframework.context.*
+0 org.springframework.context.support.AbstractApplicationContext$*
+1 org.springframework.context.support.ContextTypeMatchClassLoader
+2 org.springframework.core.*
+1 org.springframework.core.$Proxy
+1 org.springframework.core.DecoratingClassLoader
+1 org.springframework.core.OverridingClassLoader
+0 org.springframework.core.task.*
+2 org.springframework.data.*
+0 org.springframework.data.convert.ClassGeneratingEntityInstantiator$*
+0 org.springframework.data.repository.core.support.RepositoryFactorySupport
+2 org.springframework.http.*
+0 org.springframework.http.server.reactive.*
+2 org.springframework.instrument.*
+1 org.springframework.instrument.classloading.ShadowingClassLoader
+1 org.springframework.instrument.classloading.SimpleThrowawayClassLoader
+2 org.springframework.jms.*
+0 org.springframework.jms.listener.*
+2 org.springframework.transaction.*
+2 org.springframework.util.*
+0 org.springframework.util.concurrent.*
 2 org.springframework.web.*
-0 org.springframework.web.servlet.*
+0 org.springframework.web.context.request.async.*
+0 org.springframework.web.context.support.AbstractRefreshableWebApplicationContext
 0 org.springframework.web.context.support.GenericWebApplicationContext
-2 org.apache.log4j.*
-0 org.apache.log4j.Category
-0 org.apache.log4j.MDC
-0 org.apache.log4j.spi.LoggingEvent</textarea>
+0 org.springframework.web.reactive.*
+0 org.springframework.web.servlet.*</textarea>
 
     <label class="field" for="key">Lookup key</label>
-    <input id="key" type="text" value="ch.qos.logback.classic.spi.LoggingEventVO" spellcheck="false">
+    <input id="key" type="text" value="org.springframework.boot.web.embedded.netty.NettyWebServer$1" spellcheck="false">
 
     <div class="row" style="margin-top:10px">
       <button id="run">Build example</button>
