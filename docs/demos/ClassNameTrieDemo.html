@@ -43,7 +43,6 @@
     --panel: #ffffff;
     --panel-2: #eef0fa;
     --text: #1a1d2e;
-    --cell-text: #1a1d2e;
     --muted: #5a5f7a;
     --accent: #0066bb;
     --accent-text: #ffffff;
@@ -179,7 +178,7 @@
   }
   button.secondary {
     background: var(--panel-2);
-    color: var(--cell-text);
+    color: var(--cell-text, var(--text));
     border: 1px solid var(--border);
   }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -264,7 +263,7 @@
   .cell .val {
     font-size: 14px;
     font-weight: 600;
-    color: var(--cell-text);
+    color: var(--cell-text, var(--text));
   }
   /* Roles */
   .cell.branch-count { background: var(--cbg-branch-count); border-color: var(--branch-count); }
@@ -302,7 +301,7 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 14px;
     font-weight: 600;
-    color: var(--cell-text);
+    color: var(--cell-text, var(--text));
     padding: 2px;
     transition: background 0.2s, border-color 0.2s;
   }
@@ -533,7 +532,7 @@
     <div class="controls">
       <button id="first" class="secondary" aria-label="First step"><span class="ico">⏮</span><span>First</span></button>
       <button id="prev" class="secondary" aria-label="Previous step"><span class="ico">◀</span><span>Step</span></button>
-      <button id="play" aria-pressed="false" aria-label="Play"><span class="ico">▶</span><span>Play</span></button>
+      <button id="play" aria-pressed="false" aria-label="Play"><span class="ico">▶</span><span class="lbl">Play</span></button>
       <button id="next" class="secondary" aria-label="Next step"><span>Step</span><span class="ico">▶</span></button>
       <button id="last" class="secondary" aria-label="Last step"><span>Last</span><span class="ico">⏭</span></button>
       <span class="spacer"></span>
@@ -1331,13 +1330,20 @@ const descStepNumEl = $("descStepNum");
 const descBodyEl    = $("descBody");
 const resultValueEl = $("resultVal");
 
+const playIco = playBtn.querySelector('.ico');
+const playLbl = playBtn.querySelector('.lbl');
+
+function setPlayState(playing) {
+  playIco.textContent = playing ? "⏸" : "▶";
+  playLbl.textContent = playing ? "Pause" : "Play";
+  playBtn.setAttribute("aria-pressed", String(playing));
+  playBtn.setAttribute("aria-label", playing ? "Pause" : "Play");
+}
+
 function stopPlay() {
   if (!playTimer) return;
   clearInterval(playTimer); playTimer = null;
-  playBtn.children[0].textContent = "▶";
-  playBtn.children[1].textContent = "Play";
-  playBtn.setAttribute("aria-pressed", "false");
-  playBtn.setAttribute("aria-label", "Play");
+  setPlayState(false);
 }
 
 function fmtCell(c, role) {
@@ -1453,10 +1459,7 @@ function startInterval() {
 
 function play() {
   if (playTimer) { stopPlay(); return; }
-  playBtn.children[0].textContent = "⏸";
-  playBtn.children[1].textContent = "Pause";
-  playBtn.setAttribute("aria-pressed", "true");
-  playBtn.setAttribute("aria-label", "Pause");
+  setPlayState(true);
   playTimer = startInterval();
 }
 
@@ -1498,10 +1501,10 @@ const BENCHMARK_MAPPINGS = $("mappings").value;
 const BENCHMARK_KEY      = $("key").value;
 
 $("run").onclick = run;
-firstBtn.onclick = () => gotoStep(0);
-prevBtn.onclick  = () => gotoStep(stepIndex - 1);
-nextBtn.onclick  = () => gotoStep(stepIndex + 1);
-lastBtn.onclick  = () => gotoStep(currentSteps.length - 1);
+firstBtn.onclick = () => { stopPlay(); gotoStep(0); };
+prevBtn.onclick  = () => { stopPlay(); gotoStep(stepIndex - 1); };
+nextBtn.onclick  = () => { stopPlay(); gotoStep(stepIndex + 1); };
+lastBtn.onclick  = () => { stopPlay(); gotoStep(currentSteps.length - 1); };
 playBtn.onclick  = play;
 speedEl.oninput  = () => {
   const label = speedEl.value + "ms";
