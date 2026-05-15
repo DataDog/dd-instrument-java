@@ -107,8 +107,9 @@
   .header-title {
     display: flex;
     align-items: baseline;
-    gap: 12px;
+    gap: 4px 12px;
     flex: 1;
+    flex-wrap: wrap;
   }
   header h1 {
     margin: 0;
@@ -191,7 +192,7 @@
 
   .legend {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 5px 12px;
     font-size: 12px;
     color: var(--muted);
@@ -460,6 +461,10 @@
     color: var(--muted);
     width: 100%;
     margin-top: 4px;
+  }
+  @media (max-width: 600px) {
+    /* Prevent iOS Safari from zooming on input focus (triggered when font-size < 16px) */
+    textarea, input[type=text] { font-size: 16px; }
   }
   @media (prefers-reduced-motion: reduce) {
     .cell, .key-cell, .toggle-track, .toggle-knob { transition: none; }
