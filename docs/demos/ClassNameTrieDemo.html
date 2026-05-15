@@ -336,9 +336,9 @@
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 6px 5px;
     flex-shrink: 0;
-    min-width: 70px;
+    min-width: 82px;
     text-align: center;
   }
   .result-display .k {
@@ -470,6 +470,12 @@
     /* Icon-only: meet 44px touch-target minimum */
     .controls button { width: 44px; height: 44px; }
     .controls button span:not(.ico) { display: none; }
+    /* Fixed-height step box — no layout shift, no scrollbar */
+    .desc { height: 9rem; overflow: hidden; position: relative; }
+    /* Anchor result display top-right so it never moves as text changes */
+    .result-display { position: absolute; top: 10px; right: 12px; }
+    /* Keep text away from the result display */
+    .desc-body { padding-right: 88px; }
   }
   @media (prefers-reduced-motion: reduce) {
     .cell, .key-cell, .toggle-track, .toggle-knob { transition: none; }
@@ -543,7 +549,7 @@
         <div id="descBody" aria-live="polite" aria-atomic="true">Press <strong>Build example</strong> to begin.</div>
       </div>
       <div class="result-display" aria-live="polite" aria-atomic="true">
-        <div class="k">result</div>
+        <div class="k" id="resultLabel">NO RESULT</div>
         <div class="v" id="resultVal">—</div>
       </div>
     </div>
@@ -1342,9 +1348,10 @@ let stepIndex = 0;
 let playTimer = null;
 let cellEls = [], keyCellEls = [];
 
-const descStepNumEl = $("descStepNum");
-const descBodyEl    = $("descBody");
-const resultValueEl = $("resultVal");
+const descStepNumEl  = $("descStepNum");
+const descBodyEl     = $("descBody");
+const resultLabelEl  = $("resultLabel");
+const resultValueEl  = $("resultVal");
 
 const playIco = playBtn.querySelector('.ico');
 const playLbl = playBtn.querySelector('.lbl');
@@ -1449,8 +1456,10 @@ function applyStep(step) {
     cursorEl?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", inline: "center", block: "nearest" });
   }
 
-  resultValueEl.textContent = step.result === -1 ? "−1 (none)" : step.result;
-  resultValueEl.classList.toggle("ok", step.result !== -1);
+  const hasResult = step.result !== -1;
+  resultLabelEl.textContent = hasResult ? "RESULT" : "NO RESULT";
+  resultValueEl.textContent = hasResult ? step.result : "−1";
+  resultValueEl.classList.toggle("ok", hasResult);
 
   descStepNumEl.classList.remove("err");
   descStepNumEl.textContent = `Step ${stepIndex + 1} / ${currentSteps.length}${step.terminal ? " · final" : ""}`;
