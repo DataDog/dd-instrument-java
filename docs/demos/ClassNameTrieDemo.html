@@ -382,7 +382,6 @@
     gap: 4px;
     width: 88px;
     height: 34px;
-    box-sizing: border-box;
   }
   .controls button .ico { line-height: 1; display: flex; align-items: center; }
   .controls .spacer { flex: 1; }
@@ -468,7 +467,7 @@
   @media (max-width: 600px) {
     /* Prevent iOS Safari from zooming on input focus (triggered when font-size < 16px) */
     textarea, input[type=text] { font-size: 16px; }
-    /* Icon-only buttons: all 5 fit in one row and meet 44px touch-target minimum */
+    /* Icon-only: meet 44px touch-target minimum */
     .controls button { width: 44px; height: 44px; }
     .controls button span:not(.ico) { display: none; }
   }
