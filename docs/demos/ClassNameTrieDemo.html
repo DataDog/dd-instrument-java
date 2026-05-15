@@ -347,6 +347,8 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
+  .result-display .k::before { content: "NO RESULT"; }
+  .result-display.has-result .k::before { content: "RESULT"; }
   .result-display .v {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 14px;
@@ -474,7 +476,6 @@
     .desc { height: 9rem; overflow: hidden; position: relative; }
     /* Anchor result display top-right so it never moves as text changes */
     .result-display { position: absolute; top: 10px; right: 12px; }
-    /* Keep text away from the result display */
     .desc-body { padding-right: 88px; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -548,8 +549,8 @@
         <div class="step-num" id="descStepNum">Idle</div>
         <div id="descBody" aria-live="polite" aria-atomic="true">Press <strong>Build example</strong> to begin.</div>
       </div>
-      <div class="result-display" aria-live="polite" aria-atomic="true">
-        <div class="k" id="resultLabel">NO RESULT</div>
+      <div class="result-display" id="resultDisplay" aria-live="polite" aria-atomic="true">
+        <div class="k"></div>
         <div class="v" id="resultVal">—</div>
       </div>
     </div>
@@ -1350,7 +1351,7 @@ let cellEls = [], keyCellEls = [];
 
 const descStepNumEl  = $("descStepNum");
 const descBodyEl     = $("descBody");
-const resultLabelEl  = $("resultLabel");
+const resultDisplayEl = $("resultDisplay");
 const resultValueEl  = $("resultVal");
 
 const playIco = playBtn.querySelector('.ico');
@@ -1457,7 +1458,7 @@ function applyStep(step) {
   }
 
   const hasResult = step.result !== -1;
-  resultLabelEl.textContent = hasResult ? "RESULT" : "NO RESULT";
+  resultDisplayEl.classList.toggle("has-result", hasResult);
   resultValueEl.textContent = hasResult ? step.result : "−1";
   resultValueEl.classList.toggle("ok", hasResult);
 
