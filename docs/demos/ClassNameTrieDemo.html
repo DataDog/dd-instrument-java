@@ -192,17 +192,19 @@
 
   .legend {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(max(180px, calc(25% - 9px)), 1fr));
     gap: 5px 12px;
     font-size: 12px;
     color: var(--muted);
     margin-top: 8px;
   }
   .legend .li {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 5px;
     white-space: nowrap;
+    min-width: 0;
+    overflow: hidden;
   }
   .legend .chip {
     display: inline-flex;
@@ -324,6 +326,7 @@
     margin-top: 8px;
     min-height: 48px;
     display: flex;
+    flex-wrap: wrap;
     gap: 12px;
     align-items: flex-start;
   }
@@ -465,6 +468,9 @@
   @media (max-width: 600px) {
     /* Prevent iOS Safari from zooming on input focus (triggered when font-size < 16px) */
     textarea, input[type=text] { font-size: 16px; }
+    /* Icon-only buttons: all 5 fit in one row and meet 44px touch-target minimum */
+    .controls button { width: 44px; height: 44px; }
+    .controls button span:not(.ico) { display: none; }
   }
   @media (prefers-reduced-motion: reduce) {
     .cell, .key-cell, .toggle-track, .toggle-knob { transition: none; }
@@ -571,7 +577,7 @@
       <span class="li"><span class="chip" style="background:var(--cbg-branch-key);border:1px solid var(--branch-key)">K</span>branch character</span>
       <span class="li"><span class="chip" style="background:var(--cbg-value-seg);border:1px solid var(--value-seg)">L</span>segment length</span>
       <span class="li"><span class="chip" style="background:var(--cbg-segment);border:1px dashed var(--segment)">S</span>segment character</span>
-      <span class="li"><span class="chip" style="background:var(--cbg-value-bud);border:1px solid var(--bud)">bud</span>update result, continue match</span>
+      <span class="li"><span class="chip" style="background:var(--cbg-value-bud);border:1px solid var(--bud)">bud</span>update result, continue</span>
       <span class="li"><span class="chip" style="background:var(--cbg-value-leaf);border:1px solid var(--leaf)">leaf</span>stop and return result</span>
       <span class="li"><span class="chip" style="background:var(--cbg-value-glob);border:1px solid var(--glob)">*</span>accept partial match</span>
       <span class="li"><span class="chip" style="background:var(--cbg-jump);border:1px solid var(--jump)">J</span>jump to branch ≥ 1</span>
