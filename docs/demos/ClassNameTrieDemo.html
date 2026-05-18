@@ -18,10 +18,10 @@
     --leaf: #66bb6a;
     --bud: #ab47bc;
     --glob: #ff7043;
-    --segment: #4dd0e1;
+    --segment: #78909c;
     --value-seg: #78909c;
     --branch-key: #d4b840;
-    --jump: #7060e8;
+    --jump: #93c5fd;
     --branch-count: #f48fb1;
     --read: #ffb74d;
     --match: #81c784;
@@ -33,11 +33,11 @@
     --cbg-value-bud:    rgba(171,71,188,0.22);
     --cbg-value-glob:   rgba(255,112,67,0.22);
     --cbg-value-seg:    transparent;
-    --cbg-jump:         rgba(112,96,232,0.22);
-    --cbg-segment:        rgba(77,208,225,0.14);
+    --cbg-jump:         rgba(147,197,253,0.15);
+    --cbg-segment:      transparent;
     --cbg-match:        rgba(20,100,30,0.9);
     --cbg-fail:         rgba(229,115,115,0.35);
-    --cbg-consumed:     rgba(130,70,0,0.9);
+    --cbg-consumed:     rgba(201,185,154,0.30);
     --code-bg:          rgba(79,195,247,0.12);
   }
   :root[data-theme="light"] {
@@ -52,10 +52,10 @@
     --leaf: #2e7d4f;
     --bud: #7b3d9e;
     --glob: #c0440a;
-    --segment: #1a9490;
+    --segment: #607d8b;
     --value-seg: #607d8b;
     --branch-key: #7a6800;
-    --jump: #5040c8;
+    --jump: #93c5fd;
     --branch-count: #b83060;
     --read: #c07800;
     --match: #1e6e3a;
@@ -67,11 +67,11 @@
     --cbg-value-bud:    rgba(123,61,158,0.18);
     --cbg-value-glob:   rgba(192,68,10,0.18);
     --cbg-value-seg:    transparent;
-    --cbg-jump:         rgba(80,64,200,0.18);
-    --cbg-segment:        rgba(26,148,144,0.13);
+    --cbg-jump:         #eff6ff;
+    --cbg-segment:      #ffffff;
     --cbg-match:        rgba(46,125,79,0.45);
     --cbg-fail:         rgba(192,48,48,0.2);
-    --cbg-consumed:     rgba(192,120,0,0.45);
+    --cbg-consumed:     rgba(160,140,100,0.25);
     --code-bg:          rgba(0,102,187,0.06);
   }
   * { box-sizing: border-box; }
@@ -276,7 +276,9 @@
   .cell.branch-key   { background: var(--cbg-branch-key);   border-color: var(--branch-key); }
   .cell.value-leaf   { background: var(--cbg-value-leaf);   border-color: var(--leaf); }
   .cell.value-bud    { background: var(--cbg-value-bud);    border-color: var(--bud); }
-  .cell.value-glob   { background: var(--cbg-value-glob);   border-color: var(--glob); }
+  .cell.value-glob      { background: var(--cbg-value-glob);   border-color: var(--glob); }
+  .cell.value-leaf-glob { background: linear-gradient(135deg, var(--cbg-value-leaf) 50%, color-mix(in srgb, var(--glob) 30%, transparent) 50%); border-color: var(--leaf); }
+  .cell.value-bud-glob  { background: linear-gradient(135deg, var(--cbg-value-bud)  50%, color-mix(in srgb, var(--glob) 30%, transparent) 50%); border-color: var(--bud); }
   .cell.value-seg    { background: var(--cbg-value-seg);    border-color: var(--value-seg); }
   .cell.jump         { background: var(--cbg-jump);         border-color: var(--jump); }
   .cell.segment-char { background: var(--cbg-segment);      border-color: var(--segment); border-style: dashed; }
@@ -316,7 +318,7 @@
     padding: 2px;
     transition: background 0.2s, border-color 0.2s;
   }
-  .key-cell.consumed { background: var(--cbg-consumed); border-color: var(--read); }
+  .key-cell.consumed { background: var(--cbg-consumed); border-color: #b8a070; }
 
   .desc {
     background: var(--panel-2);
@@ -579,14 +581,14 @@
   <section class="panel" aria-label="Configuration">
     <h2>Legend</h2>
     <div class="legend">
-      <span class="li"><span class="chip" style="background:var(--cbg-branch-count);border:1px solid var(--branch-count)">N</span>branch count</span>
+      <span class="li"><span class="chip" style="background:var(--cbg-branch-count);border:1px solid var(--branch-count)">N</span>number of branches</span>
       <span class="li"><span class="chip" style="background:var(--cbg-branch-key);border:1px solid var(--branch-key)">K</span>branch character</span>
       <span class="li"><span class="chip" style="background:var(--cbg-value-seg);border:1px solid var(--value-seg)">L</span>segment length</span>
       <span class="li"><span class="chip" style="background:var(--cbg-segment);border:1px dashed var(--segment)">S</span>segment character</span>
       <span class="li"><span class="chip" style="background:var(--cbg-value-bud);border:1px solid var(--bud)">bud</span>update result, continue</span>
-      <span class="li"><span class="chip" style="background:var(--cbg-value-leaf);border:1px solid var(--leaf)">leaf</span>stop and return result</span>
+      <span class="li"><span class="chip" style="background:var(--cbg-value-leaf);border:1px solid var(--leaf)">leaf</span>update result, stop</span>
       <span class="li"><span class="chip" style="background:var(--cbg-value-glob);border:1px solid var(--glob)">*</span>accept partial match</span>
-      <span class="li"><span class="chip" style="background:var(--cbg-jump);border:1px solid var(--jump)">J</span>jump to branch ≥ 1</span>
+      <span class="li"><span class="chip" style="background:var(--cbg-jump);border:1px solid var(--jump)">J</span>jump offset</span>
     </div>
 
     <h2 style="margin-top:18px">Mappings</h2>
@@ -665,8 +667,8 @@ function resolveJump(longJumps, c) {
   return (c & LONG_JUMP_MARKER) === 0 ? c : longJumps[c & ~LONG_JUMP_MARKER];
 }
 function roleFor(v) {
-  if ((v & LEAF_MARKER) !== 0) return (v & GLOB_MARKER) !== 0 ? "value-glob" : "value-leaf";
-  if ((v & BUD_MARKER) !== 0)  return (v & GLOB_MARKER) !== 0 ? "value-glob" : "value-bud";
+  if ((v & LEAF_MARKER) !== 0) return (v & GLOB_MARKER) !== 0 ? "value-leaf-glob" : "value-leaf";
+  if ((v & BUD_MARKER) !== 0)  return (v & GLOB_MARKER) !== 0 ? "value-bud-glob"  : "value-bud";
   return "value-seg";
 }
 
@@ -1318,7 +1320,7 @@ function annotateTrie(data, longJumps) {
         if (peekIdx < data.length) {
           const peek = data[peekIdx];
           if ((peek & LEAF_MARKER) !== 0) {
-            roles[peekIdx] = (peek & GLOB_MARKER) ? "value-glob" : "value-leaf";
+            roles[peekIdx] = roleFor(peek);
           } else {
             walk(peekIdx);
           }

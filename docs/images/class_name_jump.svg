@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="730" height="88" viewBox="0 0 730 88">
+  <defs>
+    <style>
+      text { font-family: sans-serif; }
+    </style>
+    <pattern id="long-stripe" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+      <rect width="6" height="6" fill="#eff6ff"/>
+      <line x1="0" y1="0" x2="0" y2="6" stroke="#93c5fd" stroke-width="2"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="730" height="88" fill="#ffffff" rx="6"/>
+
+  <!-- Bit position numbers (above boxes) -->
+  <text x="60"  y="20" text-anchor="middle" font-size="10" fill="#64748b">15</text>
+  <text x="100" y="20" text-anchor="middle" font-size="10" fill="#64748b">14</text>
+  <text x="140" y="20" text-anchor="middle" font-size="10" fill="#64748b">13</text>
+  <text x="180" y="20" text-anchor="middle" font-size="10" fill="#64748b">12</text>
+  <text x="220" y="20" text-anchor="middle" font-size="10" fill="#64748b">11</text>
+  <text x="260" y="20" text-anchor="middle" font-size="10" fill="#64748b">10</text>
+  <text x="300" y="20" text-anchor="middle" font-size="10" fill="#64748b">9</text>
+  <text x="340" y="20" text-anchor="middle" font-size="10" fill="#64748b">8</text>
+  <text x="380" y="20" text-anchor="middle" font-size="10" fill="#64748b">7</text>
+  <text x="420" y="20" text-anchor="middle" font-size="10" fill="#64748b">6</text>
+  <text x="460" y="20" text-anchor="middle" font-size="10" fill="#64748b">5</text>
+  <text x="500" y="20" text-anchor="middle" font-size="10" fill="#64748b">4</text>
+  <text x="540" y="20" text-anchor="middle" font-size="10" fill="#64748b">3</text>
+  <text x="580" y="20" text-anchor="middle" font-size="10" fill="#64748b">2</text>
+  <text x="620" y="20" text-anchor="middle" font-size="10" fill="#64748b">1</text>
+  <text x="660" y="20" text-anchor="middle" font-size="10" fill="#64748b">0</text>
+
+  <!-- LONG — bit 15: rect ends at x=79, 2px gap before JUMP -->
+  <rect x="40" y="28" width="39" height="40" rx="7" fill="url(#long-stripe)" stroke="#93c5fd" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="59" y="48" text-anchor="middle" dominant-baseline="central" font-family="monospace" font-size="11" font-weight="bold" fill="#1e293b">LONG</text>
+
+  <!-- JUMP — bits 14:0: starts at x=81, spans to x=680 -->
+  <rect x="81" y="28" width="599" height="40" rx="7" fill="#eff6ff" stroke="#93c5fd" stroke-width="2"/>
+  <!-- Internal bit dividers (dashed) -->
+  <line x1="121" y1="28" x2="121" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="161" y1="28" x2="161" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="201" y1="28" x2="201" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="241" y1="28" x2="241" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="281" y1="28" x2="281" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="321" y1="28" x2="321" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="361" y1="28" x2="361" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="401" y1="28" x2="401" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="441" y1="28" x2="441" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="481" y1="28" x2="481" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="521" y1="28" x2="521" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="561" y1="28" x2="561" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="601" y1="28" x2="601" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="641" y1="28" x2="641" y2="68" stroke="#93c5fd" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <!-- JUMP label with range -->
+  <text x="380" y="48" text-anchor="middle" dominant-baseline="central" font-family="monospace" font-size="11" font-weight="bold" fill="#1e293b">JUMP (0..32767)</text>
+</svg>

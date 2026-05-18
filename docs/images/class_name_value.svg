@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="730" height="88" viewBox="0 0 730 88">
+  <defs>
+    <style>
+      text { font-family: sans-serif; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="730" height="88" fill="#ffffff" rx="6"/>
+
+  <!-- Bit position numbers (above boxes) -->
+  <text x="60"  y="20" text-anchor="middle" font-size="10" fill="#64748b">15</text>
+  <text x="100" y="20" text-anchor="middle" font-size="10" fill="#64748b">14</text>
+  <text x="140" y="20" text-anchor="middle" font-size="10" fill="#64748b">13</text>
+  <text x="180" y="20" text-anchor="middle" font-size="10" fill="#64748b">12</text>
+  <text x="220" y="20" text-anchor="middle" font-size="10" fill="#64748b">11</text>
+  <text x="260" y="20" text-anchor="middle" font-size="10" fill="#64748b">10</text>
+  <text x="300" y="20" text-anchor="middle" font-size="10" fill="#64748b">9</text>
+  <text x="340" y="20" text-anchor="middle" font-size="10" fill="#64748b">8</text>
+  <text x="380" y="20" text-anchor="middle" font-size="10" fill="#64748b">7</text>
+  <text x="420" y="20" text-anchor="middle" font-size="10" fill="#64748b">6</text>
+  <text x="460" y="20" text-anchor="middle" font-size="10" fill="#64748b">5</text>
+  <text x="500" y="20" text-anchor="middle" font-size="10" fill="#64748b">4</text>
+  <text x="540" y="20" text-anchor="middle" font-size="10" fill="#64748b">3</text>
+  <text x="580" y="20" text-anchor="middle" font-size="10" fill="#64748b">2</text>
+  <text x="620" y="20" text-anchor="middle" font-size="10" fill="#64748b">1</text>
+  <text x="660" y="20" text-anchor="middle" font-size="10" fill="#64748b">0</text>
+
+  <!-- LEAF — bit 15: rect ends at x=79, 2px gap before BUD -->
+  <rect x="40" y="28" width="39" height="40" rx="7" fill="#f0fdf4" stroke="#4ade80" stroke-width="2"/>
+  <text x="59" y="48" text-anchor="middle" dominant-baseline="central" font-family="monospace" font-size="11" font-weight="bold" fill="#1e293b">LEAF</text>
+
+  <!-- BUD — bit 14: starts at x=81, rect ends at x=120, 2px gap before GLOB -->
+  <rect x="81" y="28" width="39" height="40" rx="7" fill="#faf5ff" stroke="#a78bfa" stroke-width="2"/>
+  <text x="101" y="48" text-anchor="middle" dominant-baseline="central" font-family="monospace" font-size="11" font-weight="bold" fill="#1e293b">BUD</text>
+
+  <!-- GLOB — bit 13: starts at x=122, rect ends at x=161, 2px gap before VALUE -->
+  <rect x="122" y="28" width="39" height="40" rx="7" fill="#fff7ed" stroke="#fb923c" stroke-width="2"/>
+  <text x="142" y="48" text-anchor="middle" dominant-baseline="central" font-family="monospace" font-size="11" font-weight="bold" fill="#1e293b">GLOB</text>
+
+  <!-- VALUE — bits 12:0: starts at x=163, spans to x=680 -->
+  <rect x="163" y="28" width="517" height="40" rx="7" fill="#fefce8" stroke="#fde047" stroke-width="2"/>
+  <!-- Internal bit dividers (dashed) -->
+  <line x1="203" y1="28" x2="203" y2="68" stroke="#fde047" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="243" y1="28" x2="243" y2="68" stroke="#fde047" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="283" y1="28" x2="283" y2="68" stroke="#fde047" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="323" y1="28" x2="323" y2="68" stroke="#fde047" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="363" y1="28" x2="363" y2="68" stroke="#fde047" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="403" y1="28" x2="403" y2="68" stroke="#fde047" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="443" y1="28" x2="443" y2="68" stroke="#fde047" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="483" y1="28" x2="483" y2="68" stroke="#fde047" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="523" y1="28" x2="523" y2="68" stroke="#fde047" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="563" y1="28" x2="563" y2="68" stroke="#fde047" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="603" y1="28" x2="603" y2="68" stroke="#fde047" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <line x1="643" y1="28" x2="643" y2="68" stroke="#fde047" stroke-width="0.7" stroke-dasharray="4,3"/>
+  <!-- VALUE label with range -->
+  <text x="421" y="48" text-anchor="middle" dominant-baseline="central" font-family="monospace" font-size="11" font-weight="bold" fill="#1e293b">VALUE (0..8191)</text>
+</svg>

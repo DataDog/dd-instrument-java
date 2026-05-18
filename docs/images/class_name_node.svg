@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="280" viewBox="0 0 500 280">
+<rect width="500" height="280" fill="#ffffff"/>
+
+<!-- Row 1: number of branches (pink — same width as one branch column) -->
+<rect x="30" y="30" width="200" height="56" rx="5" fill="#fdf2f8" stroke="#f9a8d4" stroke-width="1.5"/>
+<text x="130" y="58" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="11" fill="#374151">number of branches</text>
+
+<!-- Row 2: branch chars (yellow) -->
+<rect x="30"  y="88" width="200" height="56" rx="5" fill="#fefce8" stroke="#fde047" stroke-width="1.5"/>
+<text x="130" y="116" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="11" fill="#374151">char for branch 0</text>
+<rect x="232" y="88" width="200" height="56" rx="5" fill="#fefce8" stroke="#fde047" stroke-width="1.5"/>
+<text x="332" y="116" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="11" fill="#374151">char for branch 1</text>
+<rect x="434" y="88" width="46" height="56" rx="5" fill="#fefce8" stroke="none"/>
+<path d="M 480,88 L 439,88 Q 434,88 434,93 L 434,139 Q 434,144 439,144 L 480,144" stroke="#fde047" stroke-width="1.5" fill="none"/>
+<text x="457" y="116" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="11" fill="#94a3b8">...</text>
+
+<!-- Row 3: segment-length / leaf / bud (gray) -->
+<rect x="30"  y="146" width="200" height="56" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text text-anchor="middle" font-family="sans-serif" font-size="11" fill="#374151">
+  <tspan x="130" y="171">segment-length / leaf / bud</tspan>
+  <tspan x="130" y="185">for branch 0</tspan>
+</text>
+<rect x="232" y="146" width="200" height="56" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text text-anchor="middle" font-family="sans-serif" font-size="11" fill="#374151">
+  <tspan x="332" y="171">segment-length / leaf / bud</tspan>
+  <tspan x="332" y="185">for branch 1</tspan>
+</text>
+<rect x="434" y="146" width="46" height="56" rx="5" fill="#ffffff" stroke="none"/>
+<path d="M 480,146 L 439,146 Q 434,146 434,151 L 434,197 Q 434,202 439,202 L 480,202" stroke="#cbd5e1" stroke-width="1.5" fill="none"/>
+<text x="457" y="178" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#94a3b8">...</text>
+
+<!-- Row 4: jump offsets (blue) -->
+<rect x="30"  y="204" width="200" height="56" rx="5" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<text text-anchor="middle" font-family="sans-serif" font-size="11" fill="#374151">
+  <tspan x="130" y="229">offset to jump to</tspan>
+  <tspan x="130" y="243">branch 1 segment</tspan>
+</text>
+<rect x="232" y="204" width="200" height="56" rx="5" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<text text-anchor="middle" font-family="sans-serif" font-size="11" fill="#374151">
+  <tspan x="332" y="229">offset to jump to</tspan>
+  <tspan x="332" y="243">branch 2 segment</tspan>
+</text>
+<rect x="434" y="204" width="46" height="56" rx="5" fill="#eff6ff" stroke="none"/>
+<path d="M 480,204 L 439,204 Q 434,204 434,209 L 434,255 Q 434,260 439,260 L 480,260" stroke="#93c5fd" stroke-width="1.5" fill="none"/>
+<text x="457" y="236" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#94a3b8">...</text>
+</svg>
