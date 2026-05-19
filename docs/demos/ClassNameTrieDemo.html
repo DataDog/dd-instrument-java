@@ -23,7 +23,7 @@
     --branch-key: #ddd600;
     --jump: #7ab8ff;
     --branch-count: #f06292;
-    --read: #fff176;
+    --read: #fffde7;
     --match: #50e060;
     --nomatch: #e57373;
     --border: #2a2f3a;
@@ -37,7 +37,8 @@
     --cbg-segment:      transparent;
     --cbg-match:        rgba(80,224,96,0.38);
     --cbg-fail:         rgba(229,115,115,0.44);
-    --cbg-consumed:     rgba(201,185,154,0.30);
+    --cbg-consumed:     rgba(70,90,130,0.42);
+    --border-consumed:  #546080;
     --code-bg:          rgba(79,195,247,0.12);
   }
   :root[data-theme="light"] {
@@ -54,7 +55,7 @@
     --glob: #c88000;
     --segment: #607d8b;
     --value-seg: #607d8b;
-    --branch-key: #d8cc00;
+    --branch-key: #e8d800;
     --jump: #4a9ae0;
     --branch-count: #c0205c;
     --read: #fdd835;
@@ -64,14 +65,15 @@
     --cbg-branch-count: rgba(192,32,92,0.28);
     --cbg-branch-key:   rgba(248,220,0,0.34);
     --cbg-value-leaf:   rgba(26,122,66,0.28);
-    --cbg-value-bud:    rgba(112,48,168,0.26);
+    --cbg-value-bud:    rgba(112,48,168,0.32);
     --cbg-value-glob:   rgba(200,128,0,0.38);
     --cbg-value-seg:    transparent;
     --cbg-jump:         rgba(147,197,253,0.38);
     --cbg-segment:      #ffffff;
     --cbg-match:        rgba(40,192,80,0.36);
     --cbg-fail:         rgba(192,48,48,0.35);
-    --cbg-consumed:     rgba(160,140,100,0.40);
+    --cbg-consumed:     rgba(148,165,210,0.45);
+    --border-consumed:  #8898cc;
     --code-bg:          rgba(0,102,187,0.06);
   }
   * { box-sizing: border-box; }
@@ -318,7 +320,7 @@
     padding: 2px;
     transition: background 0.2s, border-color 0.2s;
   }
-  .key-cell.consumed { background: var(--cbg-consumed); border-color: #b8a070; }
+  .key-cell.consumed { background: var(--cbg-consumed); border-color: var(--border-consumed); }
 
   .desc {
     background: var(--panel-2);
