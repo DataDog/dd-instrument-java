@@ -36,7 +36,7 @@
     --cbg-jump:         rgba(147,197,253,0.15);
     --cbg-segment:      transparent;
     --cbg-match:        rgba(20,100,30,0.9);
-    --cbg-fail:         rgba(229,115,115,0.35);
+    --cbg-fail:         rgba(229,115,115,0.55);
     --cbg-consumed:     rgba(201,185,154,0.30);
     --code-bg:          rgba(79,195,247,0.12);
   }
@@ -70,7 +70,7 @@
     --cbg-jump:         #eff6ff;
     --cbg-segment:      #ffffff;
     --cbg-match:        rgba(46,125,79,0.45);
-    --cbg-fail:         rgba(192,48,48,0.2);
+    --cbg-fail:         rgba(192,48,48,0.35);
     --cbg-consumed:     rgba(160,140,100,0.25);
     --code-bg:          rgba(0,102,187,0.06);
   }
@@ -290,7 +290,7 @@
   .key-cell.match-glow { box-shadow: 0 0 0 1px var(--match), 0 0 10px var(--match); }
   .cell.read { z-index: 2; }
   .cell.match-success, .key-cell.match-success { background: var(--cbg-match); border-color: var(--match); }
-  .cell.match-fail    { background: var(--cbg-fail);  border-color: var(--nomatch); }
+  .cell.match-fail    { background: var(--cbg-fail);  border-color: var(--nomatch); box-shadow: 0 0 0 1px var(--nomatch), 0 0 10px var(--nomatch); }
   .cell.match-success .val, .cell.match-glow .val,
   .key-cell.match-success, .key-cell.match-glow,
   .key-cell.consumed { color: var(--text); }
