@@ -14,29 +14,29 @@
     --muted: #9aa3b2;
     --accent: #4fc3f7;
     --accent-text: #0b1014;
-    --accent-2: #ffd54f;
-    --leaf: #66bb6a;
-    --bud: #ab47bc;
-    --glob: #ff7043;
+    --accent-2: #ffca28;
+    --leaf: #76cc7a;
+    --bud: #c054d0;
+    --glob: #ffaa00;
     --segment: #78909c;
     --value-seg: #78909c;
-    --branch-key: #d4b840;
-    --jump: #93c5fd;
-    --branch-count: #f48fb1;
-    --read: #ffb74d;
-    --match: #81c784;
+    --branch-key: #ddd600;
+    --jump: #7ab8ff;
+    --branch-count: #f06292;
+    --read: #fff176;
+    --match: #50e060;
     --nomatch: #e57373;
     --border: #2a2f3a;
-    --cbg-branch-count: rgba(244,143,177,0.22);
-    --cbg-branch-key:   rgba(212,184,64,0.14);
-    --cbg-value-leaf:   rgba(102,187,106,0.22);
-    --cbg-value-bud:    rgba(171,71,188,0.22);
-    --cbg-value-glob:   rgba(255,112,67,0.22);
+    --cbg-branch-count: rgba(240,98,146,0.34);
+    --cbg-branch-key:   rgba(255,228,0,0.30);
+    --cbg-value-leaf:   rgba(118,204,122,0.34);
+    --cbg-value-bud:    rgba(192,84,208,0.34);
+    --cbg-value-glob:   rgba(255,160,0,0.38);
     --cbg-value-seg:    transparent;
-    --cbg-jump:         rgba(147,197,253,0.15);
+    --cbg-jump:         rgba(122,184,255,0.26);
     --cbg-segment:      transparent;
-    --cbg-match:        rgba(20,100,30,0.9);
-    --cbg-fail:         rgba(229,115,115,0.55);
+    --cbg-match:        rgba(80,224,96,0.38);
+    --cbg-fail:         rgba(229,115,115,0.44);
     --cbg-consumed:     rgba(201,185,154,0.30);
     --code-bg:          rgba(79,195,247,0.12);
   }
@@ -48,30 +48,30 @@
     --muted: #5a5f7a;
     --accent: #0066bb;
     --accent-text: #ffffff;
-    --accent-2: #926b00;
-    --leaf: #2e7d4f;
-    --bud: #7b3d9e;
-    --glob: #c0440a;
+    --accent-2: #007a8a;
+    --leaf: #1a7a42;
+    --bud: #7030a8;
+    --glob: #c88000;
     --segment: #607d8b;
     --value-seg: #607d8b;
-    --branch-key: #7a6800;
-    --jump: #93c5fd;
-    --branch-count: #b83060;
-    --read: #c07800;
-    --match: #1e6e3a;
+    --branch-key: #d8cc00;
+    --jump: #4a9ae0;
+    --branch-count: #c0205c;
+    --read: #fdd835;
+    --match: #28c050;
     --nomatch: #c03030;
     --border: #d0d4f0;
-    --cbg-branch-count: rgba(184,48,96,0.18);
-    --cbg-branch-key:   rgba(255,210,0,0.22);
-    --cbg-value-leaf:   rgba(46,125,79,0.18);
-    --cbg-value-bud:    rgba(123,61,158,0.18);
-    --cbg-value-glob:   rgba(192,68,10,0.18);
+    --cbg-branch-count: rgba(192,32,92,0.28);
+    --cbg-branch-key:   rgba(248,220,0,0.34);
+    --cbg-value-leaf:   rgba(26,122,66,0.28);
+    --cbg-value-bud:    rgba(112,48,168,0.26);
+    --cbg-value-glob:   rgba(200,128,0,0.38);
     --cbg-value-seg:    transparent;
-    --cbg-jump:         #eff6ff;
+    --cbg-jump:         rgba(147,197,253,0.38);
     --cbg-segment:      #ffffff;
-    --cbg-match:        rgba(46,125,79,0.45);
+    --cbg-match:        rgba(40,192,80,0.36);
     --cbg-fail:         rgba(192,48,48,0.35);
-    --cbg-consumed:     rgba(160,140,100,0.25);
+    --cbg-consumed:     rgba(160,140,100,0.40);
     --code-bg:          rgba(0,102,187,0.06);
   }
   * { box-sizing: border-box; }
@@ -277,8 +277,8 @@
   .cell.value-leaf   { background: var(--cbg-value-leaf);   border-color: var(--leaf); }
   .cell.value-bud    { background: var(--cbg-value-bud);    border-color: var(--bud); }
   .cell.value-glob      { background: var(--cbg-value-glob);   border-color: var(--glob); }
-  .cell.value-leaf-glob { background: linear-gradient(135deg, var(--cbg-value-leaf) 50%, color-mix(in srgb, var(--glob) 30%, transparent) 50%); border-color: var(--leaf); }
-  .cell.value-bud-glob  { background: linear-gradient(135deg, var(--cbg-value-bud)  50%, color-mix(in srgb, var(--glob) 30%, transparent) 50%); border-color: var(--bud); }
+  .cell.value-leaf-glob { background: linear-gradient(135deg, var(--cbg-value-leaf) 50%, var(--cbg-value-glob) 50%); border-color: var(--leaf); }
+  .cell.value-bud-glob  { background: linear-gradient(135deg, var(--cbg-value-bud)  50%, var(--cbg-value-glob) 50%); border-color: var(--bud); }
   .cell.value-seg    { background: var(--cbg-value-seg);    border-color: var(--value-seg); }
   .cell.jump         { background: var(--cbg-jump);         border-color: var(--jump); }
   .cell.segment-char { background: var(--cbg-segment);      border-color: var(--segment); border-style: dashed; }
@@ -408,6 +408,7 @@
   }
   .err { color: var(--nomatch); }
   .ok, .result-display .v.ok { color: var(--match); }
+  .result-display .v.err { color: var(--nomatch); }
   .no-transition .cell,
   .no-transition .key-cell { transition: none; }
 
@@ -1463,6 +1464,7 @@ function applyStep(step) {
   resultDisplayEl.classList.toggle("has-result", hasResult);
   resultValueEl.textContent = hasResult ? step.result : "−1";
   resultValueEl.classList.toggle("ok", hasResult);
+  resultValueEl.classList.toggle("err", !hasResult);
 
   descStepNumEl.classList.remove("err");
   descStepNumEl.textContent = `Step ${stepIndex + 1} / ${currentSteps.length}${step.terminal ? " · final" : ""}`;
