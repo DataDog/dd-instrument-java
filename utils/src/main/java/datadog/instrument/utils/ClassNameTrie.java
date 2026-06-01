@@ -16,7 +16,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -288,6 +287,9 @@ public final class ClassNameTrie {
     private int[] longJumps;
     private int longJumpCount;
 
+    private int[] jumpIndexes;
+    private int jumpIndexCount;
+
     /** Empty {@link ClassNameTrie} builder. */
     public Builder() {}
 
@@ -436,7 +438,7 @@ public final class ClassNameTrie {
     }
 
     private void insertMapping(String key, char valueToInsert) {
-      BitSet jumpsToOffset = new BitSet();
+      jumpIndexCount = 0;
 
       int keyLength = key.length();
       int keyIndex = 0;
@@ -487,7 +489,7 @@ public final class ClassNameTrie {
 
           // remember to update jump offsets on right once we know how much we've added
           for (int b = branch + 1; b < branchCount; b++) {
-            jumpsToOffset.set(nextJumpIndex++);
+            recordJumpIndex(nextJumpIndex++);
           }
         }
 
@@ -574,8 +576,9 @@ public final class ClassNameTrie {
 
       if (jumpOffset > 0) {
         // now we know how much we added, update all jumps that need to jump past our addition
-        for (int i = jumpsToOffset.nextSetBit(0); i >= 0; i = jumpsToOffset.nextSetBit(i + 1)) {
-          trieData[i] = updateJump(trieData[i], jumpOffset);
+        for (int i = 0; i < jumpIndexCount; i++) {
+          int jumpIndex = jumpIndexes[i];
+          trieData[jumpIndex] = updateJump(trieData[jumpIndex], jumpOffset);
         }
       }
     }
@@ -838,12 +841,10 @@ public final class ClassNameTrie {
         return (char) jump; // jump is small enough to fit into the trie
       }
       if (longJumps == null) {
-        longJumps = new int[16]; // create table on first long-jump
+        longJumps = new int[16]; // create table on first use
       } else if (longJumpCount == longJumps.length) {
-        int[] oldJumps = longJumps;
-        // expand table by 50% to fit additional long-jumps
-        longJumps = new int[longJumpCount + (longJumpCount >> 1)];
-        System.arraycopy(oldJumps, 0, longJumps, 0, longJumpCount);
+        // expand the table by 50% to fit additional entries
+        longJumps = Arrays.copyOf(longJumps, longJumpCount + (longJumpCount >> 1));
       }
       longJumps[longJumpCount] = jump;
       return (char) (longJumpCount++ | LONG_JUMP_MARKER);
@@ -862,6 +863,17 @@ public final class ClassNameTrie {
       // already a long-jump, just update table value
       longJumps[jump & ~LONG_JUMP_MARKER] += delta;
       return jump;
+    }
+
+    /** Records a jump index to be updated once we know how much content was added. */
+    private void recordJumpIndex(int index) {
+      if (jumpIndexes == null) {
+        jumpIndexes = new int[16]; // create table on first use
+      } else if (jumpIndexCount == jumpIndexes.length) {
+        // expand the table by 50% to fit additional entries
+        jumpIndexes = Arrays.copyOf(jumpIndexes, jumpIndexCount + (jumpIndexCount >> 1));
+      }
+      jumpIndexes[jumpIndexCount++] = index;
     }
   }
 
