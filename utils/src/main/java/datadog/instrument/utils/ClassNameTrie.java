@@ -106,8 +106,8 @@ public final class ClassNameTrie {
   /** Maximum value that can be held in a single node of the trie. */
   private static final char MAX_NODE_VALUE = 0x1FFF;
 
-  /** Marks a long jump that was replaced by an index into the long jump table. */
-  private static final char LONG_JUMP_MARKER = 0x8000;
+  /** Boundary marker where a jump is replaced by an index into the long jump table. */
+  private static final char LONG_JUMP_MARKER = 0xF000; // 4096 long-jumps, each >= 61440
 
   /** A branch has at most 3 control characters: key, value, and optional jump offset/id. */
   private static final int BRANCH_CONTROL_CHARS = 3;
@@ -191,7 +191,7 @@ public final class ClassNameTrie {
       // jump to the segment/node for the matched branch (branch 0 requires no jump)
       if (branchIndex > dataIndex) {
         int branchJump = data[valueIndex + branchCount - FIRST_JUMP_OMITTED];
-        if ((branchJump & LONG_JUMP_MARKER) != 0) {
+        if ((branchJump & LONG_JUMP_MARKER) == LONG_JUMP_MARKER) {
           branchJump = longJumps[branchJump & ~LONG_JUMP_MARKER];
         }
         dataIndex += branchJump;
@@ -838,7 +838,10 @@ public final class ClassNameTrie {
     /** Checks a new jump value; long jumps are replaced with an index into the long-jump table. */
     private char newJump(int jump) {
       if (jump < LONG_JUMP_MARKER) {
-        return (char) jump; // jump is small enough to fit into the trie
+        return (char) jump; // jump is small enough to fit in the trie
+      }
+      if (longJumpCount > (char) ~LONG_JUMP_MARKER) {
+        throw new IllegalArgumentException("Class-name does not fit in the trie");
       }
       if (longJumps == null) {
         longJumps = new int[16]; // create table on first use
@@ -852,17 +855,22 @@ public final class ClassNameTrie {
 
     /** Retrieves the true jump value, consulting the long-jump table if necessary. */
     private int getJump(char jump) {
-      return (jump & LONG_JUMP_MARKER) == 0 ? jump : longJumps[jump & ~LONG_JUMP_MARKER];
+      return isLongJump(jump) ? longJumps[jump & ~LONG_JUMP_MARKER] : jump;
     }
 
     /** Increases jump by the given delta, this may result in it becoming a long-jump. */
     private char updateJump(char jump, int delta) {
-      if ((jump & LONG_JUMP_MARKER) == 0) {
+      if (isLongJump(jump)) {
+        // just need to update the table entry
+        longJumps[jump & ~LONG_JUMP_MARKER] += delta;
+        return jump;
+      } else {
         return newJump(jump + delta);
       }
-      // already a long-jump, just update table value
-      longJumps[jump & ~LONG_JUMP_MARKER] += delta;
-      return jump;
+    }
+
+    private boolean isLongJump(char jump) {
+      return (jump & LONG_JUMP_MARKER) == LONG_JUMP_MARKER;
     }
 
     /** Records a jump index to be updated once we know how much content was added. */
