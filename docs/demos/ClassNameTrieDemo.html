@@ -1376,9 +1376,11 @@ function stopPlay() {
 }
 
 function fmtCell(c, role) {
-  const kind = (c & LEAF_MARKER) ? "leaf" : (c & BUD_MARKER) ? "bud" : null;
-  if (kind) {
-    return { val: kind + ((c & GLOB_MARKER) ? "*" : "") + " " + (c & MAX_NODE_VALUE), role: roleFor(c) };
+  if (role !== "jump") {
+    const kind = (c & LEAF_MARKER) ? "leaf" : (c & BUD_MARKER) ? "bud" : null;
+    if (kind) {
+      return { val: kind + ((c & GLOB_MARKER) ? "*" : "") + " " + (c & MAX_NODE_VALUE), role: roleFor(c) };
+    }
   }
   if ((c & LONG_JUMP_MARKER) !== 0) {
     return { val: "L" + (c & ~LONG_JUMP_MARKER), role: "jump" };
