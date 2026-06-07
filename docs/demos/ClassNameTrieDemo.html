@@ -662,12 +662,12 @@ const LEAF_MARKER = 0x8000;
 const BUD_MARKER  = 0x4000;
 const GLOB_MARKER = 0x2000;
 const MAX_NODE_VALUE = 0x1FFF;
-const LONG_JUMP_MARKER = 0x8000; // same bit as LEAF_MARKER — safe because jump slots and value slots occupy disjoint positions
+const LONG_JUMP_MARKER = 0xF000; // 4096 long-jumps, each >= 61440
 const BRANCH_CONTROL_CHARS = 3;
 const FIRST_JUMP_OMITTED = 1;
 
 function resolveJump(longJumps, c) {
-  return (c & LONG_JUMP_MARKER) === 0 ? c : longJumps[c & ~LONG_JUMP_MARKER];
+  return (c & LONG_JUMP_MARKER) === LONG_JUMP_MARKER ? longJumps[c & ~LONG_JUMP_MARKER] : c;
 }
 function roleFor(v) {
   if ((v & LEAF_MARKER) !== 0) return (v & GLOB_MARKER) !== 0 ? "value-leaf-glob" : "value-leaf";
@@ -1042,6 +1042,7 @@ class Builder {
 
   _newJump(jump) {
     if (jump < LONG_JUMP_MARKER) return jump & 0xFFFF;
+    if (this.longJumpCount > (~LONG_JUMP_MARKER & 0xFFFF)) throw new Error("Class-name does not fit in the trie");
     if (this.longJumps === null) this.longJumps = new Array(16).fill(0);
     else if (this.longJumpCount === this.longJumps.length) {
       const grown = this.longJumps.concat(new Array(this.longJumpCount >> 1).fill(0));
@@ -1052,9 +1053,11 @@ class Builder {
   }
 
   _updateJump(jump, delta) {
-    if ((jump & LONG_JUMP_MARKER) === 0) return this._newJump(jump + delta);
-    this.longJumps[jump & ~LONG_JUMP_MARKER] += delta;
-    return jump;
+    if ((jump & LONG_JUMP_MARKER) === LONG_JUMP_MARKER) {
+      this.longJumps[jump & ~LONG_JUMP_MARKER] += delta;
+      return jump;
+    }
+    return this._newJump(jump + delta);
   }
 
   finalize() {
@@ -1194,7 +1197,7 @@ function applyTraced(data, longJumps, key, fromIndex) {
       const jumpIdx = valueIndex + branchCount - FIRST_JUMP_OMITTED;
       const rawJump = data[jumpIdx];
       const jump = resolveJump(longJumps, rawJump);
-      const isLong = (rawJump & LONG_JUMP_MARKER) !== 0;
+      const isLong = (rawJump & LONG_JUMP_MARKER) === LONG_JUMP_MARKER;
       snap(`Branch ${branchIndex - keysLo} ≥ 1, so apply its jump offset at <code>data[${jumpIdx}]</code> = ${isLong ? "long-jump → " + jump : jump}.`, {
         highlight: {
           data: [{ i: jumpIdx, kind: "read" }]
@@ -1382,7 +1385,7 @@ function fmtCell(c, role) {
       return { val: kind + ((c & GLOB_MARKER) ? "*" : "") + " " + (c & MAX_NODE_VALUE), role: roleFor(c) };
     }
   }
-  if ((c & LONG_JUMP_MARKER) !== 0) {
+  if ((c & LONG_JUMP_MARKER) === LONG_JUMP_MARKER) {
     return { val: "L" + (c & ~LONG_JUMP_MARKER), role: "jump" };
   }
   if (c >= 0x20 && c < 0x80 && (role === "branch-key" || role === "segment-char")) {
