@@ -1,7 +1,7 @@
 package datadog.instrument.utils;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.openjdk.jmh.annotations.Mode.SingleShotTime;
+import static org.openjdk.jmh.annotations.Mode.AverageTime;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -16,7 +16,6 @@ import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
-import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
@@ -26,10 +25,8 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 @State(Scope.Benchmark)
-@BenchmarkMode(SingleShotTime)
+@BenchmarkMode(AverageTime)
 @OutputTimeUnit(MILLISECONDS)
-@Warmup(iterations = 0)
-@Measurement(iterations = 1)
 @SuppressWarnings("unused")
 public class ClassNameTrieBenchmark {
 
@@ -49,23 +46,47 @@ public class ClassNameTrieBenchmark {
   }
 
   @Benchmark
-  @Fork(value = 20)
+  @Fork(value = 1)
   @Threads(value = 1)
-  public void classNameTrie(Blackhole blackhole) {
+  public void classNameTrieCompiled(Blackhole blackhole) {
     testClassNameTrie(blackhole);
   }
 
   @Benchmark
-  @Fork(value = 20)
+  @Fork(value = 1)
   @Threads(value = 1)
-  public void radixTrie(Blackhole blackhole) {
+  public void radixTrieCompiled(Blackhole blackhole) {
     testRadixTrie(blackhole);
   }
 
   @Benchmark
-  @Fork(value = 20)
+  @Fork(value = 1)
   @Threads(value = 1)
-  public void legacyCode(Blackhole blackhole) {
+  public void legacyCodeCompiled(Blackhole blackhole) {
+    testLegacyCode(blackhole);
+  }
+
+  @Benchmark
+  @Warmup(iterations = 0)
+  @Fork(value = 1, jvmArgsPrepend = "-Xint")
+  @Threads(value = 1)
+  public void classNameTrieInterpreted(Blackhole blackhole) {
+    testClassNameTrie(blackhole);
+  }
+
+  @Benchmark
+  @Warmup(iterations = 0)
+  @Fork(value = 1, jvmArgsPrepend = "-Xint")
+  @Threads(value = 1)
+  public void radixTrieInterpreted(Blackhole blackhole) {
+    testRadixTrie(blackhole);
+  }
+
+  @Benchmark
+  @Warmup(iterations = 0)
+  @Fork(value = 1, jvmArgsPrepend = "-Xint")
+  @Threads(value = 1)
+  public void legacyCodeInterpreted(Blackhole blackhole) {
     testLegacyCode(blackhole);
   }
 

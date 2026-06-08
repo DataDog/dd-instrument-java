@@ -2,6 +2,7 @@ package datadog.instrument.utils;
 
 import static java.util.Collections.singletonList;
 import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 import static javax.tools.ToolProvider.getSystemJavaCompiler;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,7 +27,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.tools.JavaCompiler;
@@ -205,7 +205,7 @@ class ClassNameTrieTest {
     assertThrows(IllegalArgumentException.class, () -> builder.put("test", 8192));
     assertThrows(
         IllegalArgumentException.class,
-        () -> builder.put(Stream.generate(() -> "_").limit(8192).collect(Collectors.joining()), 1));
+        () -> builder.put(Stream.generate(() -> "_").limit(8192).collect(joining()), 1));
 
     // check that a bad magic header fails
     assertThrows(
@@ -247,6 +247,30 @@ class ClassNameTrieTest {
     for (Map.Entry<String, Integer> entry : data.entrySet()) {
       assertEquals(entry.getValue(), trie.apply(entry.getKey()));
     }
+  }
+
+  @Test
+  void tooManyLongJumps() {
+    // 65 groups x 64 long-jumps/group > 4096-entry limit; each group's sub-trie spans
+    // ~61600 chars (8 padded entries) forcing 64 small leaf entries to use long-jumps
+    String padding = Stream.generate(() -> " ").limit(7700).collect(joining());
+    ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
+    for (int g = 1; g <= 65; g++) {
+      char groupChar = (char) (g <= 41 ? g : g + 1); // skip '*' = chr(42)
+      for (int j = 1; j <= 8; j++) {
+        builder.put("" + groupChar + (char) 1 + (char) j + padding, 1);
+      }
+      for (int k = 2; k <= 65; k++) {
+        char smallChar = (char) (k <= 41 ? k : k + 1); // skip '*' = chr(42)
+        builder.put("" + groupChar + smallChar, 1);
+      }
+    }
+    for (int j = 1; j <= 8; j++) {
+      builder.put("" + ((char) 67) + '\u0001' + (char) j + padding, 1);
+    }
+    // last put should exceed the number of allowed long-jumps
+    assertThrows(
+        IllegalArgumentException.class, () -> builder.put("" + ((char) 67) + ((char) 2), 1));
   }
 
   @Test
