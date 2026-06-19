@@ -21,8 +21,9 @@ public final class ClassLoaderIndex {
 
   // fixed-size hashtable of known class-loader keys (table size must be power of 2)
   // this is tuned to support ~700 concurrent class-loaders with minimal collisions
-  private static final ClassLoaderKey[] KEYS = new ClassLoaderKey[1024];
-  private static final int SLOT_MASK = KEYS.length - 1;
+  private static final int INDEX_SIZE = 1024; // must be power of 2
+  private static final ClassLoaderKey[] KEYS = new ClassLoaderKey[INDEX_SIZE];
+  private static final int SLOT_MASK = INDEX_SIZE - 1;
 
   private static final int MAX_HASH_ATTEMPTS = 10;
 
@@ -53,14 +54,13 @@ public final class ClassLoaderIndex {
   static ClassLoaderKey getClassLoaderKey(ClassLoader cl) {
     final int hash = System.identityHashCode(cl);
     final ClassLoaderKey[] keys = KEYS;
-    final int slotMask = SLOT_MASK;
 
     int evictedSlot = -1;
 
     // search by repeated hashing; stop when we find an empty slot,
     // a matching slot, or we exhaust all attempts and re-use a slot
     for (int i = 1, h = hash; true; i++, h = rehash(h)) {
-      int slot = slotMask & h;
+      int slot = SLOT_MASK & h;
       ClassLoaderKey existing = keys[slot];
       if (existing != null) {
         // slot already used
@@ -82,7 +82,7 @@ public final class ClassLoaderIndex {
         } else if (existingCL == null) {
           // last hashed slot is itself evicted, re-use it
         } else {
-          slot = slotMask & hash; // re-use first hashed slot
+          slot = SLOT_MASK & hash; // re-use first hashed slot
         }
       }
       return (keys[slot] = new ClassLoaderKey(cl, hash));
