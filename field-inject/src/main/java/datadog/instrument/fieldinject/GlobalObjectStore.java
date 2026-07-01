@@ -23,17 +23,21 @@ import javax.annotation.Nullable;
  */
 public final class GlobalObjectStore {
 
-  /** Never allow more than this number of objects in the global store. */
-  private static final int GLOBAL_HARD_LIMIT = 100_000;
-
-  /** Temporarily allow more than this number of objects, but start removing old content. */
-  private static final int GLOBAL_SOFT_LIMIT = 50_000;
-
   /** Threshold at which we start doing limited cleanup at the same time as put operations. */
   private static final int INLINE_CLEANUP_THRESHOLD = 5_000;
 
+  /** Never allow more than this number of objects in the global store. */
+  private static int globalHardLimit;
+
+  /** Temporarily allow more than this number of objects, but start removing old content. */
+  private static int globalSoftLimit;
+
   /** Threshold at which we start sampling keys to track old content. */
-  private static final int OLD_KEYS_THRESHOLD = 512;
+  private static int oldKeysThreshold;
+
+  static {
+    setGlobalHardLimit(150_000);
+  }
 
   private static final Map<StoreKey, Object> weakMap = new ConcurrentHashMap<>();
 
@@ -42,6 +46,17 @@ public final class GlobalObjectStore {
   private static int previousEstimate = 0;
 
   private GlobalObjectStore() {}
+
+  /**
+   * Sets a new hard-limit for the global store; clamped to the range [15,000, 1,500,000].
+   *
+   * @param hardLimit the desired hard-limit
+   */
+  public static void setGlobalHardLimit(int hardLimit) {
+    globalHardLimit = Math.min(Math.max(hardLimit, 15_000), 1_500_000);
+    globalSoftLimit = globalHardLimit / 3;
+    oldKeysThreshold = globalHardLimit / 300;
+  }
 
   /**
    * Removes stale entries from the global object-store, where the key object is now unused.
@@ -70,10 +85,10 @@ public final class GlobalObjectStore {
     // We deliberately avoid tracking exact age, and instead regularly sample keys to maintain
     // a small set that we know are still alive after a couple of calls to removeStaleEntries.
 
-    if (Math.abs(estimatedSize - previousEstimate) > OLD_KEYS_THRESHOLD
-        || estimatedSize >= (GLOBAL_HARD_LIMIT + GLOBAL_SOFT_LIMIT) / 2) {
+    if (Math.abs(estimatedSize - previousEstimate) > oldKeysThreshold
+        || estimatedSize >= (globalHardLimit + globalSoftLimit) / 2) {
 
-      if (estimatedSize >= GLOBAL_SOFT_LIMIT) {
+      if (estimatedSize >= globalSoftLimit) {
         // start proactively removing old content to keep growth in check
         for (StoreKey oldKey : oldKeys) {
           if (weakMap.remove(oldKey) != null) {
@@ -86,7 +101,7 @@ public final class GlobalObjectStore {
         oldKeys.removeIf(StoreKey::isStale);
       }
 
-      int refill = OLD_KEYS_THRESHOLD - oldKeys.size();
+      int refill = oldKeysThreshold - oldKeys.size();
       if (refill > 0) {
         // sample of keys at this time, don't need strict age ordering
         for (StoreKey sampleKey : weakMap.keySet()) {
@@ -202,7 +217,7 @@ public final class GlobalObjectStore {
       // periodic cleanup may not be enough, start performing inline cleanup
       StoreKey staleKey = StoreKey.pollStaleKeys();
       if (staleKey == null) {
-        return estimatedSize < GLOBAL_HARD_LIMIT;
+        return estimatedSize < globalHardLimit;
       }
       weakMap.remove(staleKey);
     }

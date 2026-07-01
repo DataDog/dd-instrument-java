@@ -43,7 +43,7 @@ public class ObjectStoreBenchmark {
   @State(Scope.Benchmark)
   public static class TrialData {
 
-    @Param({"1000", "5000", "10000", "50000", "100000", "150000"})
+    @Param({"1000", "5000", "10000", "50000", "150000", "200000"})
     public int targetGlobalOccupancy;
 
     public List<Integer> seedRequestIds;
@@ -99,7 +99,7 @@ public class ObjectStoreBenchmark {
   }
 
   // create enough keys to cover max target occupancy per-store
-  private static final Object[] keys = new Object[150_000 / NUM_STORES];
+  private static final Object[] keys = new Object[200_000 / NUM_STORES];
 
   static {
     generateKeys();
@@ -167,7 +167,7 @@ public class ObjectStoreBenchmark {
    */
   static final class WeakObjectMap<K, V> {
     // total capacity over all per-map stores should equal GlobalObjectStore's hard limit
-    private static final int MAX_SIZE = 100_000 / NUM_STORES;
+    private static final int MAX_SIZE = 150_000 / NUM_STORES;
 
     private final WeakConcurrentMap<Object, Object> map = new WeakConcurrentMap<>(false, true);
 
