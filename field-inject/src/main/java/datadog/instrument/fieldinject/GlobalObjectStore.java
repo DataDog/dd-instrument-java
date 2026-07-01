@@ -35,6 +35,8 @@ public final class GlobalObjectStore {
   /** Threshold at which we start sampling keys to track old content. */
   private static final int OLD_KEYS_THRESHOLD = 512;
 
+  private static final Object staleEntriesLock = new Object();
+
   private static final Map<StoreKey, Object> weakMap = new ConcurrentHashMap<>();
 
   private static final Set<StoreKey> oldKeys = new HashSet<>();
@@ -51,55 +53,56 @@ public final class GlobalObjectStore {
    *
    * @return the estimated remaining size of the global object-store
    */
-  public static synchronized int removeStaleEntries() {
-
-    Map<StoreKey, Object> weakMap = GlobalObjectStore.weakMap;
-    int estimatedSize = weakMap.size(); // capture size before any cleanup
-    StoreKey key;
-    while ((key = StoreKey.pollStaleKeys()) != null) {
-      if (weakMap.remove(key) != null) {
-        estimatedSize--;
-      }
-    }
-
-    // The following code handles proactively removing old content in an attempt to guide the
-    // store below its soft limit. We remove older objects before recent additions, assuming
-    // that older objects are less likely to be used. For performance reasons this only runs
-    // after observed periods of growth or reduction, or if the store is near its hard limit.
-
-    // We deliberately avoid tracking exact age, and instead regularly sample keys to maintain
-    // a small set that we know are still alive after a couple of calls to removeStaleEntries.
-
-    if (Math.abs(estimatedSize - previousEstimate) > OLD_KEYS_THRESHOLD
-        || estimatedSize >= (GLOBAL_HARD_LIMIT + GLOBAL_SOFT_LIMIT) / 2) {
-
-      if (estimatedSize >= GLOBAL_SOFT_LIMIT) {
-        // start proactively removing old content to keep growth in check
-        for (StoreKey oldKey : oldKeys) {
-          if (weakMap.remove(oldKey) != null) {
-            estimatedSize--;
-          }
-        }
-        oldKeys.clear();
-      } else {
-        // have any of the old previously sampled keys been collected?
-        oldKeys.removeIf(StoreKey::isStale);
-      }
-
-      int refill = OLD_KEYS_THRESHOLD - oldKeys.size();
-      if (refill > 0) {
-        // sample of keys at this time, don't need strict age ordering
-        for (StoreKey sampleKey : weakMap.keySet()) {
-          if (oldKeys.add(sampleKey) && --refill == 0) {
-            break;
-          }
+  public static int removeStaleEntries() {
+    synchronized (staleEntriesLock) {
+      Map<StoreKey, Object> weakMap = GlobalObjectStore.weakMap;
+      int estimatedSize = weakMap.size(); // capture size before any cleanup
+      StoreKey key;
+      while ((key = StoreKey.pollStaleKeys()) != null) {
+        if (weakMap.remove(key) != null) {
+          estimatedSize--;
         }
       }
 
-      previousEstimate = estimatedSize;
-    }
+      // The following code handles proactively removing old content in an attempt to guide the
+      // store below its soft limit. We remove older objects before recent additions, assuming
+      // that older objects are less likely to be used. For performance reasons this only runs
+      // after observed periods of growth or reduction, or if the store is near its hard limit.
 
-    return estimatedSize;
+      // We deliberately avoid tracking exact age, and instead regularly sample keys to maintain
+      // a small set that we know are still alive after a couple of calls to removeStaleEntries.
+
+      if (Math.abs(estimatedSize - previousEstimate) > OLD_KEYS_THRESHOLD
+          || estimatedSize >= (GLOBAL_HARD_LIMIT + GLOBAL_SOFT_LIMIT) / 2) {
+
+        if (estimatedSize >= GLOBAL_SOFT_LIMIT) {
+          // start proactively removing old content to keep growth in check
+          for (StoreKey oldKey : oldKeys) {
+            if (weakMap.remove(oldKey) != null) {
+              estimatedSize--;
+            }
+          }
+          oldKeys.clear();
+        } else {
+          // have any of the old previously sampled keys been collected?
+          oldKeys.removeIf(StoreKey::isStale);
+        }
+
+        int refill = OLD_KEYS_THRESHOLD - oldKeys.size();
+        if (refill > 0) {
+          // sample of keys at this time, don't need strict age ordering
+          for (StoreKey sampleKey : weakMap.keySet()) {
+            if (oldKeys.add(sampleKey) && --refill == 0) {
+              break;
+            }
+          }
+        }
+
+        previousEstimate = estimatedSize;
+      }
+
+      return estimatedSize;
+    }
   }
 
   /**
