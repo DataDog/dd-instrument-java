@@ -41,6 +41,7 @@ public final class ClassFile {
   private static final byte[] RUNTIME_ANNOTATIONS = "RuntimeVisibleAnnotations".getBytes(US_ASCII);
 
   // reduce size of outlines by only extracting interesting annotations
+  private static final Object annotationsLock = new Object();
   private static final Map<String, UtfKey> annotationKeys = new HashMap<>();
   private static volatile Map<UtfKey, String> annotationsOfInterest;
 
@@ -95,17 +96,19 @@ public final class ClassFile {
    *
    * @param internalName the annotation type in internal form
    */
-  public static synchronized void annotationOfInterest(String internalName) {
-    if (annotationKeys.containsKey(internalName)) {
-      return; // already flagged as interesting
+  public static void annotationOfInterest(String internalName) {
+    synchronized (annotationsLock) {
+      if (annotationKeys.containsKey(internalName)) {
+        return; // already flagged as interesting
+      }
+      Map<UtfKey, String> ofInterest = new HashMap<>();
+      if (annotationsOfInterest != null) {
+        ofInterest.putAll(annotationsOfInterest); // copy on write
+      }
+      ofInterest.put(
+          annotationKeys.computeIfAbsent(internalName, ClassFile::annotationKey), internalName);
+      annotationsOfInterest = ofInterest;
     }
-    Map<UtfKey, String> ofInterest = new HashMap<>();
-    if (annotationsOfInterest != null) {
-      ofInterest.putAll(annotationsOfInterest); // copy on write
-    }
-    ofInterest.put(
-        annotationKeys.computeIfAbsent(internalName, ClassFile::annotationKey), internalName);
-    annotationsOfInterest = ofInterest;
   }
 
   /**
@@ -115,19 +118,21 @@ public final class ClassFile {
    *
    * @param internalNames the annotation types in internal form
    */
-  public static synchronized void annotationsOfInterest(Collection<String> internalNames) {
-    if (annotationKeys.keySet().containsAll(internalNames)) {
-      return; // already flagged as interesting
+  public static void annotationsOfInterest(Collection<String> internalNames) {
+    synchronized (annotationsLock) {
+      if (annotationKeys.keySet().containsAll(internalNames)) {
+        return; // already flagged as interesting
+      }
+      Map<UtfKey, String> ofInterest = new HashMap<>();
+      if (annotationsOfInterest != null) {
+        ofInterest.putAll(annotationsOfInterest); // copy on write
+      }
+      for (String internalName : internalNames) {
+        ofInterest.put(
+            annotationKeys.computeIfAbsent(internalName, ClassFile::annotationKey), internalName);
+      }
+      annotationsOfInterest = ofInterest;
     }
-    Map<UtfKey, String> ofInterest = new HashMap<>();
-    if (annotationsOfInterest != null) {
-      ofInterest.putAll(annotationsOfInterest); // copy on write
-    }
-    for (String internalName : internalNames) {
-      ofInterest.put(
-          annotationKeys.computeIfAbsent(internalName, ClassFile::annotationKey), internalName);
-    }
-    annotationsOfInterest = ofInterest;
   }
 
   /** Create "modified-UTF8" key to make it easier to match annotations. */

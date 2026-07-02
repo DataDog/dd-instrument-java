@@ -11,6 +11,7 @@ import static datadog.instrument.utils.ClassLoaderKey.BOOT_CLASS_LOADER;
 import static datadog.instrument.utils.ClassLoaderKey.SYSTEM_CLASS_LOADER;
 
 import datadog.instrument.utils.ClassLoaderKey.LookupKey;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,6 +46,7 @@ public abstract class ClassLoaderValue<V> {
   private final Map<ClassLoaderKey, V> otherValues = new ConcurrentHashMap<>();
 
   /** Register subclass instances for cleaning. */
+  @SuppressFBWarnings("CT_CONSTRUCTOR_THROW") // registerCleaner never sees partial instance
   protected ClassLoaderValue() {
     ClassLoaderKey.registerCleaner(otherValues::remove);
   }
