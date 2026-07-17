@@ -116,7 +116,7 @@ final class DefineClassGlueGenerator {
    * @param unsafeNamespace which Unsafe to use for boot injection
    * @return glue to access {@code ClassLoader.defineClass}
    */
-  private static byte[] generateBytecode(String unsafeNamespace) {
+  static byte[] generateBytecode(String unsafeNamespace) {
 
     // use Unsafe to define boot classes that have no class-loader
     final String unsafeClass = unsafeNamespace + "/Unsafe";
@@ -172,6 +172,7 @@ final class DefineClassGlueGenerator {
     final Label defineBootClass = new Label();
     final Label storeBootClass = new Label();
     final Label loadBootClass = new Label();
+    final Label lookupBootClass = new Label();
     final Label rethrowOriginal = new Label();
     final Label returnDefinedClasses = new Label();
 
@@ -199,7 +200,7 @@ final class DefineClassGlueGenerator {
 
     // fall back and see if the boot class is already loaded if defining it fails
     mv.visitTryCatchBlock(defineBootClass, storeBootClass, loadBootClass, null);
-    mv.visitTryCatchBlock(loadBootClass, rethrowOriginal, rethrowOriginal, null);
+    mv.visitTryCatchBlock(lookupBootClass, rethrowOriginal, rethrowOriginal, null);
 
     // -------- SHARED SETUP CODE  --------
 
@@ -389,6 +390,8 @@ final class DefineClassGlueGenerator {
     // see if the boot class has already been defined
     mv.visitLabel(loadBootClass);
     mv.visitVarInsn(ASTORE, originalError);
+    // must be after originalError is stored, or the handler can't rely on it being set
+    mv.visitLabel(lookupBootClass);
     mv.visitVarInsn(ALOAD, className);
     mv.visitInsn(ICONST_0); // initialize=false
     mv.visitInsn(ACONST_NULL);
