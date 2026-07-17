@@ -6,6 +6,9 @@ plugins {
 dependencies {
   implementation(libs.asm)
   implementation(project(":utils"))
+
+  testImplementation(sourceSets["glue"].output)
+  testImplementation(libs.asm.util)
 }
 
 // class-inject generates glue bytecode at build-time to provide access to Unsafe.defineClass
