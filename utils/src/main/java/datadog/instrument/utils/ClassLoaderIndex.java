@@ -11,6 +11,8 @@ import static datadog.instrument.utils.ClassLoaderKey.BOOT_CLASS_LOADER_KEY_ID;
 import static datadog.instrument.utils.ClassLoaderKey.SYSTEM_CLASS_LOADER;
 import static datadog.instrument.utils.ClassLoaderKey.SYSTEM_CLASS_LOADER_KEY_ID;
 
+import javax.annotation.Nullable;
+
 /**
  * Semi-stable index of known {@link ClassLoader}s that guarantees a unique key-id for different
  * class-loaders. A class-loader may have more than one key-id over its life if it is temporarily
@@ -36,7 +38,7 @@ public final class ClassLoaderIndex {
    * @param cl the class-loader to index
    * @return key-id for the class-loader
    */
-  public static int getClassLoaderKeyId(ClassLoader cl) {
+  public static int getClassLoaderKeyId(@Nullable ClassLoader cl) {
     if (cl == BOOT_CLASS_LOADER) {
       return BOOT_CLASS_LOADER_KEY_ID;
     } else if (cl == SYSTEM_CLASS_LOADER) {

@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 
 /**
  * Immutable space-efficient trie that captures a mapping of package/class names to numbers.
@@ -120,8 +121,8 @@ public final class ClassNameTrie {
   /** The compressed trie. */
   private final char[] trieData;
 
-  /** Long jump offsets. */
-  private final int[] longJumps;
+  /** Long jump offsets; {@code null} if there are none. */
+  @Nullable private final int[] longJumps;
 
   /**
    * Returns the number in the trie the given class-name maps to.
@@ -153,7 +154,7 @@ public final class ClassNameTrie {
    * @param fromIndex the index in the class-name to start matching from
    * @return the number the class-name maps to; {@code -1} if not mapped
    */
-  public static int apply(char[] data, int[] longJumps, String key, int fromIndex) {
+  public static int apply(char[] data, @Nullable int[] longJumps, String key, int fromIndex) {
     int keyLength = key.length();
     int keyIndex = fromIndex;
     int dataIndex = 0;
@@ -272,7 +273,7 @@ public final class ClassNameTrie {
     return new ClassNameTrie(trieData, longJumps);
   }
 
-  ClassNameTrie(char[] trieData, int[] longJumps) {
+  ClassNameTrie(char[] trieData, @Nullable int[] longJumps) {
     this.trieData = trieData;
     this.longJumps = longJumps;
   }

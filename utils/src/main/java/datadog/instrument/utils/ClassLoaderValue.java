@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.BiConsumer;
+import javax.annotation.Nullable;
 
 /**
  * Lazily associate a computed value with (potentially) every {@link ClassLoader}. The computed
@@ -67,7 +68,7 @@ public abstract class ClassLoaderValue<V> {
    * @see #get
    * @see #remove
    */
-  protected abstract V computeValue(ClassLoader cl);
+  protected abstract V computeValue(@Nullable ClassLoader cl);
 
   /**
    * Returns the value for the given class-loader. If no value has yet been computed, it is obtained
@@ -82,7 +83,7 @@ public abstract class ClassLoaderValue<V> {
    * @see #remove
    * @see #computeValue
    */
-  public final V get(ClassLoader cl) {
+  public final V get(@Nullable ClassLoader cl) {
     if (cl == BOOT_CLASS_LOADER) {
       return getBootValue();
     } else if (cl == SYSTEM_CLASS_LOADER) {
@@ -101,7 +102,7 @@ public abstract class ClassLoaderValue<V> {
    *
    * @param cl the class-loader whose value must be removed
    */
-  public final void remove(ClassLoader cl) {
+  public final void remove(@Nullable ClassLoader cl) {
     if (cl == BOOT_CLASS_LOADER) {
       bootValue = null;
     } else if (cl == SYSTEM_CLASS_LOADER) {

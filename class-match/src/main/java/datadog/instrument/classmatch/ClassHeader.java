@@ -6,6 +6,8 @@
 
 package datadog.instrument.classmatch;
 
+import javax.annotation.Nullable;
+
 /** Minimal class header that describes its access modifiers and immediate class hierarchy. */
 public class ClassHeader {
 
@@ -20,13 +22,13 @@ public class ClassHeader {
   /** Internal name of this class. */
   public final String className;
 
-  /** Internal name of the super-class declared by this class. */
-  public final String superName;
+  /** Internal name of the super-class declared by this class; {@code null} for modules. */
+  @Nullable public final String superName;
 
   /** Internal names of the interfaces declared by this class. */
   public final String[] interfaces;
 
-  ClassHeader(int access, String className, String superName, String[] interfaces) {
+  ClassHeader(int access, String className, @Nullable String superName, String[] interfaces) {
     this.access = access;
     this.className = className;
     this.superName = superName;
