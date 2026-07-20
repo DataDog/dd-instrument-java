@@ -6,6 +6,8 @@
 
 package datadog.instrument.classmatch;
 
+import javax.annotation.Nullable;
+
 /** Outlines a class; access modifiers, immediate class hierarchy, field, methods, annotations. */
 public final class ClassOutline extends ClassHeader {
 
@@ -21,7 +23,7 @@ public final class ClassOutline extends ClassHeader {
   ClassOutline(
       int access,
       String className,
-      String superName,
+      @Nullable String superName,
       String[] interfaces,
       FieldOutline[] fields,
       MethodOutline[] methods,
