@@ -219,6 +219,45 @@ class ObjectStoreTest {
     assertEquals("stable", store.get(key));
   }
 
+  // --- generational capacity / eviction ---
+
+  // Mirrors the private thresholds in GlobalObjectStore; kept here so the test intent is clear
+  // without exposing internals. If those thresholds change this test should be revisited.
+  private static final int AGEING_THRESHOLD = 50_000;
+  private static final int GLOBAL_SOFT_LIMIT = 75_000;
+  private static final int GLOBAL_HARD_LIMIT = 100_000;
+
+  @Test
+  void sustainedInsertionIsBoundedByAgeingAndSoftLimitTrim() {
+    ObjectStore<Object, Integer> capStore =
+        ObjectStore.of("test.Capacity.Key", "test.Capacity.Value");
+
+    // Insert enough distinct, strongly-referenced keys to drive the young generation past
+    // AGEING_THRESHOLD several times over, landing mid-cycle (comfortably above the soft
+    // limit) so both inline ageing and removeStaleEntries' soft-limit trim get exercised.
+    int totalInserts = (AGEING_THRESHOLD * 4) + 40_000;
+    List<Object> keys = new ArrayList<>(totalInserts);
+    for (int i = 0; i < totalInserts; i++) {
+      Object key = new Object();
+      keys.add(key);
+      capStore.put(key, i);
+    }
+
+    // Inline enforceCapacity keeps young+old from ever exceeding the hard limit by ageing
+    // young into old before that point is reached, so recently inserted keys must still be
+    // retrievable even after hundreds of thousands of insertions.
+    Object lastKey = keys.get(keys.size() - 1);
+    assertEquals(totalInserts - 1, capStore.get(lastKey));
+
+    int finalSize = ObjectStore.removeStaleEntries();
+    assertTrue(
+        finalSize < GLOBAL_HARD_LIMIT,
+        "Sustained insertion should have triggered eviction rather than unbounded growth");
+    assertTrue(
+        finalSize <= GLOBAL_SOFT_LIMIT,
+        "removeStaleEntries should trim content back to the soft limit, observed " + finalSize);
+  }
+
   // --- concurrency ---
 
   @Test

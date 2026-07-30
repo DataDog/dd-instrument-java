@@ -9,10 +9,9 @@ package datadog.instrument.fieldinject;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 
@@ -26,22 +25,34 @@ public final class GlobalObjectStore {
   /** Never allow more than this number of objects in the global store. */
   private static final int GLOBAL_HARD_LIMIT = 100_000;
 
+  /** Threshold at which we age the young generation into the old generation. */
+  private static final int AGEING_THRESHOLD = GLOBAL_HARD_LIMIT / 2;
+
   /** Temporarily allow more than this number of objects, but start removing old content. */
-  private static final int GLOBAL_SOFT_LIMIT = 50_000;
+  private static final int GLOBAL_SOFT_LIMIT = (GLOBAL_HARD_LIMIT + AGEING_THRESHOLD) / 2;
 
   /** Threshold at which we start doing limited cleanup at the same time as put operations. */
   private static final int INLINE_CLEANUP_THRESHOLD = 5_000;
 
-  /** Threshold at which we start sampling keys to track old content. */
-  private static final int OLD_KEYS_THRESHOLD = 512;
+  /** Bounds any inline eviction attempts. */
+  private static final int MAX_INLINE_EVICTION_ATTEMPTS = 10;
 
   private static final Object staleEntriesLock = new Object();
 
-  private static final Map<StoreKey, Object> weakMap = new ConcurrentHashMap<>();
+  /** Tracks young and old content in the object store. */
+  private static final class Generations {
+    final ConcurrentHashMap<StoreKey, Object> young;
+    final ConcurrentHashMap<StoreKey, Object> old;
 
-  private static final Set<StoreKey> oldKeys = new HashSet<>();
+    Generations(ConcurrentHashMap<StoreKey, Object> old) {
+      this.young = new ConcurrentHashMap<>(old.size());
+      this.old = old;
+    }
+  }
 
-  private static int previousEstimate = 0;
+  private static volatile Generations generations = new Generations(new ConcurrentHashMap<>());
+
+  private static final AtomicBoolean ageing = new AtomicBoolean();
 
   private GlobalObjectStore() {}
 
@@ -55,50 +66,21 @@ public final class GlobalObjectStore {
    */
   public static int removeStaleEntries() {
     synchronized (staleEntriesLock) {
-      Map<StoreKey, Object> weakMap = GlobalObjectStore.weakMap;
-      int estimatedSize = weakMap.size(); // capture size before any cleanup
       StoreKey key;
       while ((key = StoreKey.pollStaleKeys()) != null) {
-        if (weakMap.remove(key) != null) {
-          estimatedSize--;
-        }
+        removeEntry(key);
       }
 
-      // The following code handles proactively removing old content in an attempt to guide the
-      // store below its soft limit. We remove older objects before recent additions, assuming
-      // that older objects are less likely to be used. For performance reasons this only runs
-      // after observed periods of growth or reduction, or if the store is near its hard limit.
+      Generations g = generations;
 
-      // We deliberately avoid tracking exact age, and instead regularly sample keys to maintain
-      // a small set that we know are still alive after a couple of calls to removeStaleEntries.
+      int estimatedSize = g.young.size() + g.old.size();
 
-      if (Math.abs(estimatedSize - previousEstimate) > OLD_KEYS_THRESHOLD
-          || estimatedSize >= (GLOBAL_HARD_LIMIT + GLOBAL_SOFT_LIMIT) / 2) {
-
-        if (estimatedSize >= GLOBAL_SOFT_LIMIT) {
-          // start proactively removing old content to keep growth in check
-          for (StoreKey oldKey : oldKeys) {
-            if (weakMap.remove(oldKey) != null) {
-              estimatedSize--;
-            }
-          }
-          oldKeys.clear();
-        } else {
-          // have any of the old previously sampled keys been collected?
-          oldKeys.removeIf(StoreKey::isStale);
-        }
-
-        int refill = OLD_KEYS_THRESHOLD - oldKeys.size();
-        if (refill > 0) {
-          // sample of keys at this time, don't need strict age ordering
-          for (StoreKey sampleKey : weakMap.keySet()) {
-            if (oldKeys.add(sampleKey) && --refill == 0) {
-              break;
-            }
-          }
-        }
-
-        previousEstimate = estimatedSize;
+      // proactively remove old content when above the soft limit
+      Iterator<StoreKey> itr = g.old.keySet().iterator();
+      while (estimatedSize >= GLOBAL_SOFT_LIMIT && itr.hasNext()) {
+        itr.next();
+        itr.remove();
+        estimatedSize--;
       }
 
       return estimatedSize;
@@ -116,8 +98,14 @@ public final class GlobalObjectStore {
   public static Object get(Object key, int storeId) {
     LookupKey lookupKey = LookupKey.with(key, storeId);
     try {
+      Generations g = generations;
       //noinspection All: intentionally use lookup key without reference overhead
-      return weakMap.get(lookupKey);
+      Object value = g.young.get(lookupKey);
+      if (value == null) {
+        //noinspection All: intentionally use lookup key without reference overhead
+        value = g.old.get(lookupKey);
+      }
+      return value;
     } finally {
       lookupKey.reset();
     }
@@ -133,8 +121,9 @@ public final class GlobalObjectStore {
   public static void put(Object key, int storeId, @Nullable Object value) {
     if (value == null) {
       remove(key, storeId);
-    } else if (checkCapacity()) {
-      weakMap.put(new StoreKey(key, storeId), value);
+    } else {
+      enforceCapacity();
+      generations.young.put(new StoreKey(key, storeId), value);
     }
   }
 
@@ -151,10 +140,11 @@ public final class GlobalObjectStore {
     Object existing = get(key, storeId);
     if (existing != null || value == null) {
       return existing;
-    } else if (checkCapacity()) {
-      existing = weakMap.putIfAbsent(new StoreKey(key, storeId), value);
+    } else {
+      enforceCapacity();
+      existing = generations.young.putIfAbsent(new StoreKey(key, storeId), value);
+      return existing != null ? existing : value;
     }
-    return existing != null ? existing : value;
   }
 
   /**
@@ -171,11 +161,11 @@ public final class GlobalObjectStore {
     Object existing = get(key, storeId);
     if (existing != null) {
       return existing;
-    } else if (checkCapacity()) {
-      return weakMap.computeIfAbsent(
-          new StoreKey(key, storeId), storeKey -> valueFunction.apply(storeKey.get()));
+    } else {
+      enforceCapacity();
+      return generations.young.computeIfAbsent(
+          new StoreKey(key, storeId), unused -> valueFunction.apply(key));
     }
-    return valueFunction.apply(key);
   }
 
   /**
@@ -189,27 +179,72 @@ public final class GlobalObjectStore {
   public static Object remove(Object key, int storeId) {
     LookupKey lookupKey = LookupKey.with(key, storeId);
     try {
-      //noinspection All: intentionally use lookup key without reference overhead
-      return weakMap.remove(lookupKey);
+      return removeEntry(lookupKey);
     } finally {
       lookupKey.reset();
     }
   }
 
-  /**
-   * @return {@code true} if there is space to add new objects.
-   */
-  private static boolean checkCapacity() {
-    int estimatedSize = weakMap.size();
-    if (estimatedSize > INLINE_CLEANUP_THRESHOLD) {
-      // periodic cleanup may not be enough, start performing inline cleanup
-      StoreKey staleKey = StoreKey.pollStaleKeys();
-      if (staleKey == null) {
-        return estimatedSize < GLOBAL_HARD_LIMIT;
-      }
-      weakMap.remove(staleKey);
+  private static Object removeEntry(Object key) {
+    Generations g = generations;
+    //noinspection All: intentionally use lookup key without reference overhead
+    Object youngValue = g.young.remove(key);
+    //noinspection All: intentionally use lookup key without reference overhead
+    Object oldValue = g.old.remove(key);
+    return youngValue != null ? youngValue : oldValue;
+  }
+
+  private static void enforceCapacity() {
+    Generations g = generations;
+    int youngSize = g.young.size();
+    int totalSize = youngSize + g.old.size();
+    if (totalSize < INLINE_CLEANUP_THRESHOLD) {
+      return; // skip inline eviction
     }
-    return true;
+
+    // attempt a single stale eviction
+    StoreKey staleKey;
+    int attempts = MAX_INLINE_EVICTION_ATTEMPTS;
+    while (attempts-- > 0 && (staleKey = StoreKey.pollStaleKeys()) != null) {
+      if (removeEntry(staleKey) != null) {
+        return;
+      }
+    }
+
+    // when the young generation maxes out, age it so it becomes old
+    if (youngSize >= AGEING_THRESHOLD && ageGenerations(g)) {
+      return;
+    }
+
+    // attempt a single old eviction
+    if (totalSize >= GLOBAL_HARD_LIMIT) {
+      evictOldKey();
+    }
+  }
+
+  private static boolean ageGenerations(Generations g) {
+    if (ageing.compareAndSet(false, true)) {
+      try {
+        if (g == generations) {
+          generations = new Generations(g.young);
+          return true;
+        }
+      } finally {
+        ageing.set(false);
+      }
+    }
+    return false;
+  }
+
+  private static void evictOldKey() {
+    Generations g = generations;
+    int attempts = MAX_INLINE_EVICTION_ATTEMPTS;
+    Iterator<StoreKey> itr = g.old.keySet().iterator();
+    while (attempts-- > 0 && itr.hasNext()) {
+      if (g.old.remove(itr.next()) != null) {
+        return;
+      }
+    }
   }
 
   /** Key used to weakly associate a non-injected key and store-id with a value. */
@@ -229,10 +264,6 @@ public final class GlobalObjectStore {
 
     static StoreKey pollStaleKeys() {
       return (StoreKey) staleKeys.poll();
-    }
-
-    boolean isStale() {
-      return get() == null;
     }
 
     @Override

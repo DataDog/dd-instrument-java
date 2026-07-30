@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -105,7 +106,13 @@ public class ObjectStoreBenchmark {
     generateKeys();
   }
 
-  private static final Function<Object, Object> allocator = key -> new byte[1024];
+  // simulates a small, but non-trivial, value-construction cost
+  private static final Function<Object, Object> allocator =
+      key -> {
+        byte[] value = new byte[1024];
+        ThreadLocalRandom.current().nextBytes(value);
+        return value;
+      };
 
   @Setup
   public void setup() {
