@@ -17,7 +17,7 @@ sourceSets {
   }
 }
 
-val glueImplementation by configurations
+val glueImplementation = configurations.getByName("glueImplementation")
 dependencies {
   glueImplementation(libs.asm)
   glueImplementation(libs.spotbugs.annotations)
@@ -25,7 +25,7 @@ dependencies {
 }
 
 val generateGlue = tasks.register<JavaExec>("generateGlue") {
-  val glue: List<String> by project.extra
+  @Suppress("UNCHECKED_CAST") val glue = project.extra["glue"] as List<String>
 
   // generate glue files under a consistent packaging location
   val resourcePath = generatedGlueResources.dir("datadog/instrument/glue/")
