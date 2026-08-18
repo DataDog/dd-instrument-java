@@ -41,7 +41,7 @@ public final class GlobalObjectStore {
   private static final int INLINE_CLEANUP_THRESHOLD = 5_000;
 
   /** Constant supplier used when nothing in the store is considered old. */
-  private static final Supplier<Object> NO_OLD_KEYS = () -> null;
+  private static final Supplier<Object> NO_OLD_STALE_KEYS = () -> null;
 
   /** The current generation of the global object store. */
   private static volatile GlobalObjectStore store = new GlobalObjectStore();
@@ -65,7 +65,7 @@ public final class GlobalObjectStore {
 
   private GlobalObjectStore() {
     this.map = new ConcurrentHashMap<>();
-    this.oldStaleKeys = NO_OLD_KEYS;
+    this.oldStaleKeys = NO_OLD_STALE_KEYS;
     this.oldMap = Collections.emptyMap();
   }
 
