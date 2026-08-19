@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-  sampleBytecode("org.springframework:spring-web:7.0.8")
+  sampleBytecode("org.springframework:spring-web:7.0.7")
   jmh(project(":testing"))
 }
 

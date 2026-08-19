@@ -7,7 +7,7 @@ This repository contains helpers for working with the [Instrumentation](https://
 ## Features
 
 * [`ClassInjector`](class-inject/src/main/java/datadog/instrument/classinject/ClassInjector.java)
-  * Supports injection of auxiliary classes, even on the bootstrap classpath
+  * Supports injection of auxiliary classes, even in the bootstrap class-loader
 * [`ClassFile`](class-match/src/main/java/datadog/instrument/classmatch/ClassFile.java)
   * Optimized class-file parser for extracting the header or outline of a class
 * [`ClassLoaderValue`](utils/src/main/java/datadog/instrument/utils/ClassLoaderValue.java)
