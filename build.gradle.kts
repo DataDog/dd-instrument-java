@@ -23,7 +23,7 @@ java {
   withSourcesJar()
 }
 
-val embed = configurations.create("embed") {
+val embed by configurations.creating {
   isTransitive = false
 }
 

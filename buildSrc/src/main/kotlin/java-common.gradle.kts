@@ -83,7 +83,7 @@ spotbugs {
 }
 
 // dependency configuration to help pull sample bytecode in for testing
-val sampleBytecode = configurations.create("sampleBytecode") {
+val sampleBytecode by configurations.creating {
   isTransitive = false
 }
 
