@@ -3,5 +3,5 @@ plugins {
 }
 
 dependencies {
-  jmh (group = "com.blogspot.mydailyjava", name = "weak-lock-free", version = "0.18")
+  jmh("com.blogspot.mydailyjava:weak-lock-free:0.18")
 }
