@@ -5,6 +5,14 @@ plugins {
   signing
   id("pl.allegro.tech.build.axion-release")
   id("io.github.gradle-nexus.publish-plugin")
+  id("com.diffplug.spotless")
+}
+
+// predeclare formatter to workaround diffplug/spotless#2850
+spotlessPredeclare {
+  java {
+    googleJavaFormat()
+  }
 }
 
 scmVersion {
