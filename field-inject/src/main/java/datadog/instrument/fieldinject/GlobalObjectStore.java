@@ -40,6 +40,9 @@ public final class GlobalObjectStore {
   /** Threshold at which we start doing limited cleanup at the same time as put operations. */
   private static final int INLINE_CLEANUP_THRESHOLD = 5_000;
 
+  /** Sample underlying map size periodically, driven by misses when writing. */
+  private static final int MAP_SIZE_SAMPLE_RATE = (1 << 10) - 1; // sample every 1k misses
+
   /** Constant supplier used when nothing in the store is considered old. */
   private static final Supplier<Object> NO_OLD_STALE_KEYS = () -> null;
 
@@ -62,6 +65,8 @@ public final class GlobalObjectStore {
 
   /** Map of old store keys to value objects. */
   private final Map<StoreKey, Object> oldMap;
+
+  private transient volatile int sampledYoungSize;
 
   private GlobalObjectStore() {
     this.map = new ConcurrentHashMap<>();
@@ -96,23 +101,27 @@ public final class GlobalObjectStore {
       map.remove(staleKey);
     }
 
+    // update young sample before we check old part of the store
+    int estimatedTotal = map.size();
+    sampledYoungSize = estimatedTotal;
+
     // next remove stale entries from the old map
     while ((staleKey = oldStaleKeys.get()) != null) {
       //noinspection All: we know staleKey is a store key
       oldMap.remove(staleKey);
     }
 
-    int estimatedSize = map.size() + oldMap.size();
+    estimatedTotal += oldMap.size();
 
     // randomly evict old content to keep us below the soft limit
     Iterator<StoreKey> itr = oldMap.keySet().iterator();
-    while (estimatedSize >= GLOBAL_SOFT_LIMIT && itr.hasNext()) {
+    while (estimatedTotal >= GLOBAL_SOFT_LIMIT && itr.hasNext()) {
       itr.next();
       itr.remove();
-      estimatedSize--;
+      estimatedTotal--;
     }
 
-    return estimatedSize;
+    return estimatedTotal;
   }
 
   /**
@@ -124,20 +133,20 @@ public final class GlobalObjectStore {
    */
   @Nullable
   public static Object get(Object key, int storeId) {
-    return store.doGet(key, storeId);
-  }
-
-  @Nullable
-  private Object doGet(Object key, int storeId) {
     LookupKey lookupKey = LookupKey.with(key, storeId);
     try {
-      //noinspection All: intentionally use lookup key without reference overhead
-      Object value = map.get(lookupKey);
-      //noinspection All: intentionally use lookup key without reference overhead
-      return value != null ? value : oldMap.get(lookupKey);
+      return store.doGet(lookupKey);
     } finally {
       lookupKey.reset();
     }
+  }
+
+  @Nullable
+  private Object doGet(LookupKey lookupKey) {
+    //noinspection All: intentionally use lookup key without reference overhead
+    Object value = map.get(lookupKey);
+    //noinspection All: intentionally use lookup key without reference overhead
+    return value != null ? value : oldMap.get(lookupKey);
   }
 
   /**
@@ -148,11 +157,10 @@ public final class GlobalObjectStore {
    * @param value the new value
    */
   public static void put(Object key, int storeId, @Nullable Object value) {
-    GlobalObjectStore s = store;
-    if (value == null) {
-      s.doRemove(key, storeId);
+    if (value != null) {
+      store.checkCapacity(LookupKey.skip()).doPut(key, storeId, value);
     } else {
-      s.checkCapacity().doPut(key, storeId, value);
+      remove(key, storeId);
     }
   }
 
@@ -170,12 +178,17 @@ public final class GlobalObjectStore {
    * @return existing value if present, otherwise the new value
    */
   public static Object getOrPut(Object key, int storeId, @Nullable Object value) {
-    GlobalObjectStore s = store;
-    Object existing = s.doGet(key, storeId); // avoids creating unnecessary store key
-    if (existing != null || value == null) {
-      return existing;
-    } else {
-      return s.checkCapacity().doGetOrPut(key, storeId, value);
+    LookupKey lookupKey = LookupKey.with(key, storeId);
+    try {
+      GlobalObjectStore s = store;
+      Object existing = s.doGet(lookupKey); // avoids creating unnecessary store key
+      if (existing != null || value == null) {
+        return existing;
+      } else {
+        return s.checkCapacity(lookupKey.miss()).doGetOrPut(key, storeId, value);
+      }
+    } finally {
+      lookupKey.reset();
     }
   }
 
@@ -195,12 +208,17 @@ public final class GlobalObjectStore {
    */
   @SuppressWarnings({"rawtypes"})
   public static Object getOrCompute(Object key, int storeId, Function valueFunction) {
-    GlobalObjectStore s = store;
-    Object existing = s.doGet(key, storeId); // avoids creating unnecessary store key
-    if (existing != null) {
-      return existing;
-    } else {
-      return s.checkCapacity().doGetOrCompute(key, storeId, valueFunction);
+    LookupKey lookupKey = LookupKey.with(key, storeId);
+    try {
+      GlobalObjectStore s = store;
+      Object existing = s.doGet(lookupKey); // avoids creating unnecessary store key
+      if (existing != null) {
+        return existing;
+      } else {
+        return s.checkCapacity(lookupKey.miss()).doGetOrCompute(key, storeId, valueFunction);
+      }
+    } finally {
+      lookupKey.reset();
     }
   }
 
@@ -219,30 +237,34 @@ public final class GlobalObjectStore {
    */
   @Nullable
   public static Object remove(Object key, int storeId) {
-    return store.doRemove(key, storeId);
-  }
-
-  @Nullable
-  private Object doRemove(Object key, int storeId) {
     LookupKey lookupKey = LookupKey.with(key, storeId);
     try {
-      //noinspection All: intentionally use lookup key without reference overhead
-      Object value = map.remove(lookupKey);
-      //noinspection All: intentionally use lookup key without reference overhead
-      Object oldValue = oldMap.remove(lookupKey);
-      return value != null ? value : oldValue;
+      return store.doRemove(lookupKey);
     } finally {
       lookupKey.reset();
     }
   }
 
+  @Nullable
+  private Object doRemove(LookupKey lookupKey) {
+    //noinspection All: intentionally use lookup key without reference overhead
+    Object value = map.remove(lookupKey);
+    //noinspection All: intentionally use lookup key without reference overhead
+    Object oldValue = oldMap.remove(lookupKey);
+    return value != null ? value : oldValue;
+  }
+
   /**
    * Checks store capacity, performing inline eviction or ageing if appropriate.
    *
+   * @param misses lookup misses on this thread when writing
    * @return the latest generation of the global store
    */
-  private GlobalObjectStore checkCapacity() {
-    int youngSize = map.size();
+  private GlobalObjectStore checkCapacity(int misses) {
+    int youngSize = sampledYoungSize;
+    if ((misses & MAP_SIZE_SAMPLE_RATE) == 1) { // sample on first miss and every RATE after
+      youngSize = sampledYoungSize = map.size();
+    }
     if (youngSize >= INLINE_CLEANUP_THRESHOLD) {
       Object staleKey = staleKeys.poll();
       if (staleKey != null) {
@@ -323,6 +345,9 @@ public final class GlobalObjectStore {
     int hash;
     int storeId;
 
+    /** Number of times a lookup missed when writing. */
+    int misses;
+
     /**
      * Returns a temporary lookup key for the current thread with the given object key and store-id.
      * This key must be reset by calling {@link #reset} as soon as the get/remove request completes.
@@ -337,6 +362,16 @@ public final class GlobalObjectStore {
       thiz.hash = (31 * storeId) + System.identityHashCode(key);
       thiz.storeId = storeId;
       return thiz;
+    }
+
+    /** Record the lookup was skipped when writing. */
+    static int skip() {
+      return LOOKUP_KEY_CACHE.get().miss();
+    }
+
+    /** Record the lookup missed when writing. */
+    int miss() {
+      return ++misses;
     }
 
     /** Resets this temporary lookup key so it can be reused in a future get/remove request. */
