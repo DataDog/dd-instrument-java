@@ -13,46 +13,63 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicIntegerArray;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 /**
- * Global key-value store used when field-injection is not possible. Since the same object may
- * participate in multiple stores each global key captures the store identity along with a weak
+ * Global sharded key-value store used when field-injection is not possible. Since the same object
+ * may participate in multiple stores each global key captures the store identity along with a weak
  * reference to the owning key object.
  *
- * <p>The store is split into two maps with separate reference queues: young and old. Ageing the
- * store by one generation creates a new young map; the previous young map becomes the old map.
+ * <p>Each shard is split into two maps with separate reference queues: young and old. Ageing a
+ * shard by one generation creates a new young map; the previous young map becomes the old map.
  */
 public final class GlobalObjectStore {
 
-  /** Target ceiling for the total number of objects in the global store, young and old. */
-  private static final int GLOBAL_HARD_LIMIT = 100_000;
+  /** Target ceiling for the total number of objects in a shard, young and old. */
+  private static final int SHARD_HARD_LIMIT = 32_000;
 
-  /** Threshold at which we age the current store by one generation. */
-  private static final int AGEING_THRESHOLD = GLOBAL_HARD_LIMIT / 2;
+  /** Threshold at which we age a shard by one generation. */
+  private static final int AGEING_THRESHOLD = SHARD_HARD_LIMIT / 2;
 
-  /** Target ceiling for the total number of objects allowed after background eviction. */
-  private static final int GLOBAL_SOFT_LIMIT = (GLOBAL_HARD_LIMIT + AGEING_THRESHOLD) / 2;
+  /** Target ceiling for total number of objects allowed in a shard after background eviction. */
+  private static final int SHARD_SOFT_LIMIT = (SHARD_HARD_LIMIT + AGEING_THRESHOLD) / 2;
 
   /** Threshold at which we start doing limited cleanup at the same time as put operations. */
-  private static final int INLINE_CLEANUP_THRESHOLD = 5_000;
+  private static final int INLINE_CLEANUP_THRESHOLD = 2_000;
 
   /** Sample underlying map size periodically, driven by misses when writing. */
-  private static final int MAP_SIZE_SAMPLE_RATE = (1 << 10) - 1; // sample every 1k misses
+  private static final int SIZE_SAMPLE_RATE_MASK = (1 << 10) - 1; // sample every 1k misses
 
-  /** Constant supplier used when nothing in the store is considered old. */
+  /** Shift used to pick a shard from a store-id after fibonacci-hashing. */
+  private static final int SHARD_BITS = 3;
+
+  /** Number of independent shards; store-ids are spread across shards. */
+  private static final int SHARD_COUNT = 1 << SHARD_BITS;
+
+  /** Constant supplier used when nothing in a shard is considered old. */
   private static final Supplier<Object> NO_OLD_STALE_KEYS = () -> null;
 
-  /** The current generation of the global object store. */
-  private static volatile GlobalObjectStore store = new GlobalObjectStore();
+  /** The current generation of each shard of the global object store. */
+  private static final AtomicReferenceArray<GlobalObjectStore> shards = initShards();
 
-  /** Token used to decide which thread gets to age the store. */
-  private static final AtomicBoolean ageing = new AtomicBoolean();
+  /** Per-shard token used to decide which thread gets to age that shard. */
+  private static final AtomicIntegerArray ageing = new AtomicIntegerArray(SHARD_COUNT);
 
-  // the following fields represent a generation of the object store
+  private static AtomicReferenceArray<GlobalObjectStore> initShards() {
+    AtomicReferenceArray<GlobalObjectStore> shards = new AtomicReferenceArray<>(SHARD_COUNT);
+    for (int shardIndex = 0; shardIndex < SHARD_COUNT; shardIndex++) {
+      shards.set(shardIndex, new GlobalObjectStore(shardIndex));
+    }
+    return shards;
+  }
+
+  // the following fields represent a generation of each shard in the global object store
+
+  private final int shardIndex;
 
   /** Supplies store keys where the key object is unused and eligible for collection. */
   private final ReferenceQueue<Object> staleKeys = new ReferenceQueue<>();
@@ -68,13 +85,15 @@ public final class GlobalObjectStore {
 
   private transient volatile int sampledYoungSize;
 
-  private GlobalObjectStore() {
+  private GlobalObjectStore(int shardIndex) {
+    this.shardIndex = shardIndex;
     this.map = new ConcurrentHashMap<>();
     this.oldStaleKeys = NO_OLD_STALE_KEYS;
     this.oldMap = Collections.emptyMap();
   }
 
   private GlobalObjectStore(GlobalObjectStore oldStore) {
+    this.shardIndex = oldStore.shardIndex;
     this.map = new ConcurrentHashMap<>(INLINE_CLEANUP_THRESHOLD);
     this.oldStaleKeys = oldStore.staleKeys::poll;
     this.oldMap = oldStore.map;
@@ -89,7 +108,11 @@ public final class GlobalObjectStore {
    * @return the estimated remaining size of the global object-store
    */
   public static int removeStaleEntries() {
-    return store.doRemoveStaleEntries();
+    int estimatedSize = 0;
+    for (int shardIndex = 0; shardIndex < SHARD_COUNT; shardIndex++) {
+      estimatedSize += shards.get(shardIndex).doRemoveStaleEntries();
+    }
+    return estimatedSize;
   }
 
   private int doRemoveStaleEntries() {
@@ -115,7 +138,7 @@ public final class GlobalObjectStore {
 
     // randomly evict old content to keep us below the soft limit
     Iterator<StoreKey> itr = oldMap.keySet().iterator();
-    while (estimatedTotal >= GLOBAL_SOFT_LIMIT && itr.hasNext()) {
+    while (estimatedTotal >= SHARD_SOFT_LIMIT && itr.hasNext()) {
       itr.next();
       itr.remove();
       estimatedTotal--;
@@ -135,7 +158,7 @@ public final class GlobalObjectStore {
   public static Object get(Object key, int storeId) {
     LookupKey lookupKey = LookupKey.with(key, storeId);
     try {
-      return store.doGet(lookupKey);
+      return shard(storeId).doGet(lookupKey);
     } finally {
       lookupKey.reset();
     }
@@ -158,7 +181,7 @@ public final class GlobalObjectStore {
    */
   public static void put(Object key, int storeId, @Nullable Object value) {
     if (value != null) {
-      store.checkCapacity(LookupKey.skip()).doPut(key, storeId, value);
+      shard(storeId).checkCapacity(LookupKey.skip()).doPut(key, storeId, value);
     } else {
       remove(key, storeId);
     }
@@ -180,7 +203,7 @@ public final class GlobalObjectStore {
   public static Object getOrPut(Object key, int storeId, @Nullable Object value) {
     LookupKey lookupKey = LookupKey.with(key, storeId);
     try {
-      GlobalObjectStore s = store;
+      GlobalObjectStore s = shard(storeId);
       Object existing = s.doGet(lookupKey); // avoids creating unnecessary store key
       if (existing != null || value == null) {
         return existing;
@@ -210,7 +233,7 @@ public final class GlobalObjectStore {
   public static Object getOrCompute(Object key, int storeId, Function valueFunction) {
     LookupKey lookupKey = LookupKey.with(key, storeId);
     try {
-      GlobalObjectStore s = store;
+      GlobalObjectStore s = shard(storeId);
       Object existing = s.doGet(lookupKey); // avoids creating unnecessary store key
       if (existing != null) {
         return existing;
@@ -239,7 +262,7 @@ public final class GlobalObjectStore {
   public static Object remove(Object key, int storeId) {
     LookupKey lookupKey = LookupKey.with(key, storeId);
     try {
-      return store.doRemove(lookupKey);
+      return shard(storeId).doRemove(lookupKey);
     } finally {
       lookupKey.reset();
     }
@@ -255,15 +278,17 @@ public final class GlobalObjectStore {
   }
 
   /**
-   * Checks store capacity, performing inline eviction or ageing if appropriate.
+   * Checks shard capacity, performing inline eviction or ageing if appropriate.
    *
    * @param misses lookup misses on this thread when writing
-   * @return the latest generation of the global store
+   * @return the latest generation of the shard
    */
   private GlobalObjectStore checkCapacity(int misses) {
-    int youngSize = sampledYoungSize;
-    if ((misses & MAP_SIZE_SAMPLE_RATE) == 1) { // sample on first miss and every RATE after
-      youngSize = sampledYoungSize = map.size();
+    int youngSize;
+    if ((misses & SIZE_SAMPLE_RATE_MASK) == 1) { // sample on first miss and every RATE after
+      sampledYoungSize = youngSize = map.size();
+    } else {
+      youngSize = sampledYoungSize;
     }
     if (youngSize >= INLINE_CLEANUP_THRESHOLD) {
       Object staleKey = staleKeys.poll();
@@ -279,27 +304,32 @@ public final class GlobalObjectStore {
   }
 
   /**
-   * Attempts to age this store by one generation; if already ageing don't block, use latest.
+   * Attempts to age this shard by one generation; if already ageing don't block, use latest.
    *
-   * @return the latest generation of the global store
+   * @return the latest generation of the shard
    */
-  @SuppressFBWarnings("ST") // we want to update the global object store
   private GlobalObjectStore maybeAgeStore() {
-    // first try to get the token that allows us to age the global store
-    boolean attemptAgeing = ageing.compareAndSet(false, true);
-    // only after this get the latest generation of the store
-    GlobalObjectStore s = store;
+    // first try to get the token that allows us to age this shard
+    boolean attemptAgeing = ageing.compareAndSet(shardIndex, 0, 1);
+    // only after this get the latest generation of the shard
+    GlobalObjectStore s = shards.get(shardIndex);
     if (attemptAgeing) {
       try {
         if (s == this) {
-          // our store is still the latest; go ahead and age it
-          s = store = new GlobalObjectStore(this);
+          // our shard generation is still the latest; go ahead and age it
+          shards.set(shardIndex, s = new GlobalObjectStore(this));
         }
       } finally {
-        ageing.set(false); // relinquish the token
+        ageing.set(shardIndex, 0); // relinquish the token
       }
     }
-    return s; // always return the latest generation of the store
+    return s; // always return the latest generation of the shard
+  }
+
+  /** Returns the shard for the given store-id. */
+  static GlobalObjectStore shard(int storeId) {
+    // use fibonacci-hashing to spread store-ids evenly, then take top bits
+    return shards.get((storeId * 0x9E3779B9) >>> (32 - SHARD_BITS));
   }
 
   /** Key used to weakly associate a non-injected key and store-id with a value. */
