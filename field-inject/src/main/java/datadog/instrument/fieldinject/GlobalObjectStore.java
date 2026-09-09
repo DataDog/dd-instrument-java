@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
@@ -41,8 +42,8 @@ public final class GlobalObjectStore {
   /** Threshold at which we start doing limited cleanup at the same time as put operations. */
   private static final int INLINE_CLEANUP_THRESHOLD = 2_000;
 
-  /** Sample underlying map size periodically, driven by misses when writing. */
-  private static final int SIZE_SAMPLE_RATE_MASK = (1 << 10) - 1; // sample every 1k misses
+  /** Randomly sample underlying map size, approximately once every 1024 writes per-thread. */
+  private static final int SIZE_SAMPLE_RATE = 1 << 10;
 
   /** Shift used to pick a shard from a store-id after fibonacci-hashing. */
   private static final int SHARD_BITS = 3;
@@ -181,7 +182,7 @@ public final class GlobalObjectStore {
    */
   public static void put(Object key, int storeId, @Nullable Object value) {
     if (value != null) {
-      shard(storeId).checkCapacity(LookupKey.skip()).doPut(key, storeId, value);
+      shard(storeId).checkCapacity().doPut(key, storeId, value);
     } else {
       remove(key, storeId);
     }
@@ -208,7 +209,7 @@ public final class GlobalObjectStore {
       if (existing != null || value == null) {
         return existing;
       } else {
-        return s.checkCapacity(lookupKey.miss()).doGetOrPut(key, storeId, value);
+        return s.checkCapacity().doGetOrPut(key, storeId, value);
       }
     } finally {
       lookupKey.reset();
@@ -238,7 +239,7 @@ public final class GlobalObjectStore {
       if (existing != null) {
         return existing;
       } else {
-        return s.checkCapacity(lookupKey.miss()).doGetOrCompute(key, storeId, valueFunction);
+        return s.checkCapacity().doGetOrCompute(key, storeId, valueFunction);
       }
     } finally {
       lookupKey.reset();
@@ -280,12 +281,11 @@ public final class GlobalObjectStore {
   /**
    * Checks shard capacity, performing inline eviction or ageing if appropriate.
    *
-   * @param misses lookup misses on this thread when writing
    * @return the latest generation of the shard
    */
-  private GlobalObjectStore checkCapacity(int misses) {
+  private GlobalObjectStore checkCapacity() {
     int youngSize;
-    if ((misses & SIZE_SAMPLE_RATE_MASK) == 1) { // sample on first miss and every RATE after
+    if (ThreadLocalRandom.current().nextInt(SIZE_SAMPLE_RATE) == 0) {
       sampledYoungSize = youngSize = map.size();
     } else {
       youngSize = sampledYoungSize;
@@ -375,9 +375,6 @@ public final class GlobalObjectStore {
     int hash;
     int storeId;
 
-    /** Number of times a lookup missed when writing. */
-    int misses;
-
     /**
      * Returns a temporary lookup key for the current thread with the given object key and store-id.
      * This key must be reset by calling {@link #reset} as soon as the get/remove request completes.
@@ -392,16 +389,6 @@ public final class GlobalObjectStore {
       thiz.hash = (31 * storeId) + System.identityHashCode(key);
       thiz.storeId = storeId;
       return thiz;
-    }
-
-    /** Record the lookup was skipped when writing. */
-    static int skip() {
-      return LOOKUP_KEY_CACHE.get().miss();
-    }
-
-    /** Record the lookup missed when writing. */
-    int miss() {
-      return ++misses;
     }
 
     /** Resets this temporary lookup key so it can be reused in a future get/remove request. */
