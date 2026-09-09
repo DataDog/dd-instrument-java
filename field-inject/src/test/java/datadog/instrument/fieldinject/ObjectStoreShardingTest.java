@@ -1,5 +1,6 @@
 package datadog.instrument.fieldinject;
 
+import static datadog.instrument.fieldinject.GlobalObjectStore.SHARD_COUNT;
 import static datadog.instrument.fieldinject.ObjectStoreIds.objectStoreId;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,8 +18,6 @@ import org.junit.jupiter.api.Test;
  */
 class ObjectStoreShardingTest {
 
-  private static final int EXPECTED_SHARD_COUNT = 8;
-
   private static void assertSpreadAcrossShards(int[] storeIds) {
     Map<GlobalObjectStore, Integer> countsByShard = new IdentityHashMap<>();
     for (int storeId : storeIds) {
@@ -30,10 +29,10 @@ class ObjectStoreShardingTest {
     int max = countsByShard.values().stream().mapToInt(Integer::intValue).max().orElse(0);
 
     assertTrue(
-        used >= EXPECTED_SHARD_COUNT / 2,
-        "expected at least half the shards to be used, got " + used + "/" + EXPECTED_SHARD_COUNT);
+        used >= SHARD_COUNT / 2,
+        "expected at least half the shards to be used, got " + used + "/" + SHARD_COUNT);
 
-    int average = storeIds.length / EXPECTED_SHARD_COUNT;
+    int average = storeIds.length / SHARD_COUNT;
     assertTrue(
         max <= average * 3,
         "expected no shard to receive far more than its share, got max="

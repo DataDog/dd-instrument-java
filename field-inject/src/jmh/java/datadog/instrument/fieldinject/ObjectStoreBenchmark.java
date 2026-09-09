@@ -1,5 +1,7 @@
 package datadog.instrument.fieldinject;
 
+import static datadog.instrument.fieldinject.GlobalObjectStore.SHARD_COUNT;
+import static datadog.instrument.fieldinject.GlobalObjectStore.SHARD_HARD_LIMIT;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toList;
@@ -86,12 +88,12 @@ public class ObjectStoreBenchmark {
   }
 
   // multiple of GlobalObjectStore's shard count, for even spread
-  private static final int NUM_STORES = 32;
+  private static final int NUM_STORES = SHARD_COUNT * 4;
 
   private static final ObjectStore[] stores = new ObjectStore[NUM_STORES];
 
   static {
-    // key-type diversity spreads store-ids across shards; value-type diversity doesn't
+    // distinct key types per store spread store-ids evenly across shards
     Arrays.setAll(stores, store -> ObjectStore.of("KeyType$" + store, "ValueType"));
   }
 
@@ -176,7 +178,7 @@ public class ObjectStoreBenchmark {
    */
   static final class WeakObjectMap<K, V> {
     // total capacity over all per-map stores should equal GlobalObjectStore's hard limit
-    private static final int MAX_SIZE = 256_000 / NUM_STORES;
+    private static final int MAX_SIZE = (SHARD_HARD_LIMIT * SHARD_COUNT) / NUM_STORES;
 
     private final WeakConcurrentMap<Object, Object> map = new WeakConcurrentMap<>(false, true);
 

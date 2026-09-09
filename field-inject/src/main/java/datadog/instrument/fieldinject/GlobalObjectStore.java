@@ -31,25 +31,25 @@ import javax.annotation.Nullable;
 public final class GlobalObjectStore {
 
   /** Target ceiling for the total number of objects in a shard, young and old. */
-  private static final int SHARD_HARD_LIMIT = 32_000;
+  static final int SHARD_HARD_LIMIT = 32_000;
 
   /** Threshold at which we age a shard by one generation. */
-  private static final int AGEING_THRESHOLD = SHARD_HARD_LIMIT / 2;
+  static final int AGEING_THRESHOLD = SHARD_HARD_LIMIT / 2;
 
   /** Target ceiling for total number of objects allowed in a shard after background eviction. */
-  private static final int SHARD_SOFT_LIMIT = (SHARD_HARD_LIMIT + AGEING_THRESHOLD) / 2;
+  static final int SHARD_SOFT_LIMIT = (SHARD_HARD_LIMIT + AGEING_THRESHOLD) / 2;
+
+  /** Shift used to pick a shard from a store-id after fibonacci-hashing. */
+  private static final int SHARD_BITS = 3;
+
+  /** Number of independent shards; store-ids are spread across shards. */
+  static final int SHARD_COUNT = 1 << SHARD_BITS;
 
   /** Threshold at which we start doing limited cleanup at the same time as put operations. */
   private static final int INLINE_CLEANUP_THRESHOLD = 2_000;
 
   /** Randomly sample underlying map size, approximately once every 1024 writes per-thread. */
   private static final int SIZE_SAMPLE_RATE = 1 << 10;
-
-  /** Shift used to pick a shard from a store-id after fibonacci-hashing. */
-  private static final int SHARD_BITS = 3;
-
-  /** Number of independent shards; store-ids are spread across shards. */
-  private static final int SHARD_COUNT = 1 << SHARD_BITS;
 
   /** Constant supplier used when nothing in a shard is considered old. */
   private static final Supplier<Object> NO_OLD_STALE_KEYS = () -> null;

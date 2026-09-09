@@ -29,19 +29,19 @@ import org.openjdk.jmh.annotations.Warmup;
  * Measures whether contention on unrelated {@link ObjectStore}s spills over onto a store nobody
  * else is touching. A per-store map shares nothing, so it should show no difference between running
  * alone and running alongside a contended pool. {@link ObjectStore} is instead backed by {@link
- * GlobalObjectStore}, which shards stores by masking the low bits of {@code storeId}; a contended
- * store landing on the same shard as the isolated store (via {@code StoreKey}'s hash, hash
- * collisions, or a shared ageing/eviction pass) could degrade its throughput.
+ * GlobalObjectStore}, which picks a shard by fibonacci-hashing {@code storeId}; a contended store
+ * landing on the same shard as the isolated store (via a storeId hash collision, or a shared
+ * ageing/eviction pass) could degrade its throughput.
  *
- * <p>The contended pool uses a distinct key type per store, matching real usage where key-type
- * diversity (not value-type diversity) is what spreads store-ids across shards.
+ * <p>The contended pool uses a distinct key type per store; since the shard hash mixes both halves
+ * of {@code storeId}, varying either key type or value type spreads store-ids across shards.
  *
  * <p>Each variant runs the isolated store alone as a baseline ({@code isolatedStoreAlone_*}), then
  * again alongside a disjoint contended pool hammered by more threads ({@code
  * isolatedStoreUnderLoad_*} paired with {@code contendedPool_*} in a JMH {@code @Group}). Re-run
- * this when tuning {@code GlobalObjectStore}'s shard count/selection, {@code StoreKey} hash
- * formula, or backing map capacity: less spillover should shrink the gap between {@code
- * isolatedStoreAlone_globalObjectStore} and {@code isolatedStoreUnderLoad_globalObjectStore}.
+ * this when tuning {@code GlobalObjectStore}'s shard count/selection or backing map capacity: less
+ * spillover should shrink the gap between {@code isolatedStoreAlone_globalObjectStore} and {@code
+ * isolatedStoreUnderLoad_globalObjectStore}.
  *
  * <pre>
  *   ./gradlew :field-inject:jmh -Pjmh.includes=ObjectStoreContentionBenchmark
