@@ -1,5 +1,10 @@
 package datadog.instrument.fieldinject;
 
+import static datadog.instrument.fieldinject.GlobalObjectStore.AGEING_THRESHOLD;
+import static datadog.instrument.fieldinject.GlobalObjectStore.SHARD_COUNT;
+import static datadog.instrument.fieldinject.GlobalObjectStore.SHARD_HARD_LIMIT;
+import static datadog.instrument.fieldinject.GlobalObjectStore.SHARD_SOFT_LIMIT;
+import static datadog.instrument.fieldinject.ObjectStoreIds.objectStoreId;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -221,21 +226,19 @@ class ObjectStoreTest {
 
   // --- generational capacity / eviction ---
 
-  // Mirrors the private thresholds in GlobalObjectStore; kept here so the test intent is clear
-  // without exposing internals. If those thresholds change this test should be revisited.
-  private static final int AGEING_THRESHOLD = 50_000;
-  private static final int GLOBAL_SOFT_LIMIT = 75_000;
-  private static final int GLOBAL_HARD_LIMIT = 100_000;
-
   @Test
   void sustainedInsertionIsBoundedByAgeingAndSoftLimitTrim() {
     ObjectStore<Object, Integer> capStore =
         ObjectStore.of("test.Capacity.Key", "test.Capacity.Value");
 
+    // removeStaleEntries() sums estimated size across all shards; only this store's shard is
+    // populated here, so the sum reflects that one shard directly.
+    int otherShardsBaseline = ObjectStore.removeStaleEntries();
+
     // Insert enough distinct, strongly-referenced keys to drive the young generation past
     // AGEING_THRESHOLD several times over, landing mid-cycle (comfortably above the soft
     // limit) so both inline ageing and removeStaleEntries' soft-limit trim get exercised.
-    int totalInserts = (AGEING_THRESHOLD * 4) + 40_000;
+    int totalInserts = (AGEING_THRESHOLD * 4) + 8_000;
     List<Object> keys = new ArrayList<>(totalInserts);
     for (int i = 0; i < totalInserts; i++) {
       Object key = new Object();
@@ -243,19 +246,156 @@ class ObjectStoreTest {
       capStore.put(key, i);
     }
 
-    // Inline enforceCapacity keeps young+old from ever exceeding the hard limit by ageing
+    // Inline enforceCapacity keeps young+old from ever exceeding the shard hard limit by ageing
     // young into old before that point is reached, so recently inserted keys must still be
-    // retrievable even after hundreds of thousands of insertions.
+    // retrievable even after many multiples of the shard's capacity have been inserted.
     Object lastKey = keys.get(keys.size() - 1);
     assertEquals(totalInserts - 1, capStore.get(lastKey));
 
-    int finalSize = ObjectStore.removeStaleEntries();
+    int finalSize = ObjectStore.removeStaleEntries() - otherShardsBaseline;
     assertTrue(
-        finalSize < GLOBAL_HARD_LIMIT,
-        "Sustained insertion should have triggered eviction rather than unbounded growth");
+        finalSize < SHARD_HARD_LIMIT,
+        "Sustained insertion should have triggered eviction rather than unbounded growth, observed "
+            + finalSize);
     assertTrue(
-        finalSize <= GLOBAL_SOFT_LIMIT,
-        "removeStaleEntries should trim content back to the soft limit, observed " + finalSize);
+        finalSize <= SHARD_SOFT_LIMIT,
+        "removeStaleEntries should trim content back to the shard soft limit, observed "
+            + finalSize);
+  }
+
+  @Test
+  void survivingKeyIsShadowedAfterAgeingAndRemoveClearsBothGenerations() {
+    ObjectStore<Object, Integer> genStore =
+        ObjectStore.of("test.GenerationBoundary.Key", "test.GenerationBoundary.Value");
+
+    Object survivorKey = new Object();
+    genStore.put(survivorKey, -1);
+
+    // Insert enough further distinct, strongly-referenced keys to push the young generation past
+    // AGEING_THRESHOLD (ageing survivorKey's entry into the old generation), while staying well
+    // short of a second ageing cycle that would drop it again.
+    int keysToForceAgeing = AGEING_THRESHOLD + 10_000;
+    List<Object> keys = new ArrayList<>(keysToForceAgeing);
+    for (int i = 0; i < keysToForceAgeing; i++) {
+      Object key = new Object();
+      keys.add(key);
+      genStore.put(key, i);
+    }
+
+    Object lastBulkKey = keys.get(keys.size() - 1);
+    assertEquals(keysToForceAgeing - 1, genStore.get(lastBulkKey));
+
+    // survivorKey's original entry should now live in the old generation, but must still resolve.
+    assertEquals(-1, genStore.get(survivorKey));
+
+    // Overwriting writes into the (new) young generation, shadowing the stale old-generation entry.
+    genStore.put(survivorKey, 42);
+    assertEquals(42, genStore.get(survivorKey), "put should shadow the stale old-generation entry");
+
+    // remove() must clear both generations; otherwise the old entry would resurrect the old value.
+    assertEquals(42, genStore.remove(survivorKey));
+    assertNull(
+        genStore.get(survivorKey),
+        "remove must clear the old-generation copy too, or it would resurrect the shadowed value");
+  }
+
+  @Test
+  void singleThreadCyclingAcrossAllShardsStillSamplesEachShard() {
+    // A thread writing to several stores in a fixed round-robin cycle whose length divides
+    // SIZE_SAMPLE_RATE (1024) should sample capacity on every shard it visits, not just one.
+    GlobalObjectStore[] chosenShards = new GlobalObjectStore[SHARD_COUNT];
+    String[] chosenKeyTypes = new String[SHARD_COUNT];
+    int found = 0;
+    int suffix = 0;
+    while (found < SHARD_COUNT) {
+      String candidate = "test.ShardCycle.Key" + suffix++;
+      GlobalObjectStore shard =
+          GlobalObjectStore.shard(objectStoreId(candidate, "test.ShardCycle.Value"));
+      boolean alreadyChosen = false;
+      for (int i = 0; i < found; i++) {
+        if (chosenShards[i] == shard) {
+          alreadyChosen = true;
+          break;
+        }
+      }
+      if (!alreadyChosen) {
+        chosenShards[found] = shard;
+        chosenKeyTypes[found] = candidate;
+        found++;
+      }
+    }
+
+    ObjectStore<Object, Integer>[] cycleStores = new ObjectStore[SHARD_COUNT];
+    for (int i = 0; i < SHARD_COUNT; i++) {
+      cycleStores[i] = ObjectStore.of(chosenKeyTypes[i], "test.ShardCycle.Value");
+    }
+
+    int baseline = ObjectStore.removeStaleEntries();
+
+    int perStoreInserts = SHARD_HARD_LIMIT + AGEING_THRESHOLD;
+    int totalInserts = perStoreInserts * SHARD_COUNT;
+    List<Object> keys = new ArrayList<>(totalInserts);
+    for (int i = 0; i < totalInserts; i++) {
+      Object key = new Object();
+      keys.add(key);
+      cycleStores[i % SHARD_COUNT].put(key, i);
+    }
+
+    Object lastKey = keys.get(keys.size() - 1);
+    assertEquals(totalInserts - 1, cycleStores[(totalInserts - 1) % SHARD_COUNT].get(lastKey));
+
+    // If any shard were starved of sampling it would never age or trim, so its young map would
+    // grow to hold roughly its entire share of inserts (perStoreInserts) instead of settling near
+    // the soft limit; that dwarfs a healthy aggregate across all shards.
+    int aggregate = ObjectStore.removeStaleEntries() - baseline;
+    int healthyCeiling = SHARD_COUNT * SHARD_SOFT_LIMIT;
+    assertTrue(
+        aggregate <= healthyCeiling,
+        "Every shard touched by this cyclic pattern should sample and age independently; "
+            + "observed aggregate size "
+            + aggregate
+            + " exceeds "
+            + healthyCeiling
+            + " (a starved shard would grow unbounded instead of ageing)");
+  }
+
+  @Test
+  void oneShardsSustainedLoadDoesNotAgeOrEvictAnotherShard() {
+    // Pick two key types landing on different shards, matching ObjectStoreShardingTest's approach.
+    String loadedKeyType = "test.ShardIsolation.LoadedKey";
+    int loadedStoreId = objectStoreId(loadedKeyType, "test.ShardIsolation.Value");
+    String quietKeyType = null;
+    int suffix = 0;
+    while (true) {
+      String candidate = "test.ShardIsolation.QuietKey" + suffix;
+      if (GlobalObjectStore.shard(objectStoreId(candidate, "test.ShardIsolation.Value"))
+          != GlobalObjectStore.shard(loadedStoreId)) {
+        quietKeyType = candidate;
+        break;
+      }
+      suffix++;
+    }
+
+    ObjectStore<Object, String> quietStore =
+        ObjectStore.of(quietKeyType, "test.ShardIsolation.Value");
+    Object quietKey = new Object();
+    quietStore.put(quietKey, "still here");
+
+    ObjectStore<Object, Integer> loadedStore =
+        ObjectStore.of(loadedKeyType, "test.ShardIsolation.Value");
+    int totalInserts = (AGEING_THRESHOLD * 4) + 8_000;
+    List<Object> keys = new ArrayList<>(totalInserts);
+    for (int i = 0; i < totalInserts; i++) {
+      Object key = new Object();
+      keys.add(key);
+      loadedStore.put(key, i);
+    }
+
+    Object lastKey = keys.get(keys.size() - 1);
+    assertEquals(totalInserts - 1, loadedStore.get(lastKey));
+
+    // The loaded shard aged/evicted repeatedly, but the quiet shard's entry must be untouched.
+    assertEquals("still here", quietStore.get(quietKey));
   }
 
   // --- concurrency ---
@@ -304,6 +444,58 @@ class ObjectStoreTest {
         assertEquals("v" + t + "-" + i, concStore.get(keys[t][i]));
       }
     }
+  }
+
+  @Test
+  void concurrentSustainedInsertionAcrossAgeingIsRaceFree() throws InterruptedException {
+    // maybeAgeStore() uses a per-shard CAS token so only one thread ages a shard at a time; this
+    // drives several threads through repeated ageing on the same shard to check that races there
+    // don't lose recently written entries.
+    ObjectStore<Object, Integer> concCapStore =
+        ObjectStore.of("test.ConcurrentCapacity.Key", "test.ConcurrentCapacity.Value");
+
+    int threads = 8;
+    int perThread = (AGEING_THRESHOLD * 4 + 8_000) / threads;
+
+    // Tracks whichever write actually finishes last. A thread's own last write is not a safe
+    // thing to check here: other threads may still have thousands of writes left, which can
+    // legitimately age it out by design.
+    AtomicReference<Object[]> lastWrite = new AtomicReference<>();
+
+    CountDownLatch start = new CountDownLatch(1);
+    CountDownLatch done = new CountDownLatch(threads);
+    ExecutorService executor = Executors.newFixedThreadPool(threads);
+    try {
+      for (int t = 0; t < threads; t++) {
+        final int threadIdx = t;
+        executor.submit(
+            () -> {
+              try {
+                start.await();
+                for (int i = 0; i < perThread; i++) {
+                  Object key = new Object();
+                  int value = (threadIdx * perThread) + i;
+                  concCapStore.put(key, value);
+                  lastWrite.set(new Object[] {key, value});
+                }
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+              } finally {
+                done.countDown();
+              }
+            });
+      }
+      start.countDown();
+      assertThat(done.await(30, TimeUnit.SECONDS)).isTrue();
+    } finally {
+      executor.shutdown();
+    }
+
+    // The write that actually finished last has nothing written after it: if a concurrent ageing
+    // race ever let two threads swap generations at once, it could still land in a generation
+    // that gets discarded instead of becoming the new old generation.
+    Object[] lastKeyValuePair = lastWrite.get();
+    assertEquals(lastKeyValuePair[1], concCapStore.get(lastKeyValuePair[0]));
   }
 
   // --- helpers ---

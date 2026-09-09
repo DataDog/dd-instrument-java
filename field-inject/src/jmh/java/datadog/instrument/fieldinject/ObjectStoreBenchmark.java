@@ -1,5 +1,7 @@
 package datadog.instrument.fieldinject;
 
+import static datadog.instrument.fieldinject.GlobalObjectStore.SHARD_COUNT;
+import static datadog.instrument.fieldinject.GlobalObjectStore.SHARD_HARD_LIMIT;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toList;
@@ -44,7 +46,7 @@ public class ObjectStoreBenchmark {
   @State(Scope.Benchmark)
   public static class TrialData {
 
-    @Param({"1000", "5000", "10000", "50000", "100000", "150000"})
+    @Param({"1000", "5000", "10000", "50000", "100000", "200000", "300000"})
     public int targetGlobalOccupancy;
 
     public List<Integer> seedRequestIds;
@@ -85,12 +87,14 @@ public class ObjectStoreBenchmark {
     batchedCompute(blackhole, threadData);
   }
 
-  private static final int NUM_STORES = 10;
+  // multiple of GlobalObjectStore's shard count, for even spread
+  private static final int NUM_STORES = SHARD_COUNT * 4;
 
   private static final ObjectStore[] stores = new ObjectStore[NUM_STORES];
 
   static {
-    Arrays.setAll(stores, store -> ObjectStore.of("KeyType", "ValueType$" + store));
+    // distinct key types per store spread store-ids evenly across shards
+    Arrays.setAll(stores, store -> ObjectStore.of("KeyType$" + store, "ValueType"));
   }
 
   private static final WeakObjectMap[] maps = new WeakObjectMap[NUM_STORES];
@@ -100,7 +104,7 @@ public class ObjectStoreBenchmark {
   }
 
   // create enough keys to cover max target occupancy per-store
-  private static final Object[] keys = new Object[150_000 / NUM_STORES];
+  private static final Object[] keys = new Object[300_000 / NUM_STORES];
 
   static {
     generateKeys();
@@ -174,7 +178,7 @@ public class ObjectStoreBenchmark {
    */
   static final class WeakObjectMap<K, V> {
     // total capacity over all per-map stores should equal GlobalObjectStore's hard limit
-    private static final int MAX_SIZE = 100_000 / NUM_STORES;
+    private static final int MAX_SIZE = (SHARD_HARD_LIMIT * SHARD_COUNT) / NUM_STORES;
 
     private final WeakConcurrentMap<Object, Object> map = new WeakConcurrentMap<>(false, true);
 
