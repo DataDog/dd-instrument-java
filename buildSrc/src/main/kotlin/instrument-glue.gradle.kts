@@ -10,6 +10,7 @@ sourceSets {
   create("glue") {
     output.dir(generatedGlueResources)
     output.dir(generatedGlueJava)
+    java.include("**/glue/*")
   }
   main {
     resources.srcDir(generatedGlueResources)
