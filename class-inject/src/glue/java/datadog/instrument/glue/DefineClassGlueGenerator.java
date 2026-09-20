@@ -126,7 +126,7 @@ final class DefineClassGlueGenerator {
 
     cw.visit(
         V1_8,
-        ACC_PUBLIC | ACC_FINAL,
+        ACC_PUBLIC | ACC_FINAL | ACC_SYNTHETIC,
         DEFINECLASSGLUE_CLASS,
         null,
         OBJECT_CLASS,
