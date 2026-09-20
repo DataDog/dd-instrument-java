@@ -20,6 +20,7 @@ sourceSets {
 val glueImplementation = configurations.getByName("glueImplementation")
 dependencies {
   glueImplementation(libs.asm)
+  glueImplementation(libs.asm.commons)
   glueImplementation(libs.spotbugs.annotations)
   glueImplementation(project(":utils"))
 }
