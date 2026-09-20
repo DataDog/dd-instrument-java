@@ -43,3 +43,10 @@ val generateGlue = tasks.register<JavaExec>("generateGlue") {
 tasks.processResources { dependsOn(generateGlue) }
 tasks.compileJava { dependsOn(generateGlue) }
 tasks.named("sourcesJar") { dependsOn(generateGlue) }
+
+// exclude generated synthetic class resources from spotbugs
+tasks.withType<com.github.spotbugs.snom.SpotBugsTask>().configureEach {
+  classes = classDirs
+    .filter { !"${it.invariantSeparatorsPath}/".contains("/resources/") }
+    .asFileTree.filter { it.name.endsWith(".class") }
+}
