@@ -82,6 +82,11 @@ spotbugs {
   omitVisitors = listOf("FindReturnRef")
 }
 
+// exclude generated synthetic class resources from spotbugs
+tasks.withType<com.github.spotbugs.snom.SpotBugsTask>().configureEach {
+  classDirs.setFrom(classDirs.filter { !it.path.contains("/resources/") })
+}
+
 // dependency configuration to help pull sample bytecode in for testing
 val sampleBytecode = configurations.create("sampleBytecode") {
   isTransitive = false
