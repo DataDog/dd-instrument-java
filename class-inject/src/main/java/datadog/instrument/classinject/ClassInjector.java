@@ -290,7 +290,8 @@ public final class ClassInjector {
         mv.visitLdcInsn(DefineClassGlue.V8);
       }
 
-      // unpack the UTF-16BE encoded string back into bytecode
+      // unpack the UTF-16BE encoded glue string back into bytecode with a single JDK call
+      // note: this approach is safe because we know the string has no unpaired surrogates
       mv.visitFieldInsn(
           GETSTATIC, "java/nio/charset/StandardCharsets", "UTF_16BE", "Ljava/nio/charset/Charset;");
       mv.visitMethodInsn(

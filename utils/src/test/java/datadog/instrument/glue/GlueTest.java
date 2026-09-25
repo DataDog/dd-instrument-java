@@ -27,4 +27,13 @@ class GlueTest {
     assertThrows(
         MissingResourceException.class, () -> Glue.loadBytecode(GlueTest.class, "missing.glue"));
   }
+
+  @Test
+  void unpackBytecodePreservesUnpairedSurrogates() {
+    // getBytes(UTF_16BE) would replace this lone surrogate with U+FFFD instead of preserving it
+    String packed = new String(new char[] {0x0102, 0xD800, 0x0304});
+    byte[] expected = {0x01, 0x02, (byte) 0xD8, 0x00, 0x03, 0x04};
+
+    assertArrayEquals(expected, Glue.unpackBytecode(packed));
+  }
 }
