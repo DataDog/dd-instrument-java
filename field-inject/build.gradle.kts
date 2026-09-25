@@ -1,8 +1,15 @@
 plugins {
   id("java-common")
+  id("instrument-glue")
 }
 
 dependencies {
+
+  testImplementation(sourceSets["glue"].output)
+  testImplementation(project(":utils"))
+  testImplementation(libs.asm.commons)
+  testImplementation(libs.asm.util)
+
   jmh("com.blogspot.mydailyjava:weak-lock-free:0.18")
 }
 
