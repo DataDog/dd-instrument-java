@@ -20,6 +20,15 @@ public class TestGlueGenerator {
     0, 1, 0, 1, 0, 0, 0, 5, 42, -73, 0, 1, -79, 0, 0, 0, 0, 0, 0
   };
 
+  // every possible byte value, plus one more so the length is odd
+  private static final byte[] allByteValues = new byte[257];
+
+  static {
+    for (int i = 0; i < allByteValues.length; i++) {
+      allByteValues[i] = (byte) i;
+    }
+  }
+
   public static void generateGlue(Path resourcePath, Path javaPath) throws IOException {
     Files.write(resourcePath.resolve("test.glue"), exampleBytecode);
 
@@ -28,6 +37,8 @@ public class TestGlueGenerator {
     classHeader(lines, "TestGlue");
     lines.add("  String BYTECODE =");
     packBytecode(lines, exampleBytecode);
+    lines.add("  String ALL_BYTE_VALUES =");
+    packBytecode(lines, allByteValues);
     lines.add("}");
     Files.write(testGlue, lines, StandardCharsets.UTF_8);
   }

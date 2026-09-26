@@ -25,8 +25,8 @@ import org.objectweb.asm.MethodVisitor;
 /**
  * Generates glue bytecode for a {@link BiFunction} around {@code ClassLoader.defineClass} that
  * accepts a map of class-names to bytecode and a class-loader (or protection domain) and returns
- * the defined classes. The glue bytecode is encoded as a UTF-16BE string and written as a constant
- * inside a Java class at build-time.
+ * the defined classes. The glue bytecode is encoded as an ISO-8859-1 string and written as a
+ * constant inside a Java class at build-time.
  *
  * <p>At runtime the glue bytecode is decoded from the string and defined as a hidden/anonymous
  * class using instrumentation. This class provides access to {@code ClassLoader.defineClass}
@@ -413,11 +413,6 @@ final class DefineClassGlueGenerator {
 
     mv.visitMaxs(-1, -1);
     mv.visitEnd();
-
-    // pad bytecode to even number of bytes, to make string encoding/decoding easier
-    if ((unsafeNamespace.length() & 0x01) == 0) {
-      cw.newConst(0);
-    }
 
     cw.visitEnd();
 

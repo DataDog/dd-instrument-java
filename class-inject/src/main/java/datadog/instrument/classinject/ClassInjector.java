@@ -290,9 +290,12 @@ public final class ClassInjector {
         mv.visitLdcInsn(DefineClassGlue.V8);
       }
 
-      // unpack the UTF-16BE encoded string back into bytecode
+      // unpack the ISO-8859-1 encoded glue string back into bytecode
       mv.visitFieldInsn(
-          GETSTATIC, "java/nio/charset/StandardCharsets", "UTF_16BE", "Ljava/nio/charset/Charset;");
+          GETSTATIC,
+          "java/nio/charset/StandardCharsets",
+          "ISO_8859_1",
+          "Ljava/nio/charset/Charset;");
       mv.visitMethodInsn(
           INVOKEVIRTUAL, "java/lang/String", "getBytes", "(Ljava/nio/charset/Charset;)[B", false);
 
