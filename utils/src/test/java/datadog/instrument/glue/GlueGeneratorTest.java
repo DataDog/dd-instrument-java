@@ -11,7 +11,6 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.List;
 import javax.tools.JavaCompiler;
 import javax.tools.SimpleJavaFileObject;
@@ -51,9 +50,11 @@ class GlueGeneratorTest {
     assertTrue(glueCompilationTask.call());
 
     String packedBytecode;
+    String packedAllByteValues;
     try (URLClassLoader cl = URLClassLoader.newInstance(new URL[] {classesDir.toURI().toURL()})) {
       Class<?> testGlueClass = cl.loadClass("datadog.instrument.glue.TestGlue");
       packedBytecode = (String) testGlueClass.getField("BYTECODE").get(null);
+      packedAllByteValues = (String) testGlueClass.getField("ALL_BYTE_VALUES").get(null);
     }
 
     byte[] expectedBytecode = {
@@ -66,23 +67,14 @@ class GlueGeneratorTest {
 
     assertArrayEquals(expectedBytecode, Files.readAllBytes(testGlueResourceFile.toPath()));
     assertArrayEquals(expectedBytecode, Glue.unpackBytecode(packedBytecode));
-  }
 
-  @Test
-  void paddingRequired() {
+    // every possible byte value, with an odd length to check no padding is required
+    byte[] expectedAllByteValues = new byte[257];
+    for (int i = 0; i < expectedAllByteValues.length; i++) {
+      expectedAllByteValues[i] = (byte) i;
+    }
 
-    byte[] exampleBytecodeNeedsPadding = {
-      -54, -2, -70, -66, 0, 0, 0, 52, 0, 10, 10, 0, 2, 0, 3, 7, 0, 4, 12, 0, 5, 0, 6, 1, 0, 16, 106,
-      97, 118, 97, 47, 108, 97, 110, 103, 47, 79, 98, 106, 101, 99, 116, 1, 0, 6, 60, 105, 110, 105,
-      116, 62, 1, 0, 3, 40, 41, 86, 7, 0, 8, 1, 0, 2, 69, 103, 1, 0, 4, 67, 111, 100, 101, 0, 32, 0,
-      7, 0, 2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 5, 0, 6, 0, 1, 0, 9, 0, 0, 0, 17, 0, 1, 0, 1, 0, 0, 0, 5,
-      42, -73, 0, 1, -79, 0, 0, 0, 0, 0, 0
-    };
-
-    assertThrows(
-        IllegalStateException.class,
-        () -> GlueGenerator.packBytecode(new ArrayList<>(), exampleBytecodeNeedsPadding),
-        "Bytecode length is not even; requires padding");
+    assertArrayEquals(expectedAllByteValues, Glue.unpackBytecode(packedAllByteValues));
   }
 
   @Test

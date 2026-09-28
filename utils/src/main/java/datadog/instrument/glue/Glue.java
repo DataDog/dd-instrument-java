@@ -6,7 +6,7 @@
 
 package datadog.instrument.glue;
 
-import static java.nio.charset.StandardCharsets.UTF_16BE;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.util.Objects.requireNonNull;
 
 import datadog.instrument.utils.JVM;
@@ -26,7 +26,7 @@ public final class Glue {
    * @return the unpacked bytecode
    */
   public static byte[] unpackBytecode(String bytecode) {
-    return bytecode.getBytes(UTF_16BE);
+    return bytecode.getBytes(ISO_8859_1);
   }
 
   /**

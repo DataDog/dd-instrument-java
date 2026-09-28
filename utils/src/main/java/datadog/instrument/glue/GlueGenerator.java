@@ -51,31 +51,20 @@ public final class GlueGenerator {
   /**
    * Packs the given glue bytecode as a string literal and writes it out in source code form.
    *
-   * <p>The bytecode must be padded to have even length, as this simplifies the encoding/decoding.
-   *
    * @param lines the list collecting the source code
    * @param bytecode the bytecode to pack
    */
   public static void packBytecode(List<String> lines, byte[] bytecode) {
-    if ((bytecode.length & 0x01) == 1) {
-      throw new IllegalStateException("Bytecode length is not even; requires padding");
-    }
     StringBuilder buf = new StringBuilder("      \"");
-    // encode bytes using lenient form of UTF_16BE: no BOM, allow unpaired surrogates
-    // this is so we can unpack it later without requiring any special/complex code
-    for (int i = 0; i < bytecode.length; i += 2) {
+    // encode bytes using ISO_8859_1, where each char maps directly to the byte with the same value
+    // this is so we can unpack it later with a single String.getBytes(ISO_8859_1) call
+    for (byte b : bytecode) {
       if (buf.length() > 120) {
         lines.add(buf + "\"");
         buf.setLength(0);
         buf.append("          + \"");
       }
-      // pack 2 bytes into one char using big-endian ordering
-      char c = (char) ((bytecode[i] << 8) | (0x00FF & bytecode[i + 1]));
-      if (c <= 0x00FF) {
-        buf.append(String.format("\\%03o", (int) c));
-      } else {
-        buf.append(String.format("\\u%04x", (int) c));
-      }
+      buf.append(String.format("\\%03o", 0x00FF & b));
     }
     lines.add(buf + "\";");
   }
