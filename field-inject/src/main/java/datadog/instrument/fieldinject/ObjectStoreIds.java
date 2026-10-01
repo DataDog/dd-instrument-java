@@ -9,14 +9,13 @@ package datadog.instrument.fieldinject;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 /** Manages unique {@link ObjectStore} ids for each key-value type combination. */
 public final class ObjectStoreIds {
 
+  private static final TypeIdGenerator typeIdGenerator = new TypeIdGenerator();
   private static final Map<String, Short> typeIds = new ConcurrentHashMap<>();
-
-  // start at 1 to give a range of store ids we can allocate another way (0-32767)
-  private static final AtomicInteger nextTypeId = new AtomicInteger(1);
 
   private ObjectStoreIds() {}
 
@@ -39,6 +38,19 @@ public final class ObjectStoreIds {
    * @return the unique type id
    */
   private static short typeId(String type) {
-    return typeIds.computeIfAbsent(type, unused -> (short) nextTypeId.getAndIncrement());
+    return typeIds.computeIfAbsent(type, typeIdGenerator);
+  }
+
+  /** Generates the next unique type id. */
+  private static final class TypeIdGenerator implements Function<String, Short> {
+    // start at 1 to give a slice of store ids we can allocate another way (0-32767)
+    private final AtomicInteger nextTypeId = new AtomicInteger(1);
+
+    TypeIdGenerator() {} // avoids synthetic accessor
+
+    @Override
+    public Short apply(String unused) {
+      return (short) nextTypeId.getAndIncrement();
+    }
   }
 }
