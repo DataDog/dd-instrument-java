@@ -37,7 +37,7 @@ val generateGlue = tasks.register<JavaExec>("generateGlue") {
   mainClass = "datadog.instrument.glue.GlueGenerator"
   classpath = sourceSets["glue"].runtimeClasspath
   args = listOf(resourcePath.toString(), javaPath.toString()) + glue
-  outputs.dirs(resourcePath, javaPath)
+  outputs.dirs(generatedGlueResources, generatedGlueJava)
 }
 
 tasks.processResources { dependsOn(generateGlue) }

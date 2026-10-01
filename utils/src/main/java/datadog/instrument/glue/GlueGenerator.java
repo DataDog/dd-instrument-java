@@ -7,6 +7,7 @@
 package datadog.instrument.glue;
 
 import java.lang.reflect.Method;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -20,14 +21,16 @@ public final class GlueGenerator {
    * Entry-point for generating instrumentation glue into resource files or Java source code.
    *
    * @param args the command-line arguments
-   * @throws ReflectiveOperationException if the glue cannot be generated
+   * @throws Exception if the glue cannot be generated
    */
-  public static void main(String[] args) throws ReflectiveOperationException {
+  public static void main(String[] args) throws Exception {
     if (args.length < 3) {
       throw new IllegalArgumentException("Expected: resource-path java-path glue-name...");
     }
     Path resourcePath = Paths.get(args[0]);
     Path javaPath = Paths.get(args[1]);
+    Files.createDirectories(resourcePath);
+    Files.createDirectories(javaPath);
     for (int i = 2; i < args.length; i++) {
       Class<?> generatorClass = Class.forName("datadog.instrument.glue." + args[i] + "Generator");
       Method generateGlue = generatorClass.getMethod("generateGlue", Path.class, Path.class);
