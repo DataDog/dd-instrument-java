@@ -22,11 +22,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.TypePath;
 import org.objectweb.asm.commons.ClassRemapper;
 import org.objectweb.asm.commons.Remapper;
 import org.objectweb.asm.commons.SimpleRemapper;
@@ -403,12 +407,85 @@ final class ObjectStoreGlueGenerator {
     packBytecode(lines, relocate(remapper, relocated.originalBytecode));
   }
 
-  /** Relocates the given bytecode with the given remapper, dropping debug attributes. */
+  /** Relocates the given bytecode with the given remapper, dropping non-essential metadata. */
   private static byte[] relocate(Remapper remapper, byte[] originalBytecode) {
     ClassReader cr = new ClassReader(originalBytecode);
     ClassWriter cw = new ClassWriter(0);
-    cr.accept(new ClassRemapper(cw, remapper), ClassReader.SKIP_DEBUG);
+    cr.accept(new MetadataPruner(new ClassRemapper(cw, remapper)), ClassReader.SKIP_DEBUG);
     return cw.toByteArray();
+  }
+
+  /** Drops annotations and generic signatures, which are unused by the relocated glue. */
+  private static final class MetadataPruner extends ClassVisitor {
+    MetadataPruner(ClassVisitor cv) {
+      super(ASM9, cv);
+    }
+
+    @Override
+    public void visit(
+        int version,
+        int access,
+        String name,
+        String signature,
+        String superName,
+        String[] interfaces) {
+      super.visit(version, access, name, null, superName, interfaces);
+    }
+
+    @Override
+    public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+      return null;
+    }
+
+    @Override
+    public AnnotationVisitor visitTypeAnnotation(
+        int typeRef, TypePath typePath, String descriptor, boolean visible) {
+      return null;
+    }
+
+    @Override
+    public FieldVisitor visitField(
+        int access, String name, String descriptor, String signature, Object value) {
+      return new FieldVisitor(ASM9, super.visitField(access, name, descriptor, null, value)) {
+        @Override
+        public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+          return null;
+        }
+
+        @Override
+        public AnnotationVisitor visitTypeAnnotation(
+            int typeRef, TypePath typePath, String descriptor, boolean visible) {
+          return null;
+        }
+      };
+    }
+
+    @Override
+    public MethodVisitor visitMethod(
+        int access, String name, String descriptor, String signature, String[] exceptions) {
+      return new MethodVisitor(
+          ASM9, super.visitMethod(access, name, descriptor, null, exceptions)) {
+        @Override
+        public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+          return null;
+        }
+
+        @Override
+        public AnnotationVisitor visitTypeAnnotation(
+            int typeRef, TypePath typePath, String descriptor, boolean visible) {
+          return null;
+        }
+
+        @Override
+        public void visitAnnotableParameterCount(int parameterCount, boolean visible) {}
+
+        @Override
+        public AnnotationVisitor visitParameterAnnotation(
+            int parameter, String descriptor, boolean visible) {
+          return null;
+        }
+      };
+    }
   }
 
   /** Reads the bytecode of an already-compiled class off the classpath. */
