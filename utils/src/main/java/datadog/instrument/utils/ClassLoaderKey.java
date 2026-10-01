@@ -10,9 +10,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 
 /**
  * Reference key used to weakly associate a class-loader with a computed value.
@@ -34,21 +34,21 @@ final class ClassLoaderKey extends WeakReference<ClassLoader> {
   // stale class-loader keys that are now eligible for collection
   private static final ReferenceQueue<ClassLoader> staleKeys = new ReferenceQueue<>();
 
-  // registered cleaners of stale class-loader keys and their values
-  private static final List<Consumer<ClassLoaderKey>> cleaners = new CopyOnWriteArrayList<>();
+  // registered maps of class-loader keys to values; stale keys are removed from these maps
+  private static final List<Map<ClassLoaderKey, ?>> valueMaps = new CopyOnWriteArrayList<>();
 
-  /** Registers a cleaner of stale class-loader keys. */
-  static void registerCleaner(Consumer<ClassLoaderKey> cleaner) {
-    cleaners.add(cleaner);
+  /** Registers a map of class-loader keys to values for cleaning. */
+  static void registerValueMap(Map<ClassLoaderKey, ?> valueMap) {
+    valueMaps.add(valueMap);
   }
 
-  /** Checks for stale class-loader keys; stale keys are cleaned by the registered cleaners. */
+  /** Checks for stale class-loader keys; stale keys are removed from the registered maps. */
   static void cleanStaleKeys() {
     ClassLoaderKey key;
     while ((key = (ClassLoaderKey) staleKeys.poll()) != null) {
       //noinspection ForLoopReplaceableByForEach - indexed loop performs better
-      for (int i = 0, size = cleaners.size(); i < size; i++) {
-        cleaners.get(i).accept(key);
+      for (int i = 0, size = valueMaps.size(); i < size; i++) {
+        valueMaps.get(i).remove(key);
       }
     }
   }

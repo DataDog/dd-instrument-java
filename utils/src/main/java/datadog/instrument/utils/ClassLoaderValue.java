@@ -11,12 +11,12 @@ import static datadog.instrument.utils.ClassLoaderKey.BOOT_CLASS_LOADER;
 import static datadog.instrument.utils.ClassLoaderKey.SYSTEM_CLASS_LOADER;
 
 import datadog.instrument.utils.ClassLoaderKey.LookupKey;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
@@ -47,9 +47,8 @@ public abstract class ClassLoaderValue<V> {
   private final Map<ClassLoaderKey, V> otherValues = new ConcurrentHashMap<>();
 
   /** Register subclass instances for cleaning. */
-  @SuppressFBWarnings("CT_CONSTRUCTOR_THROW") // registerCleaner never sees partial instance
   protected ClassLoaderValue() {
-    ClassLoaderKey.registerCleaner(otherValues::remove);
+    ClassLoaderKey.registerValueMap(otherValues);
   }
 
   /**
@@ -180,18 +179,29 @@ public abstract class ClassLoaderValue<V> {
     return value;
   }
 
-  /** Helper to make {@code computeValue} compatible with {@code computeIfAbsent}. */
-  private V computeValueForKey(ClassLoaderKey key) {
-    return computeValue(key.get());
-  }
-
   /** Lazily associate a computed value with a custom class-loader. */
   private V getOtherValue(ClassLoader cl) {
     //noinspection All: intentionally use lookup key without reference overhead
     V value = otherValues.get(new LookupKey(cl));
     if (value == null) {
-      value = otherValues.computeIfAbsent(getClassLoaderKey(cl), this::computeValueForKey);
+      value = otherValues.computeIfAbsent(getClassLoaderKey(cl), new ValueComputer<>(cl, this));
     }
     return value;
+  }
+
+  /** Computes the value for a missing class-loader key by applying computeValue to the loader. */
+  private static final class ValueComputer<V> implements Function<ClassLoaderKey, V> {
+    private final ClassLoader cl; // captured strongly so the loader stays reachable during compute
+    private final ClassLoaderValue<V> classLoaderValue;
+
+    ValueComputer(ClassLoader cl, ClassLoaderValue<V> classLoaderValue) {
+      this.cl = cl;
+      this.classLoaderValue = classLoaderValue;
+    }
+
+    @Override
+    public V apply(ClassLoaderKey unused) {
+      return classLoaderValue.computeValue(cl);
+    }
   }
 }

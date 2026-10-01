@@ -17,7 +17,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 /**
@@ -51,9 +50,6 @@ public final class GlobalObjectStore {
   /** Randomly sample underlying map size, approximately once every 1024 writes per-thread. */
   private static final int SIZE_SAMPLE_RATE = 1 << 10;
 
-  /** Constant supplier used when nothing in a shard is considered old. */
-  private static final Supplier<Object> NO_OLD_STALE_KEYS = () -> null;
-
   /** The current generation of each shard of the global object store. */
   private static final AtomicReferenceArray<GlobalObjectStore> shards = initShards();
 
@@ -79,7 +75,7 @@ public final class GlobalObjectStore {
   private final ConcurrentHashMap<StoreKey, Object> map;
 
   /** Supplies old keys where the key object is unused and eligible for collection. */
-  private final Supplier<Object> oldStaleKeys;
+  @Nullable private final ReferenceQueue<Object> oldStaleKeys;
 
   /** Map of old store keys to value objects. */
   private final Map<StoreKey, Object> oldMap;
@@ -89,14 +85,14 @@ public final class GlobalObjectStore {
   private GlobalObjectStore(int shardIndex) {
     this.shardIndex = shardIndex;
     this.map = new ConcurrentHashMap<>();
-    this.oldStaleKeys = NO_OLD_STALE_KEYS;
+    this.oldStaleKeys = null;
     this.oldMap = Collections.emptyMap();
   }
 
   private GlobalObjectStore(GlobalObjectStore oldStore) {
     this.shardIndex = oldStore.shardIndex;
     this.map = new ConcurrentHashMap<>(INLINE_CLEANUP_THRESHOLD);
-    this.oldStaleKeys = oldStore.staleKeys::poll;
+    this.oldStaleKeys = oldStore.staleKeys;
     this.oldMap = oldStore.map;
   }
 
@@ -130,9 +126,11 @@ public final class GlobalObjectStore {
     sampledYoungSize = estimatedTotal;
 
     // next remove stale entries from the old map
-    while ((staleKey = oldStaleKeys.get()) != null) {
-      //noinspection All: we know staleKey is a store key
-      oldMap.remove(staleKey);
+    if (oldStaleKeys != null) {
+      while ((staleKey = oldStaleKeys.poll()) != null) {
+        //noinspection All: we know staleKey is a store key
+        oldMap.remove(staleKey);
+      }
     }
 
     estimatedTotal += oldMap.size();
@@ -246,10 +244,10 @@ public final class GlobalObjectStore {
     }
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings("rawtypes")
   private Object doGetOrCompute(Object key, int storeId, Function valueFunction) {
     return map.computeIfAbsent(
-        new StoreKey(staleKeys, key, storeId), unused -> valueFunction.apply(key));
+        new StoreKey(staleKeys, key, storeId), new ValueComputer(key, valueFunction));
   }
 
   /**
@@ -368,12 +366,13 @@ public final class GlobalObjectStore {
   private static final class LookupKey {
 
     /** Avoid allocation by maintaining a reusable lookup key per-thread. */
-    private static final ThreadLocal<LookupKey> LOOKUP_KEY_CACHE =
-        ThreadLocal.withInitial(LookupKey::new);
+    private static final LookupKeyCache LOOKUP_KEY_CACHE = new LookupKeyCache();
 
     Object key;
     int hash;
     int storeId;
+
+    LookupKey() {} // avoids synthetic accessor
 
     /**
      * Returns a temporary lookup key for the current thread with the given object key and store-id.
@@ -413,6 +412,34 @@ public final class GlobalObjectStore {
       } else {
         return false;
       }
+    }
+  }
+
+  /** Per-thread cache of reusable lookup keys. */
+  private static final class LookupKeyCache extends ThreadLocal<LookupKey> {
+    LookupKeyCache() {} // avoids synthetic accessor
+
+    @Override
+    protected LookupKey initialValue() {
+      return new LookupKey();
+    }
+  }
+
+  /** Computes the value for a missing store key by applying the value function to the key. */
+  @SuppressWarnings("rawtypes")
+  private static final class ValueComputer implements Function<Object, Object> {
+    private final Object key; // captured strongly so the key stays reachable during computation
+    private final Function valueFunction;
+
+    ValueComputer(Object key, Function valueFunction) {
+      this.key = key;
+      this.valueFunction = valueFunction;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Object apply(Object unused) {
+      return valueFunction.apply(key);
     }
   }
 }
