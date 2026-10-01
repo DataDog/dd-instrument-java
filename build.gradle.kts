@@ -8,10 +8,20 @@ plugins {
   id("com.diffplug.spotless")
 }
 
-// predeclare formatter to workaround diffplug/spotless#2850
+// avoid parallel formatter provisioning
 spotlessPredeclare {
   java {
     googleJavaFormat()
+  }
+}
+
+// avoid closing Spotless' shared classloader while formatting
+val rootClean = tasks.named("clean")
+allprojects {
+  plugins.withId("com.diffplug.spotless") {
+    tasks.withType<com.diffplug.gradle.spotless.SpotlessTask>().configureEach {
+      mustRunAfter(rootClean)
+    }
   }
 }
 
