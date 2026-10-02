@@ -20,6 +20,7 @@ sourceSets {
 val glueImplementation = configurations.getByName("glueImplementation")
 dependencies {
   glueImplementation(libs.asm)
+  glueImplementation(libs.asm.commons)
   glueImplementation(libs.spotbugs.annotations)
   glueImplementation(project(":utils"))
 }
@@ -36,9 +37,17 @@ val generateGlue = tasks.register<JavaExec>("generateGlue") {
   mainClass = "datadog.instrument.glue.GlueGenerator"
   classpath = sourceSets["glue"].runtimeClasspath
   args = listOf(resourcePath.toString(), javaPath.toString()) + glue
-  outputs.dirs(resourcePath, javaPath)
+  outputs.dirs(generatedGlueResources, generatedGlueJava)
 }
 
 tasks.processResources { dependsOn(generateGlue) }
 tasks.compileJava { dependsOn(generateGlue) }
 tasks.named("sourcesJar") { dependsOn(generateGlue) }
+
+// exclude generated synthetic class resources from spotbugs
+sourceSets.configureEach {
+  val compiledClasses = output.classesDirs
+  tasks.named<com.github.spotbugs.snom.SpotBugsTask>(getTaskName("spotbugs", null)) {
+    classDirs.setFrom(compiledClasses)
+  }
+}
