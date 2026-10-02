@@ -45,8 +45,9 @@ tasks.compileJava { dependsOn(generateGlue) }
 tasks.named("sourcesJar") { dependsOn(generateGlue) }
 
 // exclude generated synthetic class resources from spotbugs
-tasks.withType<com.github.spotbugs.snom.SpotBugsTask>().configureEach {
-  classes = classDirs
-    .filter { !"${it.invariantSeparatorsPath}/".contains("/resources/") }
-    .asFileTree.filter { it.name.endsWith(".class") }
+sourceSets.configureEach {
+  val compiledClasses = output.classesDirs
+  tasks.named<com.github.spotbugs.snom.SpotBugsTask>(getTaskName("spotbugs", null)) {
+    classDirs.setFrom(compiledClasses)
+  }
 }
