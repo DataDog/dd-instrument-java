@@ -77,6 +77,14 @@ spotless {
   }
 }
 
+// avoid closing Spotless' shared classloader while formatting
+val cleanTaskPaths = rootProject.allprojects.map {
+  "${it.path.trimEnd(':')}:clean"
+}
+tasks.withType<com.diffplug.gradle.spotless.SpotlessTask>().configureEach {
+  mustRunAfter(cleanTaskPaths)
+}
+
 spotbugs {
   useJavaToolchains = true
   omitVisitors = listOf("FindReturnRef")
