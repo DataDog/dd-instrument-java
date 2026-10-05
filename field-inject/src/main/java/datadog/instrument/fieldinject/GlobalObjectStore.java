@@ -27,7 +27,7 @@ import javax.annotation.Nullable;
  * <p>Each shard is split into two maps with separate reference queues: young and old. Ageing a
  * shard by one generation creates a new young map; the previous young map becomes the old map.
  */
-public final class GlobalObjectStore {
+final class GlobalObjectStore {
 
   /** Target ceiling for the total number of objects in a shard, young and old. */
   static final int SHARD_HARD_LIMIT = 32_000;

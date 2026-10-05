@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 /** Manages unique {@link ObjectStore} ids for each key-value type combination. */
-public final class ObjectStoreIds {
+final class ObjectStoreIds {
 
   private static final TypeIdGenerator typeIdGenerator = new TypeIdGenerator();
   private static final Map<String, Short> typeIds = new ConcurrentHashMap<>();
