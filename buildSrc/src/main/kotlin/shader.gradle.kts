@@ -68,11 +68,13 @@ class ShadeClass(reader: Reader) : FilterReader(shade(reader)) {
           }
         }
       }
-      // rebuild constant-pool from scratch and make sure every method has a stack-map
-      val cw = ClassWriter(ClassWriter.COMPUTE_FRAMES)
-      // apply relocation to class-file and upgrade pre-Java 8 class-files to Java 8
+      // compute stack-maps before relocation, while class names can still be resolved
+      val withFrames = ClassWriter(ClassWriter.COMPUTE_FRAMES)
       val cr = ClassReader(reader.readText().toByteArray(StandardCharsets.ISO_8859_1))
-      cr.accept(ClassRemapper(ToJava8(cw), remapper), 0)
+      cr.accept(ToJava8(withFrames), ClassReader.SKIP_FRAMES)
+      // rebuild the constant-pool and relocate class names, including stack-map types
+      val cw = ClassWriter(0)
+      ClassReader(withFrames.toByteArray()).accept(ClassRemapper(cw, remapper), 0)
       return StringReader(String(cw.toByteArray(), StandardCharsets.ISO_8859_1))
     }
   }
