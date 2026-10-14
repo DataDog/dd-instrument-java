@@ -1,0 +1,260 @@
+<!doctype html>
+<!--
+  Unless explicitly stated otherwise all files in this repository are licensed under the Apache-2.0 License.
+  This product includes software developed at Datadog (https://www.datadoghq.com/).
+  Copyright 2026-Present Datadog, Inc.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Object stores · Capacity & generations</title>
+<style>
+  :root { color-scheme: dark; --purple: #632ca6; --ink: #f5efff; --muted: #bbaccf; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #110c1c; color: var(--ink); font: 15px system-ui, sans-serif; }
+  main { max-width: 1320px; margin: auto; padding: 36px 24px 24px; }
+  .eyebrow { color: #bd94ef; font-size: 12px; font-weight: 700; letter-spacing: .17em; }
+  h1 { font-size: clamp(28px, 4vw, 44px); letter-spacing: -.045em; margin: 8px 0 10px; }
+  p { color: var(--muted); line-height: 1.6; margin: 0 0 18px; }
+  .controls { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 14px 18px; margin: 24px 0; border: 1px solid #47305d; border-radius: 12px; background: #20142feb; backdrop-filter: blur(12px); }
+  button, select { padding: 9px 14px; background: #632ca6; border: 1px solid #9665d2; border-radius: 7px; font: inherit; color: white; cursor: pointer; }
+  button.secondary, select { background: #2b1d3c; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid #d7b3ff; outline-offset: 3px; }
+  input[type=range] { flex: 1; min-width: 120px; accent-color: #b583f1; }
+  output { min-width: 64px; font-variant-numeric: tabular-nums; }
+  .panel { margin-bottom: 26px; border: 1px solid #3b2852; border-radius: 16px; overflow: hidden; background: #181023; }
+  canvas { display: block; width: 100%; height: auto; }
+  .note { padding: 14px 22px; margin: 0; border-top: 1px solid #3b2852; font-size: 13px; }
+  details { border-top: 1px solid #3b2852; padding-top: 18px; color: var(--muted); line-height: 1.7; }
+  summary { cursor: pointer; color: #dbc5f4; }
+  code { color: #dfbfff; }
+  a { color: #d4a9ff; }
+  footer { padding-top: 20px; color: #9987ad; font-size: 12px; }
+  .footer-note { margin-top: 8px; }
+  @media (max-width: 600px) { main { padding: 20px 10px; } .controls { gap: 9px; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">DATADOG · OBJECT STORAGE</div>
+  <h1>Same puts. Different capacity behavior.</h1>
+  <p>Eight object stores receive a steady, uneven stream of new keys. Compare independent map limits with a shared store whose shards age at their own pace.</p>
+  <div class="controls" aria-label="Animation controls">
+    <button id="play">Pause</button>
+    <button id="reset" class="secondary">Replay</button>
+    <label for="speed">Speed</label>
+    <select id="speed"><option value="1">1×</option><option value="2.5" selected>2.5×</option><option value="5">5×</option></select>
+    <input id="timeline" type="range" min="0" max="60" step="0.05" value="0" aria-label="Simulation time in seconds">
+    <output id="time">0.0 s</output>
+    <label><input id="loop" type="checkbox" checked> Loop</label>
+  </div>
+  <section class="panel" id="per-panel" aria-label="Animation one: map-per-store">
+    <canvas id="per" width="1280" height="740" role="img" aria-label="Eight per-store maps fill at different rates and reject object puts at 50,000 entries."></canvas>
+    <p class="note">Each map has a 50,000-entry limit. Once full, subsequent puts are ignored until entries are removed. The quieter maps still have room.</p>
+  </section>
+  <section class="panel" id="global-panel" aria-label="Animation two: sharded-generational">
+    <canvas id="global" width="1280" height="740" role="img" aria-label="Eight shared shards fill and age independently. Young becomes old, previous old is discarded, and new puts continue."></canvas>
+    <p class="note">A store ID hashes to one of eight shards. Stores sharing a shard also share its generation turnover. Quiet shards age slowly; an idle shard does not age.</p>
+  </section>
+  <details>
+    <summary>Workload and model</summary>
+    <p>Illustrative store IDs: A=1, B=2, C=3, D=4, E=5, F=6, G=8, H=9. Routing follows <code>(storeId * 0x9E3779B9) &gt;&gt;&gt; 29</code>. Rates are 6,000 / 4,000 / 2,500 / 1,500 / 1,000 / 700 / 400 / 200 new object puts per simulated second, respectively. Both animations replay the identical 60-second workload.</p>
+    <p>All keys are unique and remain reachable; there are no removes, repeated-key updates, background cleanup, or garbage collection. One cell represents 500 entries; partial cells show partial batches. Global ageing is drawn at the idealized 16,000-young-entry boundary. The implementation samples capacity about once per 1,024 writes per thread, so real boundaries can overshoot. Ageing creates an empty young map, keeps the previous young as old, and discards the previous old. There is no time-based expiry or promotion on reads. The 32,000-entry shard ceiling is a target; background cleanup can trim old content toward 24,000.</p>
+    <p>Implementation references: <code>WeakMapPerStore.MAX_SIZE</code> in dd-trace-java and <a href="../../field-inject/src/main/java/datadog/instrument/fieldinject/GlobalObjectStore.java">GlobalObjectStore.java</a> in this repository.</p>
+  </details>
+  <footer>Looping GIFs: <a href="../images/object-store-map-per-store.gif">map-per-store</a> · <a href="../images/object-store-sharded-generational.gif">sharded-generational</a><div class="footer-note">Deterministic workload · Simulation time, not wall-clock time</div></footer>
+</main>
+<script>
+'use strict';
+(() => {
+  const PURPLE = '#632ca6', YOUNG = '#a16be0', OLD = '#51316e', REJECT = '#ff7899';
+  const stores = [
+    {name:'A', id:1, rate:6000}, {name:'B', id:2, rate:4000},
+    {name:'C', id:3, rate:2500}, {name:'D', id:4, rate:1500},
+    {name:'E', id:5, rate:1000}, {name:'F', id:6, rate:700},
+    {name:'G', id:8, rate:400}, {name:'H', id:9, rate:200}
+  ].map(s => ({...s, shard:Math.imul(s.id, 0x9e3779b9) >>> 29}));
+  const shards = Array.from({length:8}, (_, id) => {
+    const sources = stores.filter(s => s.shard === id);
+    return {id, sources, rate:sources.reduce((sum,s) => sum+s.rate,0)};
+  });
+  const per = document.querySelector('#per'), global = document.querySelector('#global');
+  const contexts = [per.getContext('2d'), global.getContext('2d')];
+  const fmt = n => Math.floor(n).toLocaleString('en-US');
+  const compact = n => n >= 1000 ? `${(n/1000).toFixed(n%1000 ? 1 : 0)}k` : `${n}`;
+  const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
+  function text(c,str,x,y,size=14,color='#f5efff',weight=400) {
+    c.fillStyle=color; c.font=`${weight} ${size}px system-ui, sans-serif`; c.fillText(str,x,y);
+  }
+  function rect(c,x,y,w,h,color,r=8) {
+    c.fillStyle=color; c.beginPath(); c.roundRect(x,y,w,h,r); c.fill();
+  }
+  function line(c,x1,y1,x2,y2,color='#47305f') {
+    c.strokeStyle=color; c.lineWidth=1.5; c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); c.stroke();
+  }
+  function dot(c,x,y,color,r=4) { c.fillStyle=color; c.beginPath(); c.arc(x,y,r,0,Math.PI*2); c.fill(); }
+  function cells(c,x,y,count,total,cols,cellW,cellH,color,gap=4) {
+    for(let i=0;i<total;i++) {
+      const cx=x+(i%cols)*(cellW+gap), cy=y+Math.floor(i/cols)*(cellH+gap);
+      rect(c,cx,cy,cellW,cellH,'#281b3c',3);
+      const fill=clamp(count/500-i,0,1);
+      if(fill) rect(c,cx,cy,cellW*fill,cellH,color,3);
+    }
+  }
+  function header(c,kind,t) {
+    rect(c,0,0,1280,740,'#181023',0);
+    rect(c,28,28,40,28,PURPLE,6);
+    text(c,kind==='per'?'01':'02',39,48,13,'#fff',700);
+    text(c,kind==='per'?'map-per-store':'sharded-generational',82,51,25,'#f5efff',700);
+    text(c,kind==='per'?'Independent maps · fixed capacity':'Global sharded map · independent generations',30,82,14,'#bbaccf');
+    text(c,`${t.toFixed(1)} s`,1136,51,23,'#d6b2ff',600);
+    text(c,'SIMULATED TIME',1110,77,10,'#9987ad',600);
+    line(c,30,99,1250,99);
+  }
+  function putStream(c,x,y,w,rate,t,full) {
+    line(c,x,y,x+w,y);
+    const num=Math.max(1,Math.round(rate/800));
+    for(let i=0;i<num;i++) {
+      const phase=(t*(0.65+rate/8000)+i/num)%1;
+      dot(c,x+phase*w,y,full&&phase>.78?REJECT:'#cda3ff',3);
+    }
+    if(full) {
+      line(c,x+w-9,y-7,x+w-9,y+7,REJECT);
+      text(c,'×',x+w+3,y+5,19,REJECT,700);
+    } else text(c,'›',x+w+2,y+5,20,'#cda3ff',700);
+  }
+  function drawPer(t) {
+    const c=contexts[0]; header(c,'per',t);
+    const attempted=stores.reduce((n,s)=>n+Math.floor(s.rate*t),0);
+    const retained=stores.reduce((n,s)=>n+Math.min(50000,Math.floor(s.rate*t)),0);
+    text(c,'OBJECT PUTS',30,126,10,'#a991bf',700);
+    text(c,fmt(attempted),30,157,25,'#e6d6fb',650);
+    text(c,'RETAINED',250,126,10,'#a991bf',700);
+    text(c,fmt(retained),250,157,25,'#c9a0ff',650);
+    text(c,'REJECTED PUTS',470,126,10,'#a991bf',700);
+    text(c,fmt(attempted-retained),470,157,25,attempted>retained?REJECT:'#e6d6fb',650);
+    text(c,'50,000 entries / map',943,141,18,'#dfc8fa',600);
+    text(c,'One cell = 500 object entries',943,163,12,'#a991bf');
+    stores.forEach((s,i)=>{
+      const x=30+(i%4)*310,y=188+Math.floor(i/4)*239;
+      const count=Math.min(50000,Math.floor(s.rate*t)), rejected=Math.max(0,Math.floor(s.rate*t)-50000), full=count===50000;
+      rect(c,x,y,290,218,'#20152e',12);
+      text(c,`Store ${s.name}`,x+16,y+27,17,'#f4ecff',650);
+      text(c,`${compact(s.rate)} puts/s`,x+170,y+26,13,'#c0a4dc');
+      putStream(c,x+16,y+46,240,s.rate,t,full);
+      cells(c,x+16,y+61,count,100,10,22,6,full?PURPLE:YOUNG,4);
+      text(c,`${fmt(count)} / 50,000`,x+16,y+179,14,'#e6d6fb',600);
+      text(c,full?'FULL · REJECTING':'ACCEPTING',x+16,y+200,11,full?REJECT:'#c9a0ff',700);
+      if(rejected) text(c,`−${compact(rejected)} puts`,x+179,y+200,11,REJECT);
+    });
+    const full=stores.filter(s=>s.rate*t>=50000).length;
+    rect(c,30,685,1220,35,'#2c1941',8);
+    text(c,full?`${full} maps full. Their incoming puts are ignored; other maps continue filling.`:'Each object store fills independently at its own request rate.',46,708,14,'#e4ccff');
+    text(c,'Unique keys · no GC or removes · identical 60-second workload in both animations',30,735,10,'#9987ad');
+  }
+  function shardState(s,t) {
+    // Age immediately before the next put after young reaches the idealized threshold.
+    const puts=Math.floor(s.rate*t);
+    const generation=puts ? Math.floor((puts-1)/16000) : 0;
+    return {puts,generation,young:puts-generation*16000,old:generation?16000:0,
+      evicted:Math.max(0,generation-1)*16000,
+      sinceAge:generation ? t-generation*16000/s.rate : Infinity};
+  }
+  function drawGlobal(t) {
+    const c=contexts[1]; header(c,'global',t);
+    text(c,'SAME ORIGINAL REQUEST RATES · ROUTED BY STORE ID',30,123,10,'#aa91c0',700);
+    stores.forEach((s,i)=>{
+      const x=30+i*154;
+      rect(c,x,136,142,42,'#2a193d',7);
+      text(c,`${s.name}  ${compact(s.rate)}/s → S${s.shard}`,x+10,162,13,'#e2c8ff',600);
+    });
+    shards.forEach((s,i)=>{
+      const x=30+(i%4)*310,y=195+Math.floor(i/4)*217;
+      const state=shardState(s,t), flash=clamp(1-state.sinceAge/1.8,0,1);
+      // Half a second at the default playback speed, fading as the new old generation settles.
+      const oldFlash=clamp(1-state.sinceAge/1.25,0,1);
+      rect(c,x,y,290,200,'#20152e',12);
+      if(flash) { c.globalAlpha=flash; rect(c,x,y,290,4,'#dfb5ff',2); c.globalAlpha=1; }
+      text(c,`Shard ${i}`,x+16,y+26,17,'#f4ecff',650);
+      text(c,`Gen ${state.generation}`,x+218,y+25,12,'#c9a0ff',600);
+      text(c,s.rate?`${s.sources.map(s=>s.name).join(' + ')} → ${compact(s.rate)} puts/s`:'No stores routed here',x+16,y+48,12,'#bba0d4');
+      putStream(c,x+16,y+62,240,s.rate||100,t,false);
+      // Idle shards have no incoming requests.
+      if(!s.rate) rect(c,x+12,y+53,266,18,'#20152e',0);
+      text(c,'YOUNG',x+16,y+88,10,'#c9a0ff',700);
+      text(c,fmt(state.young),x+213,y+88,11,'#dac0f7');
+      cells(c,x+16,y+97,state.young,32,16,12,14,YOUNG,4);
+      text(c,'OLD',x+16,y+151,10,'#ad8dc9',700);
+      text(c,fmt(state.old),x+213,y+151,11,'#b39aca');
+      cells(c,x+16,y+159,state.old,32,16,12,9,OLD,4);
+      if(oldFlash>0) {
+        c.globalAlpha=oldFlash;
+        text(c,'OLD',x+16,y+151,10,'#dfb5ff',700);
+        cells(c,x+16,y+159,state.old,32,16,12,9,'#dfb5ff',4);
+        c.globalAlpha=1;
+      }
+      if(flash>0) {
+        c.globalAlpha=flash;
+        rect(c,x+11,y+93,269,43,'#632ca6',6);
+        text(c,'AGE: young → old',x+28,y+110,13,'#fff',700);
+        text(c,state.generation>1?'previous old discarded':'new young map starts empty',x+28,y+127,11,'#e3ceff');
+        c.globalAlpha=1;
+      }
+    });
+    text(c,'GENERATION CHANGES OVER TIME',30,656,10,'#b39aca',700);
+    const historyX=275,historyW=650;
+    shards.forEach((s,i)=>{
+      const y=641+i*9;
+      text(c,`S${i}`,239,y+4,9,'#b39aca');
+      line(c,historyX,y,historyX+historyW,y,'#332245');
+      for(let g=1;g*16000 < s.rate*t;g++) {
+        const x=historyX+(g*16000/s.rate)/60*historyW;
+        rect(c,x-1,y-3,3,6,'#b47ded',1);
+      }
+    });
+    line(c,historyX+t/60*historyW,634,historyX+t/60*historyW,711,'#e7caff');
+    text(c,'0 s',historyX,728,10,'#9987ad'); text(c,'60 s',historyX+historyW-26,728,10,'#9987ad');
+    text(c,'All puts accepted',958,651,19,'#dab9ff',650);
+    const discarded=shards.reduce((sum,s)=>sum+shardState(s,t).evicted,0);
+    text(c,`${fmt(discarded)} older entries discarded`,958,675,12,'#bfa5d6');
+    text(c,'Young → old → discarded',958,698,12,'#cfa9f6');
+    text(c,'Idealized ageing · no GC or cleanup',958,725,10,'#9987ad');
+    text(c,'Hot shards turn over faster.',30,682,12,'#c2a1de');
+    text(c,'Tick = one generation change',30,702,11,'#9987ad');
+  }
+  let time=0, running=!matchMedia('(prefers-reduced-motion: reduce)').matches, speed=2.5, previous=null;
+  const play=document.querySelector('#play'), timeline=document.querySelector('#timeline');
+  function render(t) {
+    time=clamp(t,0,60); drawPer(time); drawGlobal(time);
+    timeline.value=time; document.querySelector('#time').value=`${time.toFixed(1)} s`;
+    play.textContent=running?'Pause':'Play';
+  }
+  play.addEventListener('click',()=>{ if(time>=60)time=0; running=!running; render(time); });
+  document.querySelector('#reset').addEventListener('click',()=>{running=true;render(0);});
+  document.querySelector('#speed').addEventListener('change',e=>{speed=Number(e.target.value);});
+  timeline.addEventListener('input',e=>{running=false;render(Number(e.target.value));});
+  function frame(now) {
+    if(previous!==null && running) {
+      const next=time+Math.min((now-previous)/1000,.1)*speed;
+      if(next>=60) {
+        // Hold the final frame for two simulated seconds before looping.
+        endHold+=Math.min((now-previous)/1000,.1)*speed;
+        render(60);
+        if(document.querySelector('#loop').checked && endHold>=2) {endHold=0;render(0);}
+        else if(!document.querySelector('#loop').checked) {running=false;render(60);}
+      } else {endHold=0;render(next);}
+    }
+    previous=now; requestAnimationFrame(frame);
+  }
+  let endHold=0;
+  const mode=new URLSearchParams(location.search).get('view');
+  if(mode==='per-store') document.querySelector('#global-panel').hidden=true;
+  if(mode==='global') document.querySelector('#per-panel').hidden=true;
+  // A deterministic seek API also supports rendering standalone animation files.
+  window.objectStoreDemo={stores,shards,shardState,render,seek(t){running=false;render(t);}};
+  render(0); requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
