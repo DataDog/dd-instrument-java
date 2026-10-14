@@ -17,6 +17,7 @@
   .eyebrow { color: #bd94ef; font-size: 12px; font-weight: 700; letter-spacing: .17em; }
   h1 { font-size: clamp(28px, 4vw, 44px); letter-spacing: -.045em; margin: 8px 0 10px; }
   p { color: var(--muted); line-height: 1.6; margin: 0 0 18px; }
+  .as-of { font-size: 13px; }
   .controls { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 14px 18px; margin: 24px 0; border: 1px solid #47305d; border-radius: 12px; background: #20142feb; backdrop-filter: blur(12px); }
   button, select { padding: 9px 14px; background: #632ca6; border: 1px solid #9665d2; border-radius: 7px; font: inherit; color: white; cursor: pointer; }
   button.secondary, select { background: #2b1d3c; }
@@ -37,9 +38,10 @@
 </head>
 <body>
 <main>
-  <div class="eyebrow">DATADOG · OBJECT STORAGE</div>
+  <div class="eyebrow">DD-INSTRUMENT-JAVA · OBJECT STORAGE</div>
   <h1>Same puts. Different capacity behavior.</h1>
   <p>Eight object stores receive a steady, uneven stream of new keys. Compare independent map limits with a shared store whose shards age at their own pace.</p>
+  <p class="as-of">Illustrates object-store behavior in <a href="https://github.com/DataDog/dd-instrument-java/releases/tag/v0.0.6">dd-instrument-java 0.0.6</a>, released <time datetime="2026-10-05">5 October 2026</time>.</p>
   <div class="controls" aria-label="Animation controls">
     <button id="play">Pause</button>
     <button id="reset" class="secondary">Replay</button>
@@ -49,21 +51,21 @@
     <output id="time">0.0 s</output>
     <label><input id="loop" type="checkbox" checked> Loop</label>
   </div>
-  <section class="panel" id="per-panel" aria-label="Animation one: map-per-store">
-    <canvas id="per" width="1280" height="740" role="img" aria-label="Eight per-store maps fill at different rates and reject object puts at 50,000 entries."></canvas>
-    <p class="note">Each map has a 50,000-entry limit. Once full, subsequent puts are ignored until entries are removed. The quieter maps still have room.</p>
-  </section>
-  <section class="panel" id="global-panel" aria-label="Animation two: sharded-generational">
+  <section class="panel" id="global-panel" aria-label="Animation one: sharded-generational">
     <canvas id="global" width="1280" height="740" role="img" aria-label="Eight shared shards fill and age independently. Young becomes old, previous old is discarded, and new puts continue."></canvas>
     <p class="note">A store ID hashes to one of eight shards. Stores sharing a shard also share its generation turnover. Quiet shards age slowly; an idle shard does not age.</p>
+  </section>
+  <section class="panel" id="per-panel" aria-label="Animation two: map-per-store (legacy)">
+    <canvas id="per" width="1280" height="740" role="img" aria-label="Eight per-store maps fill at different rates and reject object puts at 50,000 entries."></canvas>
+    <p class="note">Each map has a 50,000-entry limit. Once full, subsequent puts are ignored until entries are removed. The quieter maps still have room.</p>
   </section>
   <details>
     <summary>Workload and model</summary>
     <p>Illustrative store IDs: A=1, B=2, C=3, D=4, E=5, F=6, G=8, H=9. Routing follows <code>(storeId * 0x9E3779B9) &gt;&gt;&gt; 29</code>. Rates are 6,000 / 4,000 / 2,500 / 1,500 / 1,000 / 700 / 400 / 200 new object puts per simulated second, respectively. Both animations replay the identical 60-second workload.</p>
     <p>All keys are unique and remain reachable; there are no removes, repeated-key updates, background cleanup, or garbage collection. One cell represents 500 entries; partial cells show partial batches. Global ageing is drawn at the idealized 16,000-young-entry boundary. The implementation samples capacity about once per 1,024 writes per thread, so real boundaries can overshoot. Ageing creates an empty young map, keeps the previous young as old, and discards the previous old. There is no time-based expiry or promotion on reads. The 32,000-entry shard ceiling is a target; background cleanup can trim old content toward 24,000.</p>
-    <p>Implementation references: <code>WeakMapPerStore.MAX_SIZE</code> in dd-trace-java and <a href="../../field-inject/src/main/java/datadog/instrument/fieldinject/GlobalObjectStore.java">GlobalObjectStore.java</a> in this repository.</p>
+    <p>Implementation references: <code>WeakMapPerStore.MAX_SIZE</code> in dd-trace-java and <a href="https://github.com/DataDog/dd-instrument-java/blob/v0.0.6/field-inject/src/main/java/datadog/instrument/fieldinject/GlobalObjectStore.java">GlobalObjectStore.java</a> in dd-instrument-java 0.0.6.</p>
   </details>
-  <footer>Looping GIFs: <a href="../images/object-store-map-per-store.gif">map-per-store</a> · <a href="../images/object-store-sharded-generational.gif">sharded-generational</a><div class="footer-note">Deterministic workload · Simulation time, not wall-clock time</div></footer>
+  <footer>Looping GIFs: <a href="../images/object-store-sharded-generational.gif">sharded-generational</a> · <a href="../images/object-store-map-per-store.gif">map-per-store (legacy)</a><div class="footer-note">Deterministic workload · Simulation time, not wall-clock time</div></footer>
 </main>
 <script>
 'use strict';
@@ -104,10 +106,9 @@
   }
   function header(c,kind,t) {
     rect(c,0,0,1280,740,'#181023',0);
-    rect(c,28,28,40,28,PURPLE,6);
-    text(c,kind==='per'?'01':'02',39,48,13,'#fff',700);
-    text(c,kind==='per'?'map-per-store':'sharded-generational',82,51,25,'#f5efff',700);
-    text(c,kind==='per'?'Independent maps · fixed capacity':'Global sharded map · independent generations',30,82,14,'#bbaccf');
+    text(c,kind==='per'?'map-per-store (legacy)':'sharded-generational',30,51,25,'#f5efff',700);
+    text(c,kind==='per'?'Previous implementation · independent maps · fixed capacity':'Global sharded map · independent generations',30,82,14,'#bbaccf');
+    text(c,'dd-instrument-java 0.0.6 · 5 October 2026',760,82,12,'#bbaccf');
     text(c,`${t.toFixed(1)} s`,1136,51,23,'#d6b2ff',600);
     text(c,'SIMULATED TIME',1110,77,10,'#9987ad',600);
     line(c,30,99,1250,99);
