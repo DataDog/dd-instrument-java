@@ -1,0 +1,451 @@
+<!doctype html>
+<!--
+  Unless explicitly stated otherwise all files in this repository are licensed under the Apache-2.0 License.
+  This product includes software developed at Datadog (https://www.datadoghq.com/).
+  Copyright 2026-Present Datadog, Inc.
+-->
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ObjectStore demo</title>
+<style>
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f1115; --panel: #1a1d24; --panel-2: #232730;
+    --text: #e6e8eb; --muted: #9aa3b2; --accent: #4fc3f7; --accent-text: #0b1014;
+    --border: #2a2f3a; --young: #4fc3f7; --old: #546080; --reject: #e57373;
+    --cell: #2a2f3a; --highlight: #fffde7;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f0f2fa; --panel: #ffffff; --panel-2: #eef0fa;
+    --text: #1a1d2e; --muted: #5a5f7a; --accent: #0066bb; --accent-text: #ffffff;
+    --border: #d0d4f0; --young: #0066bb; --old: #8898cc; --reject: #c03030;
+    --cell: #e0e4f0; --highlight: #007a8a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; }
+  header {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    align-items: center;
+  }
+  .dd-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+  .header-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  .header-title {
+    display: flex;
+    align-items: baseline;
+    gap: 4px 12px;
+    flex: 1;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  main { max-width: 1320px; margin: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  p { color: var(--muted); margin: 0; }
+  .intro { display: flex; flex-direction: column; gap: 8px; }
+  .as-of { font-size: 12px; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+  button, select { padding: 7px 12px; background: var(--accent); border: 0; border-radius: 6px; font: 600 13px -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; color: var(--accent-text); cursor: pointer; }
+  button.secondary, select { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  .controls button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: 88px; height: 34px; }
+  .controls button .ico { line-height: 1; display: flex; align-items: center; }
+  button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .controls label { color: var(--muted); font-size: 12px; }
+  input[type=range] { flex: 1; min-width: 120px; accent-color: var(--accent); }
+  input[type=checkbox] { accent-color: var(--accent); }
+  output { min-width: 64px; padding: 1px 6px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; }
+  .panel { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--panel); }
+  canvas { display: block; width: 100%; height: auto; }
+  .note { padding: 14px; border-top: 1px solid var(--border); font-size: 12px; }
+  details { border: 1px solid var(--border); border-radius: 8px; padding: 14px; background: var(--panel); color: var(--muted); }
+  details p { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--text); font-size: 13px; font-weight: 600; }
+  code { color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  a { color: var(--accent); }
+  footer { color: var(--muted); font-size: 12px; }
+  .footer-note { margin-top: 8px; }
+  /* Theme toggle */
+  .theme-toggle {
+    margin-left: auto;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: none;
+    border: none;
+    padding: 4px 2px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .theme-toggle:hover { color: var(--text); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .toggle-track {
+    width: 40px;
+    height: 22px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    position: relative;
+    transition: background 0.25s, border-color 0.25s;
+    flex-shrink: 0;
+  }
+  :root[data-theme="light"] .toggle-track {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: transform 0.25s, background 0.25s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+  :root[data-theme="light"] .toggle-knob {
+    transform: translateX(18px);
+    background: #fff;
+  }
+
+  @media (max-width: 600px) {
+    header { padding: 12px 16px; }
+    main { padding: 12px; }
+    .controls button { width: 44px; height: 44px; }
+    .controls button span:not(.ico) { display: none; }
+    select { min-height: 44px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .toggle-track, .toggle-knob { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <a href="https://datadoghq.com" class="dd-brand" target="_blank" rel="noopener noreferrer" aria-label="Datadog">
+    <svg height="32" viewBox="0 0 800.5 907.77" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect width="800.5" height="907.77" rx="140" fill="#774AA4"/>
+      <path fill="#fff" d="M303.36,238.61c31.36-21.37,71.76-12.97,65-6.53c-12.89,12.28,4.26,8.65,6.11,31.31
+	c1.36,16.69-4.09,25.88-8.78,31.11c-9.79,1.28-21.69,3.67-36.02,8.33c-8.48,2.76-15.85,5.82-22.31,8.9
+	c-1.7-1.11-3.55-2.47-5.74-4.36C279.5,288.19,280.24,254.37,303.36,238.61 M490.68,370.72c5.69-4.41,31.55-12.72,55.49-15.55
+	c12.57-1.48,30.49-2.34,34.31-0.2c7.59,4.19,7.59,17.16,2.39,29.14c-7.57,17.4-18.27,36.63-30.39,38.21
+	c-19.77,2.61-38.46-8.09-59.8-24.03C485.06,392.56,480.38,378.68,490.68,370.72 M526.75,201.27c29.19,13.58,25.37,39.42,26.18,54.6
+	c0.22,4.36,0.15,7.3-0.22,9.32c-4.04-2.19-10.43-3.8-20.56-3.35c-2.96,0.12-5.84,0.47-8.63,0.91c-10.77-5.77-17.21-17.06-23.1-29.06
+	c-0.54-1.11-0.96-2.1-1.36-3.06c-0.17-0.44-0.35-0.91-0.52-1.31c-0.07-0.22-0.12-0.39-0.2-0.59c-3.23-10.25-1.06-12.3,0.3-15.46
+	c1.41-3.23,6.68-5.89-1.11-8.58c-0.67-0.25-1.5-0.39-2.44-0.57C500.25,197.72,515.7,196.17,526.75,201.27 M367.62,510.22
+	c-31.45-20.19-63.99-49.15-78.22-65.18c-2.39-1.8-2-9.79-2-9.79c12.84,9.98,66.11,48.04,122.44,65.42
+	c19.87,6.14,50.36,8.46,76.81-6.53c20.21-11.46,44.54-31.43,59.06-52.01l2.66,4.61c-0.1,3.06-6.78,17.97-10.18,23.96
+	c6.14,3.53,10.72,4.49,17.55,6.36l46.64-7.27c16.74-27.04,28.74-70.65,15.95-112.16c-7.3-23.81-45.36-71.22-48.09-73.83
+	c-9.56-9.19,1.6-44.69-17.35-83.42C532.86,159.41,480.67,116.69,458,98.1c6.68,4.88,47.82,21.47,67,44.62
+	c1.8-2.39,2.54-14.82,4.19-17.97c-16.47-21.57-17.75-59.95-17.75-70.21c0-18.81-9.56-40.13-9.56-40.13s16.47,13.04,20.73,35.5
+	c5.03,26.6,15.75,47.55,29.93,65.28c26.84,33.43,51.08,50.58,63.33,38.23C630.53,138.58,601,72.2,563.28,35.15
+	C519.25-8.09,507.74-2.52,481.91,6.7c-20.61,7.35-31.75,65.87-85.47,64.71c-9.1-1.06-32.54-1.63-44.13-1.53
+	c6.04-8.43,11.22-14.94,11.22-14.94s-18.02,7.25-33.38,16.44l-1.18-1.77c5.18-10.92,10.75-17.82,10.75-17.82s-14.4,8.65-27.54,19.01
+	c2.39-13.02,11.44-21.27,11.44-21.27s-18.19,3.28-41.36,28.77c-26.33,7.2-32.66,11.93-53.64,21.22
+	c-34.12-7.44-50.21-19.45-65.55-41.56c-11.68-16.89-32.47-19.45-53.71-10.72c-30.97,12.8-70.14,30.33-70.14,30.33
+	s12.77-0.52,26.08,0.05c-18.22,6.9-35.72,16.39-35.72,16.39s8.53-0.3,19.06-0.12c-7.27,6.04-11.29,8.92-18.22,13.51
+	c-16.66,12.1-30.17,26.08-30.17,26.08s11.31-5.15,21.47-8.04c-7.1,16.27-21.18,28.25-18.59,48.17
+	c2.49,18.19,24.82,55.66,53.64,78.66c2.49,2,41.86,38.43,71.56,23.47c29.68-14.94,41.39-28.25,46.27-48.66
+	c5.74-23.44,2.47-41.17-9.79-92.05c-4.04-16.79-14.57-51.37-19.65-67.91l1.13-0.81c9.71,20.49,34.56,74.5,44.57,110.78
+	c15.63,56.57,10.75,85.27,3.6,95.79c-21.57,31.73-76.84,35.92-101.98,18.34c-3.85,60.91,9.76,87.73,14.37,101.24
+	c-2.29,15.53,7.77,44.37,7.77,44.37s1.13-13.11,5.74-20.02c1.23,15.41,9,33.72,9,33.72s-0.47-11.31,3.06-21.08
+	c4.98,8.43,8.63,10.43,13.34,16.76c4.71,16.47,14.15,28.5,14.15,28.5s-1.53-8.83-0.69-18.02c23.05,22.14,27.02,54.45,29.31,79.28
+	c6.46,68.26-107.63,122.54-129.74,165.24c-16.76,25.29-26.8,65.3,1.58,88.89c68.6,56.97,42.25,72.65,76.59,97.69
+	c47.11,34.34,106.05,18.96,126.11-8.97c27.93-38.92,20.76-75.63,10.38-109.97c-8.11-26.85-30.15-71.46-57.41-88.72
+	c-27.86-17.65-54.95-20.95-77.9-18.59l2.12-2.44c33.01-6.56,67.52-2.96,92.49,13.14c28.35,18.22,54.28,49.47,67.84,97.37
+	c15.38-2.19,17.55-3.18,31.63-5.18l-31.7-246.76L367.62,510.22z M385.94,819.52l-3.65-34.22l71.29-108.74l80.93,23.64l69.59-116.23
+	L687.52,639l63.38-132.92l22.53,242.07L385.94,819.52z M774.27,456.51l-254.72,46.17c-6.31,8.13-21.91,22.41-29.41,26.13
+	c-32.17,16.2-53.91,11.51-72.7,6.63c-12.08-3.06-19.08-4.78-29.11-9.29l-62.17,8.53l37.74,314.87l436.35-78.66L774.27,456.51z"/>
+    </svg>
+  </a>
+  <span class="header-divider"></span>
+  <div class="header-title">
+  <h1>ObjectStore demo</h1>
+  <span class="sub">Animated comparison of object-store capacity and generations in
+    <a href="https://github.com/DataDog/dd-instrument-java/releases/tag/v0.0.6">dd-instrument-java</a>.
+  </span>
+  </div>
+  <button id="themeBtn" class="theme-toggle" title="Toggle theme" aria-label="Toggle theme" aria-pressed="true">
+    <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor" aria-hidden="true">
+      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+    </svg>
+    <span class="toggle-track"><span class="toggle-knob"></span></span>
+    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
+      <circle cx="10" cy="10" r="3" fill="currentColor"/>
+      <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+            d="M10 1v2M10 17v2M1 10h2M17 10h2M3.636 3.636l1.414 1.414M14.95 14.95l1.414 1.414M14.95 5.05l1.414-1.414M3.636 16.364l1.414-1.414"/>
+    </svg>
+  </button>
+</header>
+<main>
+  <div class="intro">
+  <p>Eight object stores receive a steady, uneven stream of new keys. Compare independent map limits with a shared store whose shards age at their own pace.</p>
+  <p class="as-of">Illustrates object-store behavior in <a href="https://github.com/DataDog/dd-instrument-java/releases/tag/v0.0.6">dd-instrument-java 0.0.6</a>, released <time datetime="2026-10-05">5 October 2026</time>.</p>
+  </div>
+  <div class="controls" role="group" aria-label="Animation controls">
+    <button id="play" aria-pressed="true" aria-label="Pause"><span class="ico" aria-hidden="true">⏸</span><span class="lbl">Pause</span></button>
+    <button id="reset" class="secondary" aria-label="Replay"><span class="ico" aria-hidden="true">↻</span><span>Replay</span></button>
+    <label for="speed">Speed</label>
+    <select id="speed"><option value="1">1×</option><option value="2.5" selected>2.5×</option><option value="5">5×</option></select>
+    <input id="timeline" type="range" min="0" max="60" step="0.05" value="0" aria-label="Simulation time in seconds">
+    <output id="time">0.0 s</output>
+    <label><input id="loop" type="checkbox" checked> Loop</label>
+  </div>
+  <section class="panel" id="global-panel" aria-label="Animation one: sharded-generational">
+    <canvas id="global" width="1280" height="740" role="img" aria-label="Eight shared shards fill and age independently. Young becomes old, previous old is discarded, and new puts continue."></canvas>
+    <p class="note">A store ID hashes to one of eight shards. Stores sharing a shard also share its generation turnover. Quiet shards age slowly; an idle shard does not age.</p>
+  </section>
+  <section class="panel" id="per-panel" aria-label="Animation two: map-per-store (legacy)">
+    <canvas id="per" width="1280" height="740" role="img" aria-label="Eight per-store maps fill at different rates and reject object puts at 50,000 entries."></canvas>
+    <p class="note">Each map has a 50,000-entry limit. Once full, subsequent puts are ignored until entries are removed. The quieter maps still have room.</p>
+  </section>
+  <details>
+    <summary>Workload and model</summary>
+    <p>Illustrative store IDs: A=1, B=2, C=3, D=4, E=5, F=6, G=8, H=9. Routing follows <code>(storeId * 0x9E3779B9) &gt;&gt;&gt; 29</code>. Rates are 6,000 / 4,000 / 2,500 / 1,500 / 1,000 / 700 / 400 / 200 new object puts per simulated second, respectively. Both animations replay the identical 60-second workload.</p>
+    <p>All keys are unique and remain reachable; there are no removes, repeated-key updates, background cleanup, or garbage collection. One cell represents 500 entries; partial cells show partial batches. Global ageing is drawn at the idealized 16,000-young-entry boundary. The implementation samples capacity about once per 1,024 writes per thread, so real boundaries can overshoot. Ageing creates an empty young map, keeps the previous young as old, and discards the previous old. There is no time-based expiry or promotion on reads. The 32,000-entry shard ceiling is a target; background cleanup can trim old content toward 24,000.</p>
+    <p>Implementation references: <code>WeakMapPerStore.MAX_SIZE</code> in dd-trace-java and <a href="https://github.com/DataDog/dd-instrument-java/blob/v0.0.6/field-inject/src/main/java/datadog/instrument/fieldinject/GlobalObjectStore.java">GlobalObjectStore.java</a> in dd-instrument-java 0.0.6.</p>
+  </details>
+  <footer>Looping GIFs: <a href="../images/object-store-sharded-generational.gif">sharded-generational</a> · <a href="../images/object-store-map-per-store.gif">map-per-store (legacy)</a><div class="footer-note">Deterministic workload · Simulation time, not wall-clock time</div></footer>
+</main>
+<script>
+'use strict';
+(() => {
+  const palette = {};
+  function refreshPalette() {
+    const style = getComputedStyle(document.documentElement);
+    for (const [key, variable] of Object.entries({panel:'panel', panel2:'panel-2', text:'text', muted:'muted', accent:'accent', accentText:'accent-text', border:'border', young:'young', old:'old', reject:'reject', cell:'cell', highlight:'highlight'})) {
+      palette[key] = style.getPropertyValue('--' + variable).trim();
+    }
+  }
+  try {
+    const saved = localStorage.getItem('objectStoreTheme');
+    if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+  refreshPalette();
+  const stores = [
+    {name:'A', id:1, rate:6000}, {name:'B', id:2, rate:4000},
+    {name:'C', id:3, rate:2500}, {name:'D', id:4, rate:1500},
+    {name:'E', id:5, rate:1000}, {name:'F', id:6, rate:700},
+    {name:'G', id:8, rate:400}, {name:'H', id:9, rate:200}
+  ].map(s => ({...s, shard:Math.imul(s.id, 0x9e3779b9) >>> 29}));
+  const shards = Array.from({length:8}, (_, id) => {
+    const sources = stores.filter(s => s.shard === id);
+    return {id, sources, rate:sources.reduce((sum,s) => sum+s.rate,0)};
+  });
+  const per = document.querySelector('#per'), global = document.querySelector('#global');
+  const contexts = [per.getContext('2d'), global.getContext('2d')];
+  const fmt = n => Math.floor(n).toLocaleString('en-US');
+  const compact = n => n >= 1000 ? `${(n/1000).toFixed(n%1000 ? 1 : 0)}k` : `${n}`;
+  const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
+  function text(c,str,x,y,size=14,color=palette.text,weight=400) {
+    c.fillStyle=color; c.font=`${weight} ${size}px -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif`; c.fillText(str,x,y);
+  }
+  function rect(c,x,y,w,h,color,r=8) {
+    c.fillStyle=color; c.beginPath(); c.roundRect(x,y,w,h,r); c.fill();
+  }
+  function line(c,x1,y1,x2,y2,color=palette.border) {
+    c.strokeStyle=color; c.lineWidth=1.5; c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); c.stroke();
+  }
+  function dot(c,x,y,color,r=4) { c.fillStyle=color; c.beginPath(); c.arc(x,y,r,0,Math.PI*2); c.fill(); }
+  function cells(c,x,y,count,total,cols,cellW,cellH,color,gap=4) {
+    for(let i=0;i<total;i++) {
+      const cx=x+(i%cols)*(cellW+gap), cy=y+Math.floor(i/cols)*(cellH+gap);
+      rect(c,cx,cy,cellW,cellH,palette.cell,3);
+      const fill=clamp(count/500-i,0,1);
+      if(fill) rect(c,cx,cy,cellW*fill,cellH,color,3);
+    }
+  }
+  function header(c,kind,t) {
+    rect(c,0,0,1280,740,palette.panel,0);
+    text(c,kind==='per'?'map-per-store (legacy)':'sharded-generational',30,51,25,palette.text,700);
+    text(c,kind==='per'?'Previous implementation · independent maps · fixed capacity':'Global sharded map · independent generations',30,82,14,palette.muted);
+    text(c,'dd-instrument-java 0.0.6 · 5 October 2026',760,82,12,palette.muted);
+    text(c,`${t.toFixed(1)} s`,1136,51,23,palette.accent,600);
+    text(c,'SIMULATED TIME',1110,77,10,palette.muted,600);
+    line(c,30,99,1250,99);
+  }
+  function putStream(c,x,y,w,rate,t,full) {
+    line(c,x,y,x+w,y);
+    const num=Math.max(1,Math.round(rate/800));
+    for(let i=0;i<num;i++) {
+      const phase=(t*(0.65+rate/8000)+i/num)%1;
+      dot(c,x+phase*w,y,full&&phase>.78?palette.reject:palette.accent,3);
+    }
+    if(full) {
+      line(c,x+w-9,y-7,x+w-9,y+7,palette.reject);
+      text(c,'×',x+w+3,y+5,19,palette.reject,700);
+    } else text(c,'›',x+w+2,y+5,20,palette.accent,700);
+  }
+  function drawPer(t) {
+    const c=contexts[0]; header(c,'per',t);
+    const attempted=stores.reduce((n,s)=>n+Math.floor(s.rate*t),0);
+    const retained=stores.reduce((n,s)=>n+Math.min(50000,Math.floor(s.rate*t)),0);
+    text(c,'OBJECT PUTS',30,126,10,palette.muted,700);
+    text(c,fmt(attempted),30,157,25,palette.text,650);
+    text(c,'RETAINED',250,126,10,palette.muted,700);
+    text(c,fmt(retained),250,157,25,palette.accent,650);
+    text(c,'REJECTED PUTS',470,126,10,palette.muted,700);
+    text(c,fmt(attempted-retained),470,157,25,attempted>retained?palette.reject:palette.text,650);
+    text(c,'50,000 entries / map',943,141,18,palette.accent,600);
+    text(c,'One cell = 500 object entries',943,163,12,palette.muted);
+    stores.forEach((s,i)=>{
+      const x=30+(i%4)*310,y=188+Math.floor(i/4)*239;
+      const count=Math.min(50000,Math.floor(s.rate*t)), rejected=Math.max(0,Math.floor(s.rate*t)-50000), full=count===50000;
+      rect(c,x,y,290,218,palette.panel2,8);
+      text(c,`Store ${s.name}`,x+16,y+27,17,palette.text,650);
+      text(c,`${compact(s.rate)} puts/s`,x+170,y+26,13,palette.muted);
+      putStream(c,x+16,y+46,240,s.rate,t,full);
+      cells(c,x+16,y+61,count,100,10,22,6,full?palette.accent:palette.young,4);
+      text(c,`${fmt(count)} / 50,000`,x+16,y+179,14,palette.text,600);
+      text(c,full?'FULL · REJECTING':'ACCEPTING',x+16,y+200,11,full?palette.reject:palette.accent,700);
+      if(rejected) text(c,`−${compact(rejected)} puts`,x+179,y+200,11,palette.reject);
+    });
+    const full=stores.filter(s=>s.rate*t>=50000).length;
+    rect(c,30,685,1220,35,palette.panel2,8);
+    text(c,full?`${full} maps full. Their incoming puts are ignored; other maps continue filling.`:'Each object store fills independently at its own request rate.',46,708,14,palette.text);
+    text(c,'Unique keys · no GC or removes · identical 60-second workload in both animations',30,735,10,palette.muted);
+  }
+  function shardState(s,t) {
+    // Age immediately before the next put after young reaches the idealized threshold.
+    const puts=Math.floor(s.rate*t);
+    const generation=puts ? Math.floor((puts-1)/16000) : 0;
+    return {puts,generation,young:puts-generation*16000,old:generation?16000:0,
+      evicted:Math.max(0,generation-1)*16000,
+      sinceAge:generation ? t-generation*16000/s.rate : Infinity};
+  }
+  function drawGlobal(t) {
+    const c=contexts[1]; header(c,'global',t);
+    text(c,'SAME ORIGINAL REQUEST RATES · ROUTED BY STORE ID',30,123,10,palette.muted,700);
+    stores.forEach((s,i)=>{
+      const x=30+i*154;
+      rect(c,x,136,142,42,palette.panel2,7);
+      text(c,`${s.name}  ${compact(s.rate)}/s → S${s.shard}`,x+10,162,13,palette.text,600);
+    });
+    shards.forEach((s,i)=>{
+      const x=30+(i%4)*310,y=195+Math.floor(i/4)*217;
+      const state=shardState(s,t), flash=clamp(1-state.sinceAge/1.8,0,1);
+      // Half a second at the default playback speed, fading as the new old generation settles.
+      const oldFlash=clamp(1-state.sinceAge/1.25,0,1);
+      rect(c,x,y,290,200,palette.panel2,8);
+      if(flash) { c.globalAlpha=flash; rect(c,x,y,290,4,palette.highlight,2); c.globalAlpha=1; }
+      text(c,`Shard ${i}`,x+16,y+26,17,palette.text,650);
+      text(c,`Gen ${state.generation}`,x+218,y+25,12,palette.accent,600);
+      text(c,s.rate?`${s.sources.map(s=>s.name).join(' + ')} → ${compact(s.rate)} puts/s`:'No stores routed here',x+16,y+48,12,palette.muted);
+      putStream(c,x+16,y+62,240,s.rate||100,t,false);
+      // Idle shards have no incoming requests.
+      if(!s.rate) rect(c,x+12,y+53,266,18,palette.panel2,0);
+      text(c,'YOUNG',x+16,y+88,10,palette.accent,700);
+      text(c,fmt(state.young),x+213,y+88,11,palette.accent);
+      cells(c,x+16,y+97,state.young,32,16,12,14,palette.young,4);
+      text(c,'OLD',x+16,y+151,10,palette.muted,700);
+      text(c,fmt(state.old),x+213,y+151,11,palette.muted);
+      cells(c,x+16,y+159,state.old,32,16,12,9,palette.old,4);
+      if(oldFlash>0) {
+        c.globalAlpha=oldFlash;
+        text(c,'OLD',x+16,y+151,10,palette.highlight,700);
+        cells(c,x+16,y+159,state.old,32,16,12,9,palette.highlight,4);
+        c.globalAlpha=1;
+      }
+      if(flash>0) {
+        c.globalAlpha=flash;
+        rect(c,x+11,y+93,269,43,palette.accent,6);
+        text(c,'AGE: young → old',x+28,y+110,13,palette.accentText,700);
+        text(c,state.generation>1?'previous old discarded':'new young map starts empty',x+28,y+127,11,palette.accentText);
+        c.globalAlpha=1;
+      }
+    });
+    text(c,'GENERATION CHANGES OVER TIME',30,656,10,palette.muted,700);
+    const historyX=275,historyW=650;
+    shards.forEach((s,i)=>{
+      const y=641+i*9;
+      text(c,`S${i}`,239,y+4,9,palette.muted);
+      line(c,historyX,y,historyX+historyW,y,palette.border);
+      for(let g=1;g*16000 < s.rate*t;g++) {
+        const x=historyX+(g*16000/s.rate)/60*historyW;
+        rect(c,x-1,y-3,3,6,palette.accent,1);
+      }
+    });
+    line(c,historyX+t/60*historyW,634,historyX+t/60*historyW,711,palette.accent);
+    text(c,'0 s',historyX,728,10,palette.muted); text(c,'60 s',historyX+historyW-26,728,10,palette.muted);
+    text(c,'All puts accepted',958,651,19,palette.accent,650);
+    const discarded=shards.reduce((sum,s)=>sum+shardState(s,t).evicted,0);
+    text(c,`${fmt(discarded)} older entries discarded`,958,675,12,palette.muted);
+    text(c,'Young → old → discarded',958,698,12,palette.accent);
+    text(c,'Idealized ageing · no GC or cleanup',958,725,10,palette.muted);
+    text(c,'Hot shards turn over faster.',30,682,12,palette.muted);
+    text(c,'Tick = one generation change',30,702,11,palette.muted);
+  }
+  let time=0, running=!matchMedia('(prefers-reduced-motion: reduce)').matches, speed=2.5, previous=null;
+  const play=document.querySelector('#play'), timeline=document.querySelector('#timeline');
+  const playIco=play.querySelector('.ico'), playLbl=play.querySelector('.lbl');
+  function render(t) {
+    time=clamp(t,0,60); drawPer(time); drawGlobal(time);
+    timeline.value=time; document.querySelector('#time').value=`${time.toFixed(1)} s`;
+    playIco.textContent=running?'⏸':'▶';
+    playLbl.textContent=running?'Pause':'Play';
+    play.setAttribute('aria-pressed',String(running));
+    play.setAttribute('aria-label',running?'Pause':'Play');
+  }
+  play.addEventListener('click',()=>{ if(time>=60)time=0; running=!running; render(time); });
+  document.querySelector('#reset').addEventListener('click',()=>{running=true;render(0);});
+  document.querySelector('#speed').addEventListener('change',e=>{speed=Number(e.target.value);});
+  timeline.addEventListener('input',e=>{running=false;render(Number(e.target.value));});
+  function frame(now) {
+    if(previous!==null && running) {
+      const next=time+Math.min((now-previous)/1000,.1)*speed;
+      if(next>=60) {
+        // Hold the final frame for two simulated seconds before looping.
+        endHold+=Math.min((now-previous)/1000,.1)*speed;
+        render(60);
+        if(document.querySelector('#loop').checked && endHold>=2) {endHold=0;render(0);}
+        else if(!document.querySelector('#loop').checked) {running=false;render(60);}
+      } else {endHold=0;render(next);}
+    }
+    previous=now; requestAnimationFrame(frame);
+  }
+  let endHold=0;
+  const mode=new URLSearchParams(location.search).get('view');
+  if(mode==='per-store') document.querySelector('#global-panel').hidden=true;
+  if(mode==='global') document.querySelector('#per-panel').hidden=true;
+  // A deterministic seek API also supports rendering standalone animation files.
+  window.objectStoreDemo={stores,shards,shardState,render,seek(t){running=false;render(t);}};
+  const themeButton = document.querySelector('#themeBtn');
+  function syncThemeButton() {
+    themeButton.setAttribute('aria-pressed', String(document.documentElement.dataset.theme === 'dark'));
+  }
+  themeButton.addEventListener('click', () => {
+    const root = document.documentElement;
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    refreshPalette();
+    syncThemeButton(); render(time);
+    try { localStorage.setItem('objectStoreTheme', root.dataset.theme); } catch (e) {}
+  });
+  syncThemeButton();
+  render(0); requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
