@@ -60,6 +60,8 @@ for (javaVersion in additionalJavaVersions) {
 }
 
 tasks.jacocoTestReport {
+  // Collect execution data only after all requested test tasks have finished.
+  mustRunAfter(tasks.withType<Test>())
   executionData.setFrom(fileTree(layout.buildDirectory).include("/jacoco/*.exec"))
   reports {
     csv.required = true
