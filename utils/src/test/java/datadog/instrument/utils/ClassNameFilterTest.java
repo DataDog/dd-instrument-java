@@ -12,11 +12,51 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class ClassNameFilterTest {
+
+  @ParameterizedTest
+  @ValueSource(strings = {"example.例", "example.例Class", "example.My例"})
+  void unicodeClassNames(String className) {
+    ClassNameFilter filter = new ClassNameFilter(256);
+
+    filter.add(className);
+
+    assertTrue(filter.contains(className));
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {256, 257, 512, 513})
+  void longSimpleNames(int length) {
+    char[] simpleName = new char[length];
+    Arrays.fill(simpleName, 'A');
+    String className = "example." + new String(simpleName);
+    ClassNameFilter filter = new ClassNameFilter(256);
+
+    filter.add(className);
+
+    assertTrue(filter.contains(className));
+  }
+
+  @Test
+  void shorterHashCollisionDoesNotReadPastClassName() {
+    char[] padding = new char[248];
+    Arrays.fill(padding, 'A');
+    String className = "a." + new String(padding) + "DVYRQBJ";
+    assertEquals("A".hashCode(), className.hashCode());
+    ClassNameFilter filter = new ClassNameFilter(256);
+
+    filter.add(className);
+
+    assertFalse(filter.contains("A"));
+    assertTrue(filter.contains(className));
+  }
 
   @Test
   void basicOperation() {

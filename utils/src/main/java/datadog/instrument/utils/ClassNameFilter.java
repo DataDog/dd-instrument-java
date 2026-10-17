@@ -154,22 +154,22 @@ public final class ClassNameFilter {
    * Computes a 32-bit 'class-code' that includes the length of the package-prefix and simple-name,
    * plus the first and last characters of the simple-name (each truncated to fit into 8-bits.)
    */
-  private static int classCode(String className) {
-    int start = className.lastIndexOf('.') + 1;
-    int end = className.length() - 1;
-    return (0xFF & className.charAt(end)) << 24
-        | (0xFF & className.charAt(start)) << 16
+  private static int classCode(String name) {
+    int start = name.lastIndexOf('.') + 1;
+    int end = name.length() - 1;
+    return (0xFF & name.charAt(end)) << 24
+        | (0xFF & name.charAt(start)) << 16
         | (0xFF & (end - start)) << 8
         | (0xFF & start);
   }
 
   /** Checks whether the 32-bit 'class-code' is consistent with the fully-qualified class-name. */
-  private static boolean checkClassCode(CharSequence className, int code) {
-    int start = (0xFF & code);
-    int end = className.length() - 1;
-    return end - start == (0xFF & (code >> 8))
-        && className.charAt(start) == (0xFF & (code >> 16))
-        && className.charAt(end) == (0xFF & (code >> 24));
+  private static boolean checkClassCode(CharSequence name, int code) {
+    int start = 0xFF & code;
+    int end = name.length() - 1;
+    // Keep the sign bit so a start beyond the end cannot match the encoded length.
+    return (0x800000FF & (end - start)) == (0xFF & (code >> 8))
+        && (((name.charAt(start) ^ code >>> 16) | (name.charAt(end) ^ code >>> 24)) & 0xFF) == 0;
   }
 
   private static int rehash(int oldHash) {
