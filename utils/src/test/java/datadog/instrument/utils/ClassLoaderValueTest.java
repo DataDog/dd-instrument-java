@@ -4,11 +4,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @SuppressFBWarnings("DM_GC")
 @SuppressWarnings({"UnusedAssignment", "ConstantValue"})
@@ -156,6 +165,50 @@ class ClassLoaderValueTest {
             classLoaderValue.get(cl3),
             classLoaderValue.get(cl5));
     visited.clear();
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void competingComputationsReturnTheInstalledValue(boolean systemLoader) throws Exception {
+    ClassLoader loader = systemLoader ? ClassLoader.getSystemClassLoader() : null;
+    int threadCount = 8;
+    CountDownLatch computing = new CountDownLatch(threadCount);
+    AtomicInteger computeCalls = new AtomicInteger();
+    ClassLoaderValue<Object> values =
+        new ClassLoaderValue<Object>() {
+          @Override
+          protected Object computeValue(ClassLoader cl) {
+            assertThat(cl).isSameAs(loader);
+            computeCalls.incrementAndGet();
+            // Nobody can install a value until every contender is already computing one.
+            computing.countDown();
+            try {
+              assertThat(computing.await(10, TimeUnit.SECONDS)).isTrue();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new AssertionError(e);
+            }
+            return new Object();
+          }
+        };
+
+    ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+    List<Future<Object>> results = new ArrayList<>();
+    try {
+      for (int i = 0; i < threadCount; i++) {
+        results.add(executor.submit(() -> values.get(loader)));
+      }
+      Object winner = results.get(0).get(10, TimeUnit.SECONDS);
+      assertThat(winner).isNotNull();
+      for (Future<Object> result : results) {
+        assertThat(result.get(10, TimeUnit.SECONDS)).isSameAs(winner);
+      }
+      assertThat(values.get(loader)).isSameAs(winner);
+      assertThat(computeCalls).hasValue(threadCount);
+      assertThat(values.size()).isEqualTo(1);
+    } finally {
+      executor.shutdownNow();
+    }
   }
 
   private static ClassLoader newCL(String name) {
