@@ -43,7 +43,7 @@ public interface TypeMatcher extends Predicate<CharSequence> {
    * @return matcher of types from the given list
    */
   static TypeMatcher typeOneOf(Collection<String> types) {
-    return new InternalNames(types)::containsType;
+    return InternalNames.create(types)::containsType;
   }
 
   /**
