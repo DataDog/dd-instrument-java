@@ -1058,6 +1058,9 @@ public final class ClassNameTrie {
       int chunkSize = 0;
       StringBuilder buf = new StringBuilder();
       buf.append("      \"");
+      if (trie.isEmpty()) {
+        buf.append("\\000"); // encode an empty root node with zero branches
+      }
       for (int i = 0; i < trie.trieLength; i++) {
         char c = trie.trieData[i];
         if (++chunkSize > 10_000) {
