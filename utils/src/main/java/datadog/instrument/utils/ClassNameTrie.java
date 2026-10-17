@@ -517,7 +517,7 @@ public final class ClassNameTrie {
 
         if ((value & LEAF_MARKER) != 0) {
           // append our new leaf node below the leaf branch and change it to a bud
-          jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert);
+          jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert, false);
           trieData[valueIndex] = (char) ((value & ~LEAF_MARKER) | BUD_MARKER);
           break;
         } else if ((value & BUD_MARKER) != 0) {
@@ -569,7 +569,7 @@ public final class ClassNameTrie {
           if ((value & LEAF_MARKER) != 0) {
             if (keyIndex < keyLength) {
               // key goes past leaf segment, extend old leaf with a bud node and add our new leaf
-              jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert);
+              jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert, true);
               trieData[valueIndex]--;
               break;
             } else {
@@ -825,12 +825,11 @@ public final class ClassNameTrie {
       return insertedCharacters;
     }
 
-    private int appendLeaf(int dataIndex, String key, int keyIndex, int value) {
+    private int appendLeaf(int dataIndex, String key, int keyIndex, int value, boolean insertBud) {
       int remainingKeyLength = key.length() - keyIndex;
       int insertedCharacters = 3 /* branch count, segment-length, value */ + remainingKeyLength;
 
       // if we're adding this to a leaf segment then we need to introduce a bud first
-      boolean insertBud = dataIndex < trieLength && (trieData[dataIndex] & LEAF_MARKER) != 0;
       if (insertBud) {
         insertedCharacters++;
       }
