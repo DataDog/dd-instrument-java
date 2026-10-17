@@ -899,8 +899,8 @@ public final class ClassNameTrie {
       if (longJumps == null) {
         longJumps = new int[16]; // create table on first use
       } else if (longJumpCount == longJumps.length) {
-        // expand the table by 50% to fit additional entries
-        longJumps = Arrays.copyOf(longJumps, longJumpCount + (longJumpCount >> 1));
+        // expand the table by 50%, ensuring progress even after compaction to one entry
+        longJumps = Arrays.copyOf(longJumps, longJumpCount + Math.max(1, longJumpCount >> 1));
       }
       longJumps[longJumpCount] = jump;
       return (char) (longJumpCount++ | LONG_JUMP_MARKER);
