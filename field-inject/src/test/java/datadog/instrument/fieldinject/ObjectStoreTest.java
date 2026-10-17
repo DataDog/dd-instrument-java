@@ -6,6 +6,7 @@ import static datadog.instrument.fieldinject.GlobalObjectStore.SHARD_HARD_LIMIT;
 import static datadog.instrument.fieldinject.GlobalObjectStore.SHARD_SOFT_LIMIT;
 import static datadog.instrument.fieldinject.ObjectStoreIds.objectStoreId;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -18,11 +19,15 @@ import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class ObjectStoreTest {
 
@@ -100,6 +105,63 @@ class ObjectStoreTest {
     assertEquals("new", store.get(key));
   }
 
+  @Test
+  void getOrPutNullDoesNotInsertOrReplaceValue() {
+    Object key = new Object();
+    assertNull(store.getOrPut(key, null));
+    assertNull(store.get(key));
+    assertEquals("first", store.getOrPut(key, "first"));
+    assertEquals("first", store.getOrPut(key, null));
+    assertEquals("first", store.get(key));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"getOrPut", "getOrCompute"})
+  void concurrentInsertionOnSameKeyReturnsSingleWinner(String operation) throws Exception {
+    Object key = new Object();
+    int threadCount = 8;
+    CountDownLatch ready = new CountDownLatch(threadCount);
+    CountDownLatch start = new CountDownLatch(1);
+    AtomicInteger computeCalls = new AtomicInteger();
+    ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+    List<Future<String>> results = new ArrayList<>();
+    try {
+      for (int i = 0; i < threadCount; i++) {
+        String candidate = "candidate-" + i;
+        results.add(
+            executor.submit(
+                () -> {
+                  ready.countDown();
+                  if (!start.await(10, TimeUnit.SECONDS)) {
+                    throw new AssertionError("contenders did not start");
+                  }
+                  if (operation.equals("getOrPut")) {
+                    return store.getOrPut(key, candidate);
+                  }
+                  return store.getOrCompute(
+                      key,
+                      k -> {
+                        assertSame(key, k);
+                        computeCalls.incrementAndGet();
+                        return candidate;
+                      });
+                }));
+      }
+      assertTrue(ready.await(10, TimeUnit.SECONDS));
+      start.countDown();
+      String winner = results.get(0).get(10, TimeUnit.SECONDS);
+      assertThat(winner).startsWith("candidate-");
+      for (Future<String> result : results) {
+        assertEquals(winner, result.get(10, TimeUnit.SECONDS));
+      }
+      assertEquals(winner, store.get(key));
+      assertEquals(operation.equals("getOrCompute") ? 1 : 0, computeCalls.get());
+    } finally {
+      start.countDown();
+      executor.shutdownNow();
+    }
+  }
+
   // --- getOrCompute ---
 
   @Test
@@ -128,6 +190,49 @@ class ObjectStoreTest {
           return "value";
         });
     assertSame(key, received.get());
+  }
+
+  @Test
+  void failedComputationLeavesKeyAbsentAndAllowsRetry() {
+    Object key = new Object();
+    RuntimeException failure = new IllegalStateException("expected failure");
+    assertThatThrownBy(
+            () ->
+                store.getOrCompute(
+                    key,
+                    k -> {
+                      throw failure;
+                    }))
+        .isSameAs(failure);
+    assertNull(store.get(key));
+    assertEquals("retry", store.getOrCompute(key, k -> "retry"));
+    assertEquals("retry", store.get(key));
+    assertEquals(
+        "retry",
+        store.getOrCompute(
+            key,
+            k -> {
+              throw new AssertionError("already cached");
+            }));
+  }
+
+  @Test
+  void nullComputedValueIsNotCachedAndCanBeRetried() {
+    Object key = new Object();
+    AtomicInteger calls = new AtomicInteger();
+    for (int i = 0; i < 2; i++) {
+      assertNull(
+          store.getOrCompute(
+              key,
+              k -> {
+                calls.incrementAndGet();
+                return null;
+              }));
+      assertNull(store.get(key));
+    }
+    assertEquals(2, calls.get());
+    assertEquals("retry", store.getOrCompute(key, k -> "retry"));
+    assertEquals("retry", store.get(key));
   }
 
   // --- isolation ---
