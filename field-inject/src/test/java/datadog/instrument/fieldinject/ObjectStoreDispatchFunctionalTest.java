@@ -2,8 +2,10 @@ package datadog.instrument.fieldinject;
 
 import static datadog.instrument.fieldinject.ObjectStoreIds.objectStoreId;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
@@ -22,6 +24,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Loads and actually invokes the generated {@code ObjectStoreDispatch} bytecode, to check its
@@ -213,14 +217,16 @@ class ObjectStoreDispatchFunctionalTest {
     assertThat(GlobalObjectStore.get(key, injectedId)).isNull();
   }
 
-  @Test
-  void concurrentGetOrPutOnSameKeyConvergesToASingleWinner() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"getOrPut", "getOrCompute"})
+  void concurrentInsertionOnSameKeyConvergesToASingleWinner(String operation) throws Exception {
     int storeId = objectStoreId("test.Dispatch.Concurrent.Key", "test.Dispatch.Concurrent.Value");
     Map<Integer, Object> backing = Collections.synchronizedMap(new HashMap<>());
     int threadCount = 8;
     CountDownLatch initialReads = new CountDownLatch(threadCount);
     AtomicInteger getterCalls = new AtomicInteger();
     AtomicInteger setterCalls = new AtomicInteger();
+    AtomicInteger computeCalls = new AtomicInteger();
     InvocationHandler handler =
         (proxy, method, args) -> {
           if (args.length == 1) {
@@ -229,6 +235,8 @@ class ObjectStoreDispatchFunctionalTest {
               if (!initialReads.await(10, TimeUnit.SECONDS)) {
                 throw new AssertionError("not every contender reached the initial accessor read");
               }
+              // Every caller must take the initial miss, even if another has since stored a value.
+              return null;
             }
             return backing.get((Integer) args[0]);
           }
@@ -240,7 +248,6 @@ class ObjectStoreDispatchFunctionalTest {
         Proxy.newProxyInstance(
             keyWithValueClass.getClassLoader(), new Class<?>[] {keyWithValueClass}, handler);
 
-    CountDownLatch start = new CountDownLatch(1);
     ExecutorService executor = Executors.newFixedThreadPool(threadCount);
     List<Object> results = new ArrayList<>();
     try {
@@ -250,11 +257,21 @@ class ObjectStoreDispatchFunctionalTest {
         futures.add(
             executor.submit(
                 () -> {
-                  start.await();
-                  return getOrPutMethod.invoke(null, key, storeId, candidate);
+                  if (operation.equals("getOrPut")) {
+                    return getOrPutMethod.invoke(null, key, storeId, candidate);
+                  }
+                  return getOrComputeMethod.invoke(
+                      null,
+                      key,
+                      storeId,
+                      (Function<Object, Object>)
+                          k -> {
+                            assertThat(k).isSameAs(key);
+                            computeCalls.incrementAndGet();
+                            return candidate;
+                          });
                 }));
       }
-      start.countDown();
       for (java.util.concurrent.Future<Object> future : futures) {
         results.add(future.get(10, TimeUnit.SECONDS));
       }
@@ -262,6 +279,7 @@ class ObjectStoreDispatchFunctionalTest {
       executor.shutdownNow();
     }
 
+    assertThat(computeCalls).hasValue(operation.equals("getOrCompute") ? 1 : 0);
     Object winner = backing.get(storeId);
     assertThat(setterCalls)
         .as("only the first contender inside the lock should set the value")
@@ -269,6 +287,81 @@ class ObjectStoreDispatchFunctionalTest {
     assertThat(results)
         .as("double-checked locking should make every caller see the same winning value")
         .allMatch(winner::equals);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"compute", "get", "put"})
+  void failureInsideMonitorReleasesLockAndAllowsRetry(String failurePoint) throws Exception {
+    int storeId = objectStoreId("test.Dispatch.Failure.Key", "test.Dispatch.Failure.Value");
+    Map<Integer, Object> backing = Collections.synchronizedMap(new HashMap<>());
+    RuntimeException failure = new IllegalStateException("expected failure");
+    AtomicBoolean failOnce = new AtomicBoolean(true);
+    Object key =
+        Proxy.newProxyInstance(
+            keyWithValueClass.getClassLoader(),
+            new Class<?>[] {keyWithValueClass},
+            (proxy, method, args) -> {
+              boolean getter = args.length == 1;
+              if (Thread.holdsLock(proxy)
+                  && failurePoint.equals(getter ? "get" : "put")
+                  && failOnce.getAndSet(false)) {
+                throw failure;
+              }
+              if (getter) {
+                return backing.get((Integer) args[0]);
+              }
+              backing.put((Integer) args[0], args[1]);
+              return null;
+            });
+    Function<Object, Object> compute =
+        k -> {
+          if (failurePoint.equals("compute") && failOnce.getAndSet(false)) {
+            throw failure;
+          }
+          return "computed";
+        };
+
+    assertThatThrownBy(() -> getOrComputeMethod.invoke(null, key, storeId, compute))
+        .isInstanceOf(InvocationTargetException.class)
+        .hasCause(failure);
+    assertThat(backing).isEmpty();
+
+    // Retry on a different thread so a reentrant acquisition cannot hide a leaked monitor.
+    ExecutorService executor =
+        Executors.newSingleThreadExecutor(
+            r -> {
+              Thread thread = new Thread(r, "dispatch-retry");
+              // A broken monitor exit must not prevent the test JVM from stopping.
+              thread.setDaemon(true);
+              return thread;
+            });
+    try {
+      assertThat(
+              executor
+                  .submit(() -> getOrComputeMethod.invoke(null, key, storeId, compute))
+                  .get(10, TimeUnit.SECONDS))
+          .isEqualTo("computed");
+    } finally {
+      executor.shutdownNow();
+    }
+    assertThat(backing.get(storeId)).isEqualTo("computed");
+  }
+
+  @Test
+  void nullComputedValueIsNotCachedAndCanBeRetried() throws Exception {
+    int storeId = objectStoreId("test.Dispatch.NullCompute.Key", "test.Dispatch.NullCompute.Value");
+    Map<Integer, Object> backing = Collections.synchronizedMap(new HashMap<>());
+    Object key = fastPathKey(backing);
+    AtomicInteger calls = new AtomicInteger();
+    Function<Object, Object> compute = k -> calls.incrementAndGet() <= 2 ? null : "computed";
+
+    assertThat(getOrComputeMethod.invoke(null, key, storeId, compute)).isNull();
+    assertThat(getMethod.invoke(null, key, storeId)).isNull();
+    assertThat(getOrComputeMethod.invoke(null, key, storeId, compute)).isNull();
+    assertThat(getOrComputeMethod.invoke(null, key, storeId, compute)).isEqualTo("computed");
+    assertThat(getOrComputeMethod.invoke(null, key, storeId, compute)).isEqualTo("computed");
+    assertThat(calls).hasValue(3);
+    assertThat(backing.get(storeId)).isEqualTo("computed");
   }
 
   /**
