@@ -265,6 +265,63 @@ class ClassNameTrieTest {
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
+  void builtTriePreservesValuesAfterBuilderUpdates(boolean newBuilder) {
+    ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
+    builder.put("a", 1);
+    ClassNameTrie original = builder.buildTrie();
+    if (newBuilder) {
+      builder = new ClassNameTrie.Builder(original);
+    }
+
+    builder.put("a", 2);
+    ClassNameTrie updated = builder.buildTrie();
+    builder.put("a", 3);
+    builder.put("ab", 4);
+
+    assertEquals(1, original.apply("a"));
+    assertEquals(-1, original.apply("ab"));
+    assertEquals(2, updated.apply("a"));
+    assertEquals(-1, updated.apply("ab"));
+    assertEquals(3, builder.apply("a"));
+    assertEquals(4, builder.apply("ab"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void builtTriePreservesLongJumpsAfterBuilderUpdates(boolean newBuilder) {
+    ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
+    String padding = padding(7700);
+    for (char branch = 'a'; branch <= 'h'; branch++) {
+      builder.put("aa" + branch + padding, 1);
+    }
+    builder.put("abx", 2);
+    ClassNameTrie original = builder.buildTrie();
+    if (newBuilder) {
+      builder = new ClassNameTrie.Builder(original);
+    }
+
+    String extension = "aaa" + padding + "x";
+    builder.put(extension, 3); // shifts the existing long jump to 'abx'
+    ClassNameTrie updated = builder.buildTrie();
+    builder.put(extension + "x", 4); // shifts it again after another build
+
+    assertEquals(2, original.apply("abx"));
+    assertEquals(2, updated.apply("abx"));
+    assertEquals(2, builder.apply("abx"));
+    for (char branch = 'a'; branch <= 'h'; branch++) {
+      assertEquals(1, original.apply("aa" + branch + padding));
+      assertEquals(1, updated.apply("aa" + branch + padding));
+      assertEquals(1, builder.apply("aa" + branch + padding));
+    }
+    assertEquals(-1, original.apply(extension));
+    assertEquals(3, updated.apply(extension));
+    assertEquals(-1, updated.apply(extension + "x"));
+    assertEquals(3, builder.apply(extension));
+    assertEquals(4, builder.apply(extension + "x"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
   void growsLongJumpTableAfterCompaction(boolean newBuilder) {
     ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
     String padding = padding(7700);
