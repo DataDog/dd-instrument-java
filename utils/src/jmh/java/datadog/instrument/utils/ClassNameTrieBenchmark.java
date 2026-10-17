@@ -200,7 +200,7 @@ public class ClassNameTrieBenchmark {
     return c == '/' ? '.' : c;
   }
 
-  private static void buildTrieEntries(BiConsumer<String, Integer> builder) {
+  static void buildTrieEntries(BiConsumer<String, Integer> builder) {
     builder.accept("cinnamon.*", 1);
     builder.accept("clojure.*", 1);
     builder.accept("co.elastic.apm.*", 1);
