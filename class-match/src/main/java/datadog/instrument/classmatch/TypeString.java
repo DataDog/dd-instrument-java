@@ -96,7 +96,7 @@ final class TypeString implements CharSequence {
   static boolean startsWith(CharSequence cs, String prefix) {
     if (cs instanceof TypeString) {
       TypeString ts = (TypeString) cs;
-      return ts.descriptor.startsWith(prefix, ts.offset);
+      return prefix.length() <= ts.len && ts.descriptor.startsWith(prefix, ts.offset);
     } else {
       return cs.toString().startsWith(prefix);
     }
@@ -106,7 +106,8 @@ final class TypeString implements CharSequence {
   static boolean endsWith(CharSequence cs, String suffix) {
     if (cs instanceof TypeString) {
       TypeString ts = (TypeString) cs;
-      return ts.descriptor.startsWith(suffix, (ts.offset + ts.len) - suffix.length());
+      return suffix.length() <= ts.len
+          && ts.descriptor.startsWith(suffix, (ts.offset + ts.len) - suffix.length());
     } else {
       return cs.toString().endsWith(suffix);
     }
