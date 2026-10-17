@@ -104,6 +104,9 @@ public final class ClassNameTrie {
   /** Marks a glob in the trie, where a match succeeds even if the key has extra characters. */
   private static final char GLOB_MARKER = 0x2000;
 
+  /** Maximum number of branches in a single node of the trie. */
+  private static final int MAX_NODE_BRANCHES = 32767;
+
   /** Maximum value that can be held in a single node of the trie. */
   private static final char MAX_NODE_VALUE = 0x1FFF;
 
@@ -605,6 +608,10 @@ public final class ClassNameTrie {
         int branchCount,
         int newBranch,
         int subTrieEnd) {
+
+      if (branchCount >= MAX_NODE_BRANCHES) {
+        throw new IllegalArgumentException("Class-name does not fit in the trie");
+      }
 
       int remainingKeyLength = key.length() - keyIndex;
       int insertedCharacters = 3 /* segment-length, jump, value */ + remainingKeyLength;
