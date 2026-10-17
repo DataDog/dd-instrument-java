@@ -3,10 +3,7 @@ package datadog.instrument.utils;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.openjdk.jmh.annotations.Mode.AverageTime;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import datadog.instrument.testing.SampleClasses;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -36,11 +33,7 @@ public class ClassNameTrieBenchmark {
 
   @Setup(Level.Trial)
   public void setup() {
-    try {
-      classNames = Files.readAllLines(Paths.get("src/test/resources/sample_class_names.txt"));
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
+    classNames = SampleClasses.loadClassNames();
     classNameTrie = buildClassNameTrie();
     radixTrie = buildRadixTrie();
   }

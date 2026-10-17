@@ -6,10 +6,15 @@
 
 package datadog.instrument.testing;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
+
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Objects;
@@ -17,12 +22,29 @@ import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 
 /**
- * Provides access to external bytecode declared using the {@code sampleBytecode} gradle dependency.
+ * Sample class names, plus bytecode declared using the {@code sampleBytecode} gradle dependency.
  */
 public final class SampleClasses {
 
   /** The directory containing the sample bytecode jars. */
-  public static final String SAMPLE_BYTECODE_DIRECTORY = "build/sampleBytecode/";
+  private static final String SAMPLE_BYTECODE_DIRECTORY = "build/sampleBytecode/";
+
+  /**
+   * Loads shared corpus of dotted class names for tests and benchmarks.
+   *
+   * @return large list of dotted class names
+   */
+  public static List<String> loadClassNames() {
+    try (InputStream in =
+            requireNonNull(
+                SampleClasses.class.getResourceAsStream("sample_class_names.txt"),
+                "sample_class_names.txt");
+        BufferedReader reader = new BufferedReader(new InputStreamReader(in, UTF_8))) {
+      return reader.lines().collect(Collectors.toList());
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
 
   /**
    * Loads all class bytecode from the named sample bytecode jar.
@@ -52,8 +74,8 @@ public final class SampleClasses {
               })
           .filter(Objects::nonNull)
           .collect(Collectors.toList());
-    } catch (IOException ex) {
-      throw new UncheckedIOException(ex);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
     }
   }
 }
