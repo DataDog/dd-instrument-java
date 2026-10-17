@@ -29,7 +29,7 @@ final class InternalMatchers {
 
   /** Matches when at least one annotation has one of the given types. */
   static Predicate<String[]> declaresAnnotationOneOf(Collection<String> types) {
-    InternalNames internalNames = new InternalNames(types);
+    InternalNames internalNames = InternalNames.create(types);
     // note these annotations are of interest when parsing
     ClassFile.annotationsOfInterest(internalNames);
     // performance tip: capture this method-ref outside the lambda
