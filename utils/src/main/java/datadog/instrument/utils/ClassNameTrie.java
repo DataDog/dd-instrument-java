@@ -290,6 +290,7 @@ public final class ClassNameTrie {
     private int trieLength;
     private int[] longJumps;
     private int longJumpCount;
+    private boolean shared; // trieData and longJumps are shared with an immutable trie
 
     private int[] jumpIndexes;
     private int jumpIndexCount;
@@ -308,6 +309,7 @@ public final class ClassNameTrie {
         trieLength = trieData.length;
         longJumps = trie.longJumps;
         longJumpCount = longJumps != null ? longJumps.length : 0;
+        shared = true;
       }
     }
 
@@ -342,6 +344,7 @@ public final class ClassNameTrie {
       if (longJumps != null && longJumps.length > longJumpCount) {
         longJumps = Arrays.copyOfRange(longJumps, 0, longJumpCount);
       }
+      shared = true;
       return new ClassNameTrie(trieData, longJumps);
     }
 
@@ -442,6 +445,13 @@ public final class ClassNameTrie {
     }
 
     private void insertMapping(String key, char valueToInsert) {
+      if (shared) {
+        trieData = trieData.clone();
+        if (longJumps != null) {
+          longJumps = longJumps.clone();
+        }
+        shared = false;
+      }
       jumpIndexCount = 0;
 
       int keyLength = key.length();
