@@ -5,6 +5,7 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 import static javax.tools.ToolProvider.getSystemJavaCompiler;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -25,6 +26,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -253,9 +255,37 @@ class ClassNameTrieTest {
 
   @Test
   void tooManyLongJumps() {
+    String padding = padding(7700);
+    ClassNameTrie.Builder builder = builderAtLongJumpLimit(padding);
+    // last put should exceed the number of allowed long-jumps
+    assertThrows(
+        IllegalArgumentException.class, () -> builder.put("" + ((char) 67) + ((char) 2), 1));
+  }
+
+  @Test
+  void failedInsertionPreservesExistingMappings() {
+    String padding = padding(7700);
+    ClassNameTrie.Builder builder = builderAtLongJumpLimit(padding);
+    for (int j = 1; j <= 8; j++) {
+      assertEquals(1, builder.apply("" + (char) 67 + '\u0001' + (char) j + padding));
+    }
+
+    // A nontrivial suffix forces insertion to move existing data before allocating a long jump.
+    assertThrows(
+        IllegalArgumentException.class, () -> builder.put("" + (char) 67 + (char) 2 + padding, 1));
+
+    // Catching a rejected insertion must leave previously registered mappings readable.
+    for (int j = 1; j <= 8; j++) {
+      assertEquals(
+          1,
+          builder.apply("" + (char) 67 + '\u0001' + (char) j + padding),
+          "Existing mapping " + j + " changed after a rejected insertion");
+    }
+  }
+
+  private static ClassNameTrie.Builder builderAtLongJumpLimit(String padding) {
     // 65 groups x 64 long-jumps/group > 4096-entry limit; each group's sub-trie spans
     // ~61600 chars (8 padded entries) forcing 64 small leaf entries to use long-jumps
-    String padding = Stream.generate(() -> " ").limit(7700).collect(joining());
     ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
     for (int g = 1; g <= 65; g++) {
       char groupChar = (char) (g <= 41 ? g : g + 1); // skip '*' = chr(42)
@@ -270,9 +300,116 @@ class ClassNameTrieTest {
     for (int j = 1; j <= 8; j++) {
       builder.put("" + ((char) 67) + '\u0001' + (char) j + padding, 1);
     }
-    // last put should exceed the number of allowed long-jumps
-    assertThrows(
-        IllegalArgumentException.class, () -> builder.put("" + ((char) 67) + ((char) 2), 1));
+    return builder;
+  }
+
+  @ParameterizedTest
+  @MethodSource("insertionsGrowingAncestorJump")
+  void failedAncestorJumpConversionPreservesTrie(String key) throws IOException {
+    ClassNameTrie.Builder builder = builderWithShortJumpNearLimit(0);
+    ByteArrayOutputStream before = new ByteArrayOutputStream();
+    builder.writeTo(new DataOutputStream(before));
+
+    // These insertions need no local long jump, but grow an ancestor's short jump past the limit.
+    for (int attempt = 0; attempt < 2; attempt++) {
+      assertThrows(IllegalArgumentException.class, () -> builder.put(key, 2));
+      ByteArrayOutputStream after = new ByteArrayOutputStream();
+      builder.writeTo(new DataOutputStream(after));
+      assertArrayEquals(before.toByteArray(), after.toByteArray());
+    }
+    assertEquals(1, builder.apply("aa" + padding(7675)));
+    assertEquals(1, builder.apply("z"));
+  }
+
+  static Stream<String> insertionsGrowingAncestorJump() {
+    return Stream.of(
+        "aa" + padding(7675) + "x", // extend a leaf segment
+        "aa" + padding(100), // insert a bud within a segment
+        "aa", // prepend a node to a segment
+        "aao", // split a segment on the left
+        "aaq", // split a segment on the right
+        "az"); // add a branch
+  }
+
+  @Test
+  void fullLongJumpTableAllowsOverwritesAndExistingJumpUpdates() {
+    ClassNameTrie.Builder builder = builderWithShortJumpNearLimit(1);
+    String key = "aa" + padding(7675);
+    builder.put(key + "x", 2); // consumes the final slot by converting the ancestor jump
+    assertEquals(2, builder.apply(key + "x"));
+    assertEquals(1, builder.apply(key));
+
+    builder.put(key, 3); // overwrite a bud
+    builder.put(key + "x", 4); // overwrite a leaf
+    builder.put(key + "xy", 5); // grows the existing long jump without allocating another
+    assertEquals(3, builder.apply(key));
+    assertEquals(4, builder.apply(key + "x"));
+    assertEquals(5, builder.apply(key + "xy"));
+    assertEquals(1, builder.apply("z"));
+  }
+
+  private static String padding(int length) {
+    char[] chars = new char[length];
+    Arrays.fill(chars, 'p');
+    return new String(chars);
+  }
+
+  @Test
+  void fullLongJumpTableAllowsSmallInsertionsWithoutConversion() {
+    ClassNameTrie.Builder builder = builderWithShortJumpNearLimit(0, 10);
+    String key = "aa" + padding(7666);
+
+    builder.put(key + "x", 2); // grows the ancestor jump from 61430 to 61433
+
+    assertEquals(1, builder.apply(key));
+    assertEquals(2, builder.apply(key + "x"));
+    assertEquals(1, builder.apply("z"));
+  }
+
+  @Test
+  void fullLongJumpTableAllowsBranchBeforeExistingLongJump() {
+    ClassNameTrie.Builder builder = builderWithShortJumpNearLimit(1);
+    String key = "aa" + padding(7675);
+    builder.put(key + "x", 2); // consumes the final slot
+
+    builder.put("0", 3); // a collapsed branch adds no content to the existing jumps
+
+    assertEquals(3, builder.apply("0"));
+    assertEquals(1, builder.apply(key));
+    assertEquals(2, builder.apply(key + "x"));
+    assertEquals(1, builder.apply("z"));
+  }
+
+  private static ClassNameTrie.Builder builderWithShortJumpNearLimit(int spareLongJumps) {
+    return builderWithShortJumpNearLimit(spareLongJumps, 1);
+  }
+
+  private static ClassNameTrie.Builder builderWithShortJumpNearLimit(
+      int spareLongJumps, int distanceToLimit) {
+    // Root branches 'a' and 'z'; the 'a' sub-trie is just below the long-jump boundary.
+    // Populate the long-jump table to model a builder whose other slots are occupied.
+    int shortJump = 61440 - distanceToLimit;
+    char[] data = new char[6 + shortJump];
+    data[0] = 2;
+    data[1] = 'a';
+    data[2] = 'z';
+    data[3] = 0;
+    data[4] = 0x8001;
+    data[5] = (char) shortJump;
+    data[6] = 8;
+    int offset = 0;
+    for (int branch = 0; branch < 8; branch++) {
+      int length = branch == 0 ? 7676 - distanceToLimit : 7676;
+      data[7 + branch] = (char) ('a' + branch);
+      data[15 + branch] = (char) length;
+      if (branch > 0) {
+        data[22 + branch] = (char) offset;
+      }
+      Arrays.fill(data, 30 + offset, 30 + offset + length, 'p');
+      data[30 + offset + length] = 0x8001;
+      offset += length + 1;
+    }
+    return new ClassNameTrie.Builder(new ClassNameTrie(data, new int[4096 - spareLongJumps]));
   }
 
   @Test
