@@ -73,6 +73,9 @@ public final class MethodOutline {
       return null; // don't create type-strings for primitive/array types
     }
     int end = boundaries[paramIndex] - 1;
+    if (paramIndex == boundaries.length - 1) {
+      end--; // move back past ')' to get the end of the last param type
+    }
     return new TypeString(descriptor, start, end, getHash(paramIndex, start, end));
   }
 
