@@ -277,6 +277,24 @@ class ClassNameTrieTest {
   }
 
   @Test
+  void tooManyBranchesPreservesExistingMappings() throws IOException {
+    ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
+    // 32767 siblings after a segment; use non-ASCII characters to avoid '*' and '/'.
+    IntStream.range(0x8000, 0xFFFF).forEach(c -> builder.put("ab" + (char) c, 1));
+    byte[] before = serialize(builder);
+
+    assertThrows(IllegalArgumentException.class, () -> builder.put("ab\uFFFF", 1));
+    assertArrayEquals(before, serialize(builder));
+    assertEquals(-1, builder.apply("ab\uFFFF"));
+
+    builder.put("ab\u8000", 2); // overwrites do not add a sibling
+    builder.put("ab\u8000x", 3); // extending a branch remains valid at the limit
+    assertEquals(3, builder.apply("ab\u8000x"));
+    IntStream.range(0x8000, 0xFFFF)
+        .forEach(c -> assertEquals(c == 0x8000 ? 2 : 1, builder.apply("ab" + (char) c)));
+  }
+
+  @Test
   void tooManyLongJumps() {
     String padding = padding(7700);
     ClassNameTrie.Builder builder = builderAtLongJumpLimit(padding);
@@ -437,15 +455,12 @@ class ClassNameTrieTest {
   @MethodSource("insertionsGrowingAncestorJump")
   void failedAncestorJumpConversionPreservesTrie(String key) throws IOException {
     ClassNameTrie.Builder builder = builderWithShortJumpNearLimit(0);
-    ByteArrayOutputStream before = new ByteArrayOutputStream();
-    builder.writeTo(new DataOutputStream(before));
+    byte[] before = serialize(builder);
 
     // These insertions need no local long jump, but grow an ancestor's short jump past the limit.
     for (int attempt = 0; attempt < 2; attempt++) {
       assertThrows(IllegalArgumentException.class, () -> builder.put(key, 2));
-      ByteArrayOutputStream after = new ByteArrayOutputStream();
-      builder.writeTo(new DataOutputStream(after));
-      assertArrayEquals(before.toByteArray(), after.toByteArray());
+      assertArrayEquals(before, serialize(builder));
     }
     assertEquals(1, builder.apply("aa" + padding(7675)));
     assertEquals(1, builder.apply("z"));
@@ -482,6 +497,12 @@ class ClassNameTrieTest {
     char[] chars = new char[length];
     Arrays.fill(chars, 'p');
     return new String(chars);
+  }
+
+  private static byte[] serialize(ClassNameTrie.Builder builder) throws IOException {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    builder.writeTo(new DataOutputStream(out));
+    return out.toByteArray();
   }
 
   @Test
