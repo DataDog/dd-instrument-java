@@ -167,6 +167,28 @@ class ClassNameTrieTest {
   }
 
   @Test
+  void generateEmptyJavaSource(@TempDir File classesDir) throws Exception {
+    Files.createFile(new File(classesDir, "empty.trie").toPath());
+    ClassNameTrie.JavaGenerator.main(
+        new String[] {classesDir.toString(), classesDir.toString(), "empty.trie"});
+
+    assertEquals(
+        0,
+        getSystemJavaCompiler()
+            .run(null, null, null, new File(classesDir, "EmptyTrie.java").toString()));
+
+    try (URLClassLoader cl = URLClassLoader.newInstance(new URL[] {classesDir.toURI().toURL()})) {
+      Class<?> trieClass = cl.loadClass("EmptyTrie");
+      Method apply = trieClass.getMethod("apply", String.class);
+      Method applyFromIndex = trieClass.getMethod("apply", String.class, int.class);
+      for (String key : new String[] {"", "a", "com.example.Type"}) {
+        assertEquals(-1, apply.invoke(null, key));
+        assertEquals(-1, applyFromIndex.invoke(null, "prefix/" + key, 7));
+      }
+    }
+  }
+
+  @Test
   @SuppressWarnings("UnnecessaryUnicodeEscape")
   void manual() throws IOException {
     ClassNameTrie trie =
