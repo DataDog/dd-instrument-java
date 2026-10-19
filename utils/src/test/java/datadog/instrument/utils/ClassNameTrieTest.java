@@ -264,6 +264,32 @@ class ClassNameTrieTest {
   }
 
   @ParameterizedTest
+  @ValueSource(chars = {'\u7FFF', '\u8000', '\uFFFF'})
+  void extendingLeafPreservesFollowingUnicodeSegment(char nextCharacter) {
+    for (String suffix : new String[] {"x", "xyz"}) {
+      ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
+      String followingKey = "b" + nextCharacter;
+      builder.put("a", 1);
+      builder.put(followingKey, 2);
+
+      String extension = "a" + suffix;
+      builder.put(extension, 3);
+      assertEquals(1, builder.apply("a"));
+      assertEquals(2, builder.apply(followingKey));
+      assertEquals(3, builder.apply(extension));
+
+      builder.put(extension + "x", 4);
+      builder.put(followingKey + "x", 5);
+      ClassNameTrie trie = builder.buildTrie();
+      assertEquals(1, trie.apply("a"));
+      assertEquals(2, trie.apply(followingKey));
+      assertEquals(3, trie.apply(extension));
+      assertEquals(4, trie.apply(extension + "x"));
+      assertEquals(5, trie.apply(followingKey + "x"));
+    }
+  }
+
+  @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void builtTriePreservesValuesAfterBuilderUpdates(boolean newBuilder) {
     ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
