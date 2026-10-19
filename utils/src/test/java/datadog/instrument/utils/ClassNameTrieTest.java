@@ -42,6 +42,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @SuppressFBWarnings("NP_NONNULL_PARAM_VIOLATION")
 class ClassNameTrieTest {
@@ -260,6 +261,30 @@ class ClassNameTrieTest {
     // last put should exceed the number of allowed long-jumps
     assertThrows(
         IllegalArgumentException.class, () -> builder.put("" + ((char) 67) + ((char) 2), 1));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void growsLongJumpTableAfterCompaction(boolean newBuilder) {
+    ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
+    String padding = padding(7700);
+    for (char branch = 'a'; branch <= 'h'; branch++) {
+      builder.put("aa" + branch + padding, 1);
+    }
+    builder.put("ab", 2); // first long jump skips the padded sub-trie
+    ClassNameTrie compacted = builder.buildTrie(); // compacts the long-jump table to one entry
+    if (newBuilder) {
+      builder = new ClassNameTrie.Builder(compacted);
+    }
+
+    builder.put("ac", 3); // needs a second long jump
+
+    ClassNameTrie trie = builder.buildTrie();
+    for (char branch = 'a'; branch <= 'h'; branch++) {
+      assertEquals(1, trie.apply("aa" + branch + padding));
+    }
+    assertEquals(2, trie.apply("ab"));
+    assertEquals(3, trie.apply("ac"));
   }
 
   @Test
