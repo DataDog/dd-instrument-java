@@ -54,6 +54,40 @@ class ClassInjectorTest {
     assertThat(injectedClass.getClassLoader()).isSameAs(loader);
     assertThat(injectedClass.getProtectionDomain()).isSameAs(domain);
     assertThat(injectedClass.getMethod("value").invoke(null)).isEqualTo(42);
+
+    assertThat(ClassInjector.injectClass(name, sampleClass(name), domain)).isSameAs(injectedClass);
+  }
+
+  @Test
+  void injectsBootClassWithGivenProtectionDomain() throws Exception {
+    ProtectionDomain domain = new ProtectionDomain(null, null, null, null);
+    String name = "datadog.injected.BootDomainSample";
+    Class<?> injectedClass = ClassInjector.injectClass(name, sampleClass(name), domain);
+    assertThat(injectedClass.getClassLoader()).isNull();
+    assertThat(Class.forName(name, false, null)).isSameAs(injectedClass);
+    assertThat(injectedClass.getProtectionDomain()).isSameAs(domain);
+    assertThat(injectedClass.getMethod("value").invoke(null)).isEqualTo(42);
+
+    assertThat(ClassInjector.injectClass(name, sampleClass(name), domain)).isSameAs(injectedClass);
+  }
+
+  @Test
+  void injectsBootClassesThatReferenceEachOther() throws Exception {
+    String caller = "datadog.injected.BootCallerSample";
+    String callee = "datadog.injected.BootCalleeSample";
+    Map<String, byte[]> bytecode = new LinkedHashMap<>();
+    bytecode.put(caller, delegatingClass(caller, callee));
+    bytecode.put(callee, sampleClass(callee));
+
+    List<Class<?>> injectedClasses = ClassInjector.injectBootClasses(bytecode);
+    assertThat(injectedClasses).extracting(Class::getName).containsExactly(caller, callee);
+    assertThat(injectedClasses).allSatisfy(c -> assertThat(c.getClassLoader()).isNull());
+    assertThat(Class.forName(caller, false, null)).isSameAs(injectedClasses.get(0));
+    assertThat(Class.forName(callee, false, null)).isSameAs(injectedClasses.get(1));
+    assertThat(injectedClasses.get(0).getMethod("value").invoke(null)).isEqualTo(42);
+
+    assertThat(ClassInjector.injectBootClasses(bytecode))
+        .containsExactlyElementsOf(injectedClasses);
   }
 
   @Test
