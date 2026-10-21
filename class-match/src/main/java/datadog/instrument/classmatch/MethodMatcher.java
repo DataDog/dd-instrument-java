@@ -186,8 +186,8 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods returning the same type
    */
   default MethodMatcher returning(String returnType) {
-    String returnDescriptor = descriptor(returnType);
-    return and(m -> m.descriptor.endsWith(returnDescriptor));
+    String returnSuffix = ')' + descriptor(returnType);
+    return and(m -> m.descriptor.endsWith(returnSuffix));
   }
 
   /**
@@ -197,8 +197,8 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods returning the same type
    */
   default MethodMatcher returning(Class<?> returnType) {
-    String returnDescriptor = descriptor(returnType);
-    return and(m -> m.descriptor.endsWith(returnDescriptor));
+    String returnSuffix = ')' + descriptor(returnType);
+    return and(m -> m.descriptor.endsWith(returnSuffix));
   }
 
   /**

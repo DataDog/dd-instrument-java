@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
   implementation(project(":utils"))
+  testImplementation(libs.asm)
 
   sampleBytecode(libs.asm.test)
   sampleBytecode("org.springframework:spring-web:7.0.9")
