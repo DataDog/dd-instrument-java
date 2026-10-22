@@ -104,11 +104,17 @@ public final class ClassNameTrie {
   /** Marks a glob in the trie, where a match succeeds even if the key has extra characters. */
   private static final char GLOB_MARKER = 0x2000;
 
+  /** Maximum number of branches in a single node of the trie. */
+  private static final int MAX_NODE_BRANCHES = 32767;
+
   /** Maximum value that can be held in a single node of the trie. */
   private static final char MAX_NODE_VALUE = 0x1FFF;
 
   /** Boundary marker where a jump is replaced by an index into the long jump table. */
   private static final char LONG_JUMP_MARKER = 0xF000; // 4096 long-jumps, each >= 61440
+
+  /** Maximum number of entries in the long jump table. */
+  private static final int MAX_LONG_JUMPS = (char) ~LONG_JUMP_MARKER + 1;
 
   /** A branch has at most 3 control characters: key, value, and optional jump offset/id. */
   private static final int BRANCH_CONTROL_CHARS = 3;
@@ -287,6 +293,7 @@ public final class ClassNameTrie {
     private int trieLength;
     private int[] longJumps;
     private int longJumpCount;
+    private boolean shared; // trieData and longJumps are shared with an immutable trie
 
     private int[] jumpIndexes;
     private int jumpIndexCount;
@@ -305,6 +312,7 @@ public final class ClassNameTrie {
         trieLength = trieData.length;
         longJumps = trie.longJumps;
         longJumpCount = longJumps != null ? longJumps.length : 0;
+        shared = true;
       }
     }
 
@@ -339,6 +347,7 @@ public final class ClassNameTrie {
       if (longJumps != null && longJumps.length > longJumpCount) {
         longJumps = Arrays.copyOfRange(longJumps, 0, longJumpCount);
       }
+      shared = true;
       return new ClassNameTrie(trieData, longJumps);
     }
 
@@ -439,6 +448,13 @@ public final class ClassNameTrie {
     }
 
     private void insertMapping(String key, char valueToInsert) {
+      if (shared) {
+        trieData = trieData.clone();
+        if (longJumps != null) {
+          longJumps = longJumps.clone();
+        }
+        shared = false;
+      }
       jumpIndexCount = 0;
 
       int keyLength = key.length();
@@ -503,20 +519,20 @@ public final class ClassNameTrie {
         dataIndex += (branchCount * BRANCH_CONTROL_CHARS) - FIRST_JUMP_OMITTED;
 
         if ((value & LEAF_MARKER) != 0) {
-          // change leaf branch to a bud and append our new leaf node below it
+          // append our new leaf node below the leaf branch and change it to a bud
+          jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert, false);
           trieData[valueIndex] = (char) ((value & ~LEAF_MARKER) | BUD_MARKER);
-          jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert);
           break;
         } else if ((value & BUD_MARKER) != 0) {
           // ignore bud as we still have more of the key to match
           continue;
         } else if (keyIndex == keyLength) {
-          // branch originally led to a segment - record it's now a bud
-          trieData[valueIndex] = (char) (valueToInsert | BUD_MARKER);
           if (value > 0) {
             // add the usual node preamble before the old segment
             jumpOffset = prependNode(dataIndex, value - 1);
           }
+          // branch originally led to a segment - record it's now a bud
+          trieData[valueIndex] = (char) (valueToInsert | BUD_MARKER);
           break;
         }
 
@@ -535,11 +551,10 @@ public final class ClassNameTrie {
           if (dataIndex < segmentEnd) {
             if (keyIndex == keyLength) {
               // key is shorter than segment; add bud at the point the key ends
-              trieData[valueIndex] -= (char) (segmentEnd - (dataIndex - 1));
               jumpOffset = insertBud(dataIndex - 1, valueToInsert, segmentEnd);
+              trieData[valueIndex] -= (char) (segmentEnd - (dataIndex - 1));
             } else {
               // key diverges from segment; add leaf on left/right to capture that
-              trieData[valueIndex] -= (char) (segmentEnd - dataIndex);
               if (c < trieData[dataIndex]) {
                 jumpOffset = insertLeafLeft(dataIndex, key, keyIndex, valueToInsert, segmentEnd);
               } else {
@@ -547,6 +562,7 @@ public final class ClassNameTrie {
                     insertLeafRight(
                         dataIndex, key, keyIndex, valueToInsert, segmentEnd, subTrieEnd);
               }
+              trieData[valueIndex] -= (char) (segmentEnd - dataIndex);
             }
             break; // nothing more to add
           }
@@ -556,8 +572,8 @@ public final class ClassNameTrie {
           if ((value & LEAF_MARKER) != 0) {
             if (keyIndex < keyLength) {
               // key goes past leaf segment, extend old leaf with a bud node and add our new leaf
+              jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert, true);
               trieData[valueIndex]--;
-              jumpOffset = appendLeaf(dataIndex, key, keyIndex, valueToInsert);
               break;
             } else {
               // duplicate key: overwrite existing value in the tree with the new value
@@ -567,8 +583,8 @@ public final class ClassNameTrie {
           } else /* segment is followed by a node */ {
             if (keyIndex == keyLength) {
               // key stops at boundary between segment and node, insert bud node just before this
-              trieData[valueIndex]--;
               jumpOffset = prependNode(dataIndex - 1, valueToInsert | BUD_MARKER);
+              trieData[valueIndex]--;
               break;
             }
           }
@@ -593,6 +609,10 @@ public final class ClassNameTrie {
         int newBranch,
         int subTrieEnd) {
 
+      if (branchCount >= MAX_NODE_BRANCHES) {
+        throw new IllegalArgumentException("Class-name does not fit in the trie");
+      }
+
       int remainingKeyLength = key.length() - keyIndex;
       int insertedCharacters = 3 /* segment-length, jump, value */ + remainingKeyLength;
 
@@ -602,6 +622,27 @@ public final class ClassNameTrie {
         remainingKeyLength = 0;
         insertedCharacters = 3; /* branch-key, value, jump */
       }
+
+      int subTrieStart = dataIndex + (branchCount * BRANCH_CONTROL_CHARS) - FIRST_JUMP_OMITTED;
+
+      // count new long-jumps needed for this node's jumps after our new branch
+      int newLongJumps = 0;
+      if (newBranch < branchCount) {
+        int jumpIndex = dataIndex + (branchCount << 1) + newBranch - FIRST_JUMP_OMITTED;
+        int nextJump = (newBranch > 0 ? getJump(trieData[jumpIndex]) : 0) + remainingKeyLength;
+        if (nextJump >= LONG_JUMP_MARKER) {
+          newLongJumps++;
+        }
+        for (int b = newBranch + 1; b < branchCount; b++) {
+          if (becomesLongJump(trieData[++jumpIndex], remainingKeyLength)) {
+            newLongJumps++;
+          }
+        }
+      } else if (subTrieEnd - subTrieStart >= LONG_JUMP_MARKER) {
+        newLongJumps++;
+      }
+
+      checkLongJumpCapacity(insertedCharacters, newLongJumps);
 
       int i = dataIndex + newBranch, j = i + insertedCharacters;
 
@@ -618,8 +659,6 @@ public final class ClassNameTrie {
 
       // insert our new branch value
       trieData[i++] = (char) (collapseRight ? value | LEAF_MARKER : remainingKeyLength - 1);
-
-      int subTrieStart = dataIndex + (branchCount * BRANCH_CONTROL_CHARS) - FIRST_JUMP_OMITTED;
 
       int precedingJump;
       if (newBranch < branchCount) {
@@ -667,6 +706,8 @@ public final class ClassNameTrie {
         insertedCharacters--;
       }
 
+      checkLongJumpCapacity(insertedCharacters, 0);
+
       int i = dataIndex, j = i + insertedCharacters;
 
       makeHole(i, insertedCharacters);
@@ -689,6 +730,8 @@ public final class ClassNameTrie {
       if (collapseRight) {
         insertedCharacters = 3;
       }
+
+      checkLongJumpCapacity(insertedCharacters, 0);
 
       int i = dataIndex, j = i + insertedCharacters;
 
@@ -723,6 +766,8 @@ public final class ClassNameTrie {
         insertedCharacters--;
         pivot++;
       }
+
+      checkLongJumpCapacity(insertedCharacters, 0);
 
       int i = dataIndex, j = i + insertedCharacters;
 
@@ -764,6 +809,8 @@ public final class ClassNameTrie {
         insertedCharacters--;
       }
 
+      checkLongJumpCapacity(insertedCharacters, subTrieEnd - pivot >= LONG_JUMP_MARKER ? 1 : 0);
+
       int i = dataIndex, j = i + insertedCharacters;
 
       makeHole(i, insertedCharacters);
@@ -785,12 +832,11 @@ public final class ClassNameTrie {
       return insertedCharacters;
     }
 
-    private int appendLeaf(int dataIndex, String key, int keyIndex, int value) {
+    private int appendLeaf(int dataIndex, String key, int keyIndex, int value, boolean insertBud) {
       int remainingKeyLength = key.length() - keyIndex;
       int insertedCharacters = 3 /* branch count, segment-length, value */ + remainingKeyLength;
 
       // if we're adding this to a leaf segment then we need to introduce a bud first
-      boolean insertBud = dataIndex < trieLength && (trieData[dataIndex] & LEAF_MARKER) != 0;
       if (insertBud) {
         insertedCharacters++;
       }
@@ -799,6 +845,8 @@ public final class ClassNameTrie {
       if (collapseRight) {
         insertedCharacters--;
       }
+
+      checkLongJumpCapacity(insertedCharacters, 0);
 
       int i = dataIndex, j = i + insertedCharacters;
 
@@ -836,19 +884,39 @@ public final class ClassNameTrie {
       trieLength = newLength;
     }
 
+    /**
+     * Rejects the insertion before the trie is modified if it would overflow the long-jump table.
+     *
+     * @param delta how much content will be added, which shifts recorded jumps on the right
+     * @param newLongJumps long-jumps needed for the node where the content is being added
+     */
+    private void checkLongJumpCapacity(int delta, int newLongJumps) {
+      int remaining = MAX_LONG_JUMPS - longJumpCount;
+      // Skip the scan if all recorded jumps can fit: each needs at most one new table entry.
+      if (remaining >= newLongJumps + jumpIndexCount) {
+        return;
+      }
+
+      for (int i = 0; i < jumpIndexCount; i++) {
+        if (becomesLongJump(trieData[jumpIndexes[i]], delta)) {
+          newLongJumps++;
+        }
+      }
+      if (longJumpCount + newLongJumps > MAX_LONG_JUMPS) {
+        throw new IllegalArgumentException("Class-name does not fit in the trie");
+      }
+    }
+
     /** Checks a new jump value; long jumps are replaced with an index into the long-jump table. */
     private char newJump(int jump) {
       if (jump < LONG_JUMP_MARKER) {
         return (char) jump; // jump is small enough to fit in the trie
       }
-      if (longJumpCount > (char) ~LONG_JUMP_MARKER) {
-        throw new IllegalArgumentException("Class-name does not fit in the trie");
-      }
       if (longJumps == null) {
         longJumps = new int[16]; // create table on first use
       } else if (longJumpCount == longJumps.length) {
-        // expand the table by 50% to fit additional entries
-        longJumps = Arrays.copyOf(longJumps, longJumpCount + (longJumpCount >> 1));
+        // expand the table by 50%, ensuring progress even after compaction to one entry
+        longJumps = Arrays.copyOf(longJumps, longJumpCount + Math.max(1, longJumpCount >> 1));
       }
       longJumps[longJumpCount] = jump;
       return (char) (longJumpCount++ | LONG_JUMP_MARKER);
@@ -870,7 +938,12 @@ public final class ClassNameTrie {
       }
     }
 
-    private boolean isLongJump(char jump) {
+    /** Returns {@code true} if increasing a short jump by the given delta needs a long-jump. */
+    private static boolean becomesLongJump(char jump, int delta) {
+      return !isLongJump(jump) && jump + delta >= LONG_JUMP_MARKER;
+    }
+
+    private static boolean isLongJump(char jump) {
       return (jump & LONG_JUMP_MARKER) == LONG_JUMP_MARKER;
     }
 
@@ -992,6 +1065,9 @@ public final class ClassNameTrie {
       int chunkSize = 0;
       StringBuilder buf = new StringBuilder();
       buf.append("      \"");
+      if (trie.isEmpty()) {
+        buf.append("\\000"); // encode an empty root node with zero branches
+      }
       for (int i = 0; i < trie.trieLength; i++) {
         char c = trie.trieData[i];
         if (++chunkSize > 10_000) {

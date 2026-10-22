@@ -14,16 +14,15 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 /**
- * Compact immutable hashtable of internal names, representing types to be matched against.
+ * Immutable set of internal names using linear probing. A parallel array of cached hashes lets
+ * probes skip strings whose hashes differ.
  *
- * <p>The key feature of this implementation is that it supports querying by arbitrary {@link
- * CharSequence}s, as long as the char sequence uses the same hash algorithm as {@link String}.
+ * <p>Queries may be any {@link CharSequence} with a {@link String}-compatible hash code.
  */
 final class InternalNames extends AbstractSet<String> {
-  private static final int MAX_HASH_ATTEMPTS = 3;
-
-  private final String[] table;
   private final int slotMask;
+  private final int[] hashes;
+  private final String[] table;
 
   /**
    * Creates a new set of internal names containing the given types of interest.
@@ -31,22 +30,25 @@ final class InternalNames extends AbstractSet<String> {
    * @param types the types of interest
    */
   InternalNames(Collection<String> types) {
-    // attempt to hash types into a table with ~75% load factor
-    int tableSize = Math.max(8, types.size() * 4 / 3) - 1;
-    int slotMask = -1 >>> Integer.numberOfLeadingZeros(tableSize);
-    String[] table = new String[slotMask + 1];
-    Iterator<String> itr = types.iterator();
-    while (itr.hasNext()) {
-      // add types one by one, watching out for unsolvable collisions
-      if (!add(table, slotMask, internalName(itr.next()))) {
-        // cannot add type without collision; grow table and restart additions
-        slotMask = (slotMask << 1) + 1;
-        table = new String[slotMask + 1];
-        itr = types.iterator();
+    // At most 50% full, leaving empty slots to terminate probes.
+    int tableSize = Math.max(8, types.size() * 2) - 1;
+
+    this.slotMask = -1 >>> Integer.numberOfLeadingZeros(tableSize);
+    this.hashes = new int[slotMask + 1];
+    this.table = new String[slotMask + 1];
+
+    for (String type : types) {
+      final String name = internalName(type);
+      final int h = hash(name.hashCode());
+
+      int hashed, slot = h & slotMask;
+      while ((hashed = hashes[slot]) != 0 && (hashed != h || !table[slot].equals(name))) {
+        slot = (slot + 1) & slotMask;
       }
+
+      hashes[slot] = h;
+      table[slot] = name;
     }
-    this.table = table;
-    this.slotMask = slotMask;
   }
 
   /**
@@ -56,47 +58,24 @@ final class InternalNames extends AbstractSet<String> {
    * @return {@code true} if the set contains this type; otherwise {@code false}
    */
   public boolean containsType(CharSequence internalName) {
-    final String[] table = this.table;
+    final int h = hash(internalName.hashCode());
+
     final int slotMask = this.slotMask;
-    for (int i = 1, h = internalName.hashCode(); true; i++, h = rehash(h)) {
-      String existing = table[slotMask & h];
-      if (existing != null) {
-        // use content-equality, not object-equality
-        if (existing.contentEquals(internalName)) {
-          return true;
-        } else if (i < MAX_HASH_ATTEMPTS) {
-          continue; // rehash and try again
-        }
-      }
-      return false;
-    }
-  }
+    final int[] hashes = this.hashes;
+    final String[] table = this.table;
 
-  /**
-   * Attempts to add a type to a hashtable of names, with a bounded amount of rehashing.
-   *
-   * @param table a hashtable of internal names
-   * @param slotMask mask used to map hashes to slots
-   * @param internalName the internal name of the type
-   * @return {@code true} if the type was successfully added; otherwise {@code false}
-   */
-  private static boolean add(String[] table, int slotMask, String internalName) {
-    for (int i = 1, h = internalName.hashCode(); true; i++, h = rehash(h)) {
-      int slot = slotMask & h;
-      String existing = table[slot];
-      // be prepared to de-duplicate names
-      if (existing == null || existing.equals(internalName)) {
-        table[slot] = internalName;
+    int hashed, slot = h & slotMask;
+    while ((hashed = hashes[slot]) != 0) {
+      if (hashed == h && table[slot].contentEquals(internalName)) {
         return true;
-      } else if (i < MAX_HASH_ATTEMPTS) {
-        continue; // rehash and try again
       }
-      return false;
+      slot = (slot + 1) & slotMask;
     }
+    return false;
   }
 
-  private static int rehash(int oldHash) {
-    return Integer.reverseBytes(oldHash * 0x9e3775cd) * 0x9e3775cd;
+  private static int hash(int h) {
+    return h != 0 ? h : 0xDD06; // reserve 0 for "no hash"
   }
 
   // ----------------------------------------------------------------------------------------------

@@ -1,0 +1,27 @@
+# Literal dotted namedOneOf/namedNoneOf groups of two or more names from dd-trace-java.
+# Computed arguments excluded; duplicate groups and argument order retained.
+namedOneOf,scala.collection.Seq,scala.collection.immutable.Seq
+namedOneOf,software.amazon.awssdk.core.internal.http.pipeline.stages.MakeHttpRequestStage,software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRequestStage
+namedOneOf,com.hazelcast.client.impl.HazelcastClientInstanceImpl,com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl
+namedOneOf,org.hibernate.Session,org.hibernate.StatelessSession
+namedOneOf,org.hibernate.Session,org.hibernate.StatelessSession
+namedOneOf,org.hibernate.Session,org.hibernate.StatelessSession
+namedOneOf,com.netflix.hystrix.HystrixCommand,com.netflix.hystrix.HystrixObservableCommand
+namedOneOf,org.apache.ignite.cache.query.Query,org.apache.ignite.cache.query.SqlFieldsQuery
+namedOneOf,io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe,io.grpc.netty.shaded.io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe,io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe,io.grpc.netty.shaded.io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe,io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe,io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe
+namedOneOf,reactor.core.scheduler.SchedulerTask,reactor.core.scheduler.WorkerTask
+namedOneOf,io.netty.util.concurrent.GlobalEventExecutor,io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor,com.couchbase.client.deps.io.netty.util.concurrent.GlobalEventExecutor
+namedOneOf,io.netty.handler.timeout.IdleStateHandler,io.grpc.netty.shaded.io.netty.handler.timeout.IdleStateHandler
+namedOneOf,io.netty.channel.ChannelHandlerContext,io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext
+namedOneOf,org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor,org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor
+namedNoneOf,java.lang.ClassLoader,com.ibm.oti.vm.BootstrapClassLoader
+namedOneOf,org.eclipse.jetty.client.api.Request,org.eclipse.jetty.client.HttpRequest
+namedOneOf,org.eclipse.jetty.client.api.Request,org.eclipse.jetty.client.HttpRequest
+namedOneOf,io.micronaut.http.MutableHttpResponse,io.micronaut.http.HttpResponse
+namedOneOf,reactor.core.publisher.Mono,reactor.core.publisher.Flux
+namedOneOf,reactor.core.publisher.Mono,reactor.core.publisher.Flux
+namedOneOf,redis.Request,redis.ActorRequest,redis.BufferedRequest,redis.RoundRobinPoolRequest
+namedOneOf,com.ibm.ws.session.HttpSessionFacade,org.apache.catalina.session.StandardSessionFacade
+namedOneOf,com.twilio.base.Creator,com.twilio.base.Deleter,com.twilio.base.Fetcher,com.twilio.base.Reader,com.twilio.base.Updater
+namedOneOf,com.twilio.base.Creator,com.twilio.base.Deleter,com.twilio.base.Fetcher,com.twilio.base.Reader,com.twilio.base.Updater
+namedOneOf,io.vertx.redis.client.impl.RedisConnectionImpl,io.vertx.redis.client.impl.RedisStandaloneConnection

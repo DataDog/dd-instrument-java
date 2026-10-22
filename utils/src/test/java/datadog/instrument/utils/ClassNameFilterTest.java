@@ -1,6 +1,7 @@
 package datadog.instrument.utils;
 
 import static java.util.Arrays.asList;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,6 +18,7 @@ import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ClassNameFilterTest {
@@ -76,24 +78,37 @@ class ClassNameFilterTest {
     assertFalse(filter.contains("example.test.NotMyClass"));
   }
 
-  @Test
-  void uniqueClassCodes() {
+  @ParameterizedTest
+  @CsvSource({
+    "example.GAnxX, example.ZvaQyFGz", // different simple-name lengths
+    "example.test.FB, example.test.Ea", // different first characters
+    "example.AaAa, example.AaBB" // same first character, different last characters
+  })
+  void uniqueClassCodes(String stored, String collision) {
     ClassNameFilter filter = new ClassNameFilter(8);
 
-    assertEquals("example.test.FB".hashCode(), "example.test.Ea".hashCode());
+    assertEquals(stored.hashCode(), collision.hashCode());
+    assertFalse(filter.contains(stored));
+    assertFalse(filter.contains(collision));
 
-    assertFalse(filter.contains("example.test.FB"));
-    assertFalse(filter.contains("example.test.Ea"));
+    filter.add(stored);
 
-    filter.add("example.test.FB");
+    assertTrue(filter.contains(stored));
+    assertFalse(filter.contains(collision));
 
-    assertTrue(filter.contains("example.test.FB"));
-    assertFalse(filter.contains("example.test.Ea"));
+    filter.add(collision);
 
-    filter.add("example.test.Ea");
+    assertTrue(filter.contains(stored));
+    assertFalse(filter.contains(collision));
+  }
 
-    assertTrue(filter.contains("example.test.FB"));
-    assertFalse(filter.contains("example.test.Ea"));
+  @Test
+  void rejectsInvalidFileMagic() throws IOException {
+    try (DataInputStream input = new DataInputStream(new ByteArrayInputStream(new byte[4]))) {
+      assertThatThrownBy(() -> ClassNameFilter.readFrom(input))
+          .isInstanceOf(IOException.class)
+          .hasMessage("Unexpected file magic 0");
+    }
   }
 
   @Test
