@@ -17,14 +17,16 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 class ClassNameFilterTest {
 
-  @ParameterizedTest
-  @ValueSource(strings = {"example.例", "example.例Class", "example.My例"})
+  @TableTest({
+    "className        ",
+    "'example.例'     ",
+    "'example.例Class'",
+    "'example.My例'   "
+  })
   void unicodeClassNames(String className) {
     ClassNameFilter filter = new ClassNameFilter(256);
 
@@ -33,8 +35,13 @@ class ClassNameFilterTest {
     assertTrue(filter.contains(className));
   }
 
-  @ParameterizedTest
-  @ValueSource(ints = {256, 257, 512, 513})
+  @TableTest({
+    "Scenario                        | Length",
+    "longest exactly encoded length  | 256   ",
+    "encoded length wraps to 0       | 257   ",
+    "encoded length wraps to 255     | 512   ",
+    "encoded length wraps to 0 twice | 513   "
+  })
   void longSimpleNames(int length) {
     char[] simpleName = new char[length];
     Arrays.fill(simpleName, 'A');
@@ -78,11 +85,11 @@ class ClassNameFilterTest {
     assertFalse(filter.contains("example.test.NotMyClass"));
   }
 
-  @ParameterizedTest
-  @CsvSource({
-    "example.GAnxX, example.ZvaQyFGz", // different simple-name lengths
-    "example.test.FB, example.test.Ea", // different first characters
-    "example.AaAa, example.AaBB" // same first character, different last characters
+  @TableTest({
+    "Scenario                                        | Stored          | Collision       ",
+    "different simple-name lengths                   | example.GAnxX   | example.ZvaQyFGz",
+    "different first characters                      | example.test.FB | example.test.Ea ",
+    "same first character, different last characters | example.AaAa    | example.AaBB    "
   })
   void uniqueClassCodes(String stored, String collision) {
     ClassNameFilter filter = new ClassNameFilter(8);

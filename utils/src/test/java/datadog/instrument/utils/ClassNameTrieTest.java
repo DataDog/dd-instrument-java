@@ -39,10 +39,7 @@ import javax.tools.StandardLocation;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 @SuppressFBWarnings("NP_NONNULL_PARAM_VIOLATION")
 class ClassNameTrieTest {
@@ -56,83 +53,77 @@ class ClassNameTrieTest {
     testClassNamesTrie = builder.buildTrie();
   }
 
-  @ParameterizedTest
-  @MethodSource
+  @TableTest({
+    "Class name             | Value",
+    "'One'                  | 1    ",
+    "'com.Two'              | 2    ",
+    "'com.foo.Three'        | 3    ",
+    "'company.foo.Four'     | 4    ",
+    "'com.foobar.Five'      | 5    ",
+    "'company.foobar.Six'   | 6    ",
+    "'company.foobar.Sixty' | 60   ",
+    "'com.f'                | 7    ",
+    "'com.foo.a'            | 8    ",
+    "'com.foobar.b'         | 9    ",
+    "'company.f'            | 10   ",
+    "'company.foo.a'        | 11   ",
+    "'company.foobar.S'     | 12   ",
+    "'com.Two$f'            | 13   ",
+    "'foobar.Two$b'         | 14   ",
+    "''                     | -1   ",
+    "'O'                    | -1   ",
+    "'_'                    | -1   ",
+    "'On'                   | -1   ",
+    "'O_'                   | -1   ",
+    "'On_'                  | -1   ",
+    "'OneNoMatch'           | -1   ",
+    "'com.Twos'             | 7    ",
+    "'com.foo.Threes'       | 8    ",
+    "'com.foobar.Fives'     | 9    ",
+    "'foobar.Thre'          | -1   ",
+    "'foobar.Three'         | 15   ",
+    "'foobar.ThreeMore'     | 15   "
+  })
   void classNameMapping(String name, int value) {
     assertEquals(value, testClassNamesTrie.apply(name));
     String internalName = name.replace('.', '/');
     assertEquals(value, testClassNamesTrie.apply(internalName));
   }
 
-  static Stream<Arguments> classNameMapping() {
-    return Stream.of(
-        Arguments.of("One", 1),
-        Arguments.of("com.Two", 2),
-        Arguments.of("com.foo.Three", 3),
-        Arguments.of("company.foo.Four", 4),
-        Arguments.of("com.foobar.Five", 5),
-        Arguments.of("company.foobar.Six", 6),
-        Arguments.of("company.foobar.Sixty", 60),
-        Arguments.of("com.f", 7),
-        Arguments.of("com.foo.a", 8),
-        Arguments.of("com.foobar.b", 9),
-        Arguments.of("company.f", 10),
-        Arguments.of("company.foo.a", 11),
-        Arguments.of("company.foobar.S", 12),
-        Arguments.of("com.Two$f", 13),
-        Arguments.of("foobar.Two$b", 14),
-        Arguments.of("", -1),
-        Arguments.of("O", -1),
-        Arguments.of("_", -1),
-        Arguments.of("On", -1),
-        Arguments.of("O_", -1),
-        Arguments.of("On_", -1),
-        Arguments.of("OneNoMatch", -1),
-        Arguments.of("com.Twos", 7),
-        Arguments.of("com.foo.Threes", 8),
-        Arguments.of("com.foobar.Fives", 9),
-        Arguments.of("foobar.Thre", -1),
-        Arguments.of("foobar.Three", 15),
-        Arguments.of("foobar.ThreeMore", 15));
-  }
-
-  @ParameterizedTest
-  @MethodSource
+  @TableTest({
+    "Class name                     | Value",
+    "'garbage.One'                  | 1    ",
+    "'garbage.com.Two'              | 2    ",
+    "'garbage.com.foo.Three'        | 3    ",
+    "'garbage.company.foo.Four'     | 4    ",
+    "'garbage.com.foobar.Five'      | 5    ",
+    "'garbage.company.foobar.Six'   | 6    ",
+    "'garbage.company.foobar.Sixty' | 60   ",
+    "'garbage.com.f'                | 7    ",
+    "'garbage.com.foo.a'            | 8    ",
+    "'garbage.com.foobar.b'         | 9    ",
+    "'garbage.company.f'            | 10   ",
+    "'garbage.company.foo.a'        | 11   ",
+    "'garbage.company.foobar.S'     | 12   ",
+    "'garbage.com.Two$f'            | 13   ",
+    "'garbage.foobar.Two$b'         | 14   ",
+    "'garbage.'                     | -1   ",
+    "'garbage.O'                    | -1   ",
+    "'garbage._'                    | -1   ",
+    "'garbage.On'                   | -1   ",
+    "'garbage.O_'                   | -1   ",
+    "'garbage.On_'                  | -1   ",
+    "'garbage.OneNoMatch'           | -1   ",
+    "'garbage.com.Twos'             | 7    ",
+    "'garbage.com.foo.Threes'       | 8    ",
+    "'garbage.com.foobar.Fives'     | 9    ",
+    "'garbage.foobar.Thre'          | -1   ",
+    "'garbage.foobar.Three'         | 15   ",
+    "'garbage.foobar.ThreeMore'     | 15   "
+  })
   void classNameMappingFromIndex(String name, int value) {
     int from = "garbage.".length();
     assertEquals(value, testClassNamesTrie.apply(name, from));
-  }
-
-  static Stream<Arguments> classNameMappingFromIndex() {
-    return Stream.of(
-        Arguments.of("garbage.One", 1),
-        Arguments.of("garbage.com.Two", 2),
-        Arguments.of("garbage.com.foo.Three", 3),
-        Arguments.of("garbage.company.foo.Four", 4),
-        Arguments.of("garbage.com.foobar.Five", 5),
-        Arguments.of("garbage.company.foobar.Six", 6),
-        Arguments.of("garbage.company.foobar.Sixty", 60),
-        Arguments.of("garbage.com.f", 7),
-        Arguments.of("garbage.com.foo.a", 8),
-        Arguments.of("garbage.com.foobar.b", 9),
-        Arguments.of("garbage.company.f", 10),
-        Arguments.of("garbage.company.foo.a", 11),
-        Arguments.of("garbage.company.foobar.S", 12),
-        Arguments.of("garbage.com.Two$f", 13),
-        Arguments.of("garbage.foobar.Two$b", 14),
-        Arguments.of("garbage.", -1),
-        Arguments.of("garbage.O", -1),
-        Arguments.of("garbage._", -1),
-        Arguments.of("garbage.On", -1),
-        Arguments.of("garbage.O_", -1),
-        Arguments.of("garbage.On_", -1),
-        Arguments.of("garbage.OneNoMatch", -1),
-        Arguments.of("garbage.com.Twos", 7),
-        Arguments.of("garbage.com.foo.Threes", 8),
-        Arguments.of("garbage.com.foobar.Fives", 9),
-        Arguments.of("garbage.foobar.Thre", -1),
-        Arguments.of("garbage.foobar.Three", 15),
-        Arguments.of("garbage.foobar.ThreeMore", 15));
   }
 
   @Test
@@ -303,8 +294,12 @@ class ClassNameTrieTest {
         IllegalArgumentException.class, () -> builder.put("" + ((char) 67) + ((char) 2), 1));
   }
 
-  @ParameterizedTest
-  @ValueSource(chars = {'\u7FFF', '\u8000', '\uFFFF'})
+  @TableTest({
+    "Scenario                    | Next character",
+    "all bits except leaf marker | '\u7FFF'      ",
+    "leaf marker bit only        | '\u8000'      ",
+    "all bits set                | '\uFFFF'      "
+  })
   void extendingLeafPreservesFollowingUnicodeSegment(char nextCharacter) {
     for (String suffix : new String[] {"x", "xyz"}) {
       ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
@@ -329,8 +324,11 @@ class ClassNameTrieTest {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
+  @TableTest({
+    "Scenario              | New builder",
+    "keep updating builder | false      ",
+    "new builder from trie | true       "
+  })
   void builtTriePreservesValuesAfterBuilderUpdates(boolean newBuilder) {
     ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
     builder.put("a", 1);
@@ -352,8 +350,11 @@ class ClassNameTrieTest {
     assertEquals(4, builder.apply("ab"));
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
+  @TableTest({
+    "Scenario              | New builder",
+    "keep updating builder | false      ",
+    "new builder from trie | true       "
+  })
   void builtTriePreservesLongJumpsAfterBuilderUpdates(boolean newBuilder) {
     ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
     String padding = padding(7700);
@@ -386,8 +387,11 @@ class ClassNameTrieTest {
     assertEquals(4, builder.apply(extension + "x"));
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
+  @TableTest({
+    "Scenario              | New builder",
+    "keep updating builder | false      ",
+    "new builder from trie | true       "
+  })
   void growsLongJumpTableAfterCompaction(boolean newBuilder) {
     ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
     String padding = padding(7700);
@@ -451,9 +455,18 @@ class ClassNameTrieTest {
     return builder;
   }
 
-  @ParameterizedTest
-  @MethodSource("insertionsGrowingAncestorJump")
-  void failedAncestorJumpConversionPreservesTrie(String key) throws IOException {
+  @TableTest({
+    "Scenario                      | Prefix | Padding length | Suffix",
+    "extend a leaf segment         | aa     | 7675           | x     ",
+    "insert a bud within a segment | aa     | 100            | ''    ",
+    "prepend a node to a segment   | aa     | 0              | ''    ",
+    "split a segment on the left   | aao    | 0              | ''    ",
+    "split a segment on the right  | aaq    | 0              | ''    ",
+    "add a branch                  | az     | 0              | ''    "
+  })
+  void failedAncestorJumpConversionPreservesTrie(String prefix, int paddingLength, String suffix)
+      throws IOException {
+    String key = prefix + padding(paddingLength) + suffix;
     ClassNameTrie.Builder builder = builderWithShortJumpNearLimit(0);
     byte[] before = serialize(builder);
 
@@ -464,16 +477,6 @@ class ClassNameTrieTest {
     }
     assertEquals(1, builder.apply("aa" + padding(7675)));
     assertEquals(1, builder.apply("z"));
-  }
-
-  static Stream<String> insertionsGrowingAncestorJump() {
-    return Stream.of(
-        "aa" + padding(7675) + "x", // extend a leaf segment
-        "aa" + padding(100), // insert a bud within a segment
-        "aa", // prepend a node to a segment
-        "aao", // split a segment on the left
-        "aaq", // split a segment on the right
-        "az"); // add a branch
   }
 
   @Test

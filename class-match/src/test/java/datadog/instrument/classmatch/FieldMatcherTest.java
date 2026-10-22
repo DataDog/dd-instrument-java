@@ -16,12 +16,10 @@ import static datadog.instrument.classmatch.TypeMatcher.typeStartsWith;
 
 import java.lang.reflect.Modifier;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.tabletest.junit.TableTest;
 
 class FieldMatcherTest {
-  @ParameterizedTest
-  @MethodSource("datadog.instrument.classmatch.MatcherTestSupport#types")
+  @TableTest(resource = "types.table")
   void exactTypeOverloads(String name, Class<?> type, String descriptor) {
     FieldOutline candidate = fieldOutline(descriptor);
     assertMatches(field("value").type(name), candidate, true);

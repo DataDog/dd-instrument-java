@@ -26,8 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 class ObjectStoreTest {
 
@@ -115,8 +114,11 @@ class ObjectStoreTest {
     assertEquals("first", store.get(key));
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"getOrPut", "getOrCompute"})
+  @TableTest({
+    "operation     ",
+    "'getOrPut'    ",
+    "'getOrCompute'"
+  })
   void concurrentInsertionOnSameKeyReturnsSingleWinner(String operation) throws Exception {
     Object key = new Object();
     int threadCount = 8;

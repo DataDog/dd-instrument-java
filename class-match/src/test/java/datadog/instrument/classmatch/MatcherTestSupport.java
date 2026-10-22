@@ -7,28 +7,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
-import org.junit.jupiter.params.provider.Arguments;
 
 /** Small fixtures with explicit JVM descriptors so expectations don't use production conversion. */
 final class MatcherTestSupport {
   private MatcherTestSupport() {}
-
-  static Stream<Arguments> types() {
-    return Stream.of(
-        Arguments.of("boolean", boolean.class, "Z"),
-        Arguments.of("byte", byte.class, "B"),
-        Arguments.of("char", char.class, "C"),
-        Arguments.of("short", short.class, "S"),
-        Arguments.of("int", int.class, "I"),
-        Arguments.of("long", long.class, "J"),
-        Arguments.of("float", float.class, "F"),
-        Arguments.of("double", double.class, "D"),
-        Arguments.of("java.lang.String", String.class, "Ljava/lang/String;"),
-        Arguments.of("java/lang/String", String.class, "Ljava/lang/String;"),
-        Arguments.of("int[][]", int[][].class, "[[I"),
-        Arguments.of("java.lang.String[][]", String[][].class, "[[Ljava/lang/String;"));
-  }
 
   static FieldOutline fieldOutline(String descriptor) {
     return fieldOutline(0, "value", descriptor);

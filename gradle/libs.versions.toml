@@ -2,6 +2,7 @@
 asm = "9.11.1"
 junit-jupiter = "5.14.4"
 junit-platform = "1.14.4"
+tabletest = "1.2.2"
 assertj = "3.27.7"
 spotless = "8.10.4"
 spotbugs = "6.5.13"
@@ -17,6 +18,7 @@ asm-util = { module = "org.ow2.asm:asm-util", version.ref = "asm" }
 asm-test = { module = "org.ow2.asm:asm-test", version.ref = "asm" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
 junit-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
+tabletest = { module = "org.tabletest:tabletest-junit", version.ref = "tabletest" }
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 spotless = { module = "com.diffplug.spotless:spotless-plugin-gradle", version.ref = "spotless" }
 spotbugs = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugs" }

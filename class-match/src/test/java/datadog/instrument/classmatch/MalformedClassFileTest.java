@@ -7,28 +7,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Arrays;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.objectweb.asm.Attribute;
 import org.objectweb.asm.ByteVector;
 import org.objectweb.asm.ClassWriter;
+import org.tabletest.junit.TableTest;
 
 class MalformedClassFileTest {
-  static Stream<Arguments> incompleteDescriptors() {
-    return Stream.of(
-        Arguments.of("(I", new int[0]),
-        Arguments.of("(Ljava/lang/String", new int[0]),
-        Arguments.of("([", new int[0]),
-        Arguments.of("(ILjava/lang/String", new int[] {2}),
-        Arguments.of("(II[", new int[] {2, 3}));
-  }
-
-  @ParameterizedTest
-  @MethodSource("incompleteDescriptors")
+  @TableTest({
+    "Descriptor            | Boundaries",
+    "'(I'                  | []        ",
+    "'(Ljava/lang/String'  | []        ",
+    "'(['                  | []        ",
+    "'(ILjava/lang/String' | [2]       ",
+    "'(II['                | [2, 3]    "
+  })
   void incompleteDescriptorsRetainOnlyPreviouslyParsedBoundaries(
       String descriptor, int[] boundaries) {
     MethodOutline method = methodOutline(descriptor);
@@ -38,8 +31,13 @@ class MalformedClassFileTest {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(ints = {0, 2, 13, 99})
+  @TableTest({
+    "Scenario                         | Tag",
+    "never assigned                   | 0  ",
+    "unassigned gap after Utf8        | 2  ",
+    "unassigned gap after NameAndType | 13 ",
+    "beyond highest defined tag       | 99 "
+  })
   void invalidConstantPoolTagsAreRejected(int tag) {
     byte[] bytes = classWriter("tests/BadConstantPool").toByteArray();
     bytes[10] = (byte) tag; // first constant pool entry follows magic/version/count

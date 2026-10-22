@@ -20,6 +20,7 @@ dependencies {
   compileOnly(libs.spotbugs.annotations)
   testCompileOnly(libs.spotbugs.annotations)
   testImplementation(libs.junit.jupiter)
+  testImplementation(libs.tabletest)
   testImplementation(libs.assertj.core)
   testRuntimeOnly(libs.junit.launcher)
 }
@@ -76,6 +77,7 @@ spotless {
     importOrder()
     removeUnusedImports()
     googleJavaFormat()
+    tableTestFormatter()
   }
 }
 

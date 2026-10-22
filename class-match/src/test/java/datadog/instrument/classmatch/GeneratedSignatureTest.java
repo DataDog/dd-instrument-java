@@ -14,10 +14,9 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Type;
+import org.tabletest.junit.TableTest;
 
 class GeneratedSignatureTest {
   private static final Class<?>[] TYPES = {
@@ -41,8 +40,12 @@ class GeneratedSignatureTest {
   @SuppressFBWarnings(
       value = "DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED",
       justification = "Generated fixtures use an isolated test class loader")
-  @ParameterizedTest
-  @ValueSource(ints = {0, 1, 2})
+  @TableTest({
+    "offset",
+    "0     ",
+    "1     ",
+    "2     "
+  })
   void generatedSignaturesAgreeWithReflection(int offset) throws Exception {
     ClassWriter writer = classWriter("tests/GeneratedSignatures");
     Class<?>[] returns = Arrays.copyOf(TYPES, TYPES.length + 1);

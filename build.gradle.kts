@@ -12,6 +12,7 @@ plugins {
 spotlessPredeclare {
   java {
     googleJavaFormat()
+    tableTestFormatter()
   }
 }
 

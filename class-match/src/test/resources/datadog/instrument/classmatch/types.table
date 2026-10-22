@@ -1,0 +1,13 @@
+Name                   | Class                  | Descriptor
+'boolean'              | 'boolean'              | 'Z'
+'byte'                 | 'byte'                 | 'B'
+'char'                 | 'char'                 | 'C'
+'short'                | 'short'                | 'S'
+'int'                  | 'int'                  | 'I'
+'long'                 | 'long'                 | 'J'
+'float'                | 'float'                | 'F'
+'double'               | 'double'               | 'D'
+'java.lang.String'     | 'java.lang.String'     | 'Ljava/lang/String;'
+'java/lang/String'     | 'java.lang.String'     | 'Ljava/lang/String;'
+'int[][]'              | 'int[][]'              | '[[I'
+'java.lang.String[][]' | 'java.lang.String[][]' | '[[Ljava/lang/String;'
