@@ -8,13 +8,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.objectweb.asm.Opcodes.ACC_ABSTRACT;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.objectweb.asm.ClassWriter;
+import org.tabletest.junit.TableTest;
 
 class ClassFileUnicodeTest {
-  @ParameterizedTest
-  @ValueSource(strings = {"Café", "Grüße", "例クラス", "\uD801\uDC00", "Asciié例\uD801\uDC00End"})
+  @TableTest({
+    "Scenario            | Name                     ",
+    "two-byte at end     | 'Café'                   ",
+    "two-byte in middle  | 'Grüße'                  ",
+    "three-byte only     | '例クラス'               ",
+    "surrogate pair only | '\uD801\uDC00'           ",
+    "every encoded width | 'Asciié例\uD801\uDC00End'"
+  })
   void modifiedUtf8NamesRoundTripAtEveryPositionAndAtAnOffset(String name) {
     String className = "tests/" + name;
     String descriptor = "L" + className + ";";

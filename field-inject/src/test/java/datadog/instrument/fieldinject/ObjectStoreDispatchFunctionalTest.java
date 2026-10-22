@@ -24,8 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 /**
  * Loads and actually invokes the generated {@code ObjectStoreDispatch} bytecode, to check its
@@ -217,8 +216,11 @@ class ObjectStoreDispatchFunctionalTest {
     assertThat(GlobalObjectStore.get(key, injectedId)).isNull();
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"getOrPut", "getOrCompute"})
+  @TableTest({
+    "operation     ",
+    "'getOrPut'    ",
+    "'getOrCompute'"
+  })
   void concurrentInsertionOnSameKeyConvergesToASingleWinner(String operation) throws Exception {
     int storeId = objectStoreId("test.Dispatch.Concurrent.Key", "test.Dispatch.Concurrent.Value");
     Map<Integer, Object> backing = Collections.synchronizedMap(new HashMap<>());
@@ -289,8 +291,12 @@ class ObjectStoreDispatchFunctionalTest {
         .allMatch(winner::equals);
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"compute", "get", "put"})
+  @TableTest({
+    "failurePoint",
+    "'compute'   ",
+    "'get'       ",
+    "'put'       "
+  })
   void failureInsideMonitorReleasesLockAndAllowsRetry(String failurePoint) throws Exception {
     int storeId = objectStoreId("test.Dispatch.Failure.Key", "test.Dispatch.Failure.Value");
     Map<Integer, Object> backing = Collections.synchronizedMap(new HashMap<>());

@@ -20,14 +20,16 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 class AnnotationRegistrationTest {
   @TempDir Path temporary;
 
-  @ParameterizedTest
-  @ValueSource(strings = {"single", "collection"})
+  @TableTest({
+    "mode        ",
+    "'single'    ",
+    "'collection'"
+  })
   void firstRegistrationWorksInAFreshJvm(String mode) throws Exception {
     Path output = temporary.resolve("probe-" + mode + ".log");
     Process process =

@@ -5,15 +5,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.util.CheckClassAdapter;
+import org.tabletest.junit.TableTest;
 
 class DefineClassGlueGeneratorTest {
 
-  @ParameterizedTest
-  @ValueSource(strings = {"sun/misc", "jdk/internal/misc"})
+  @TableTest({
+    "unsafeNamespace    ",
+    "'sun/misc'         ",
+    "'jdk/internal/misc'"
+  })
   void generatedBytecodePassesVerification(String unsafeNamespace) {
     byte[] bytecode = DefineClassGlueGenerator.generateBytecode(unsafeNamespace);
     StringWriter errors = new StringWriter();
@@ -25,8 +27,11 @@ class DefineClassGlueGeneratorTest {
   }
 
   /** ClassInjector inlines the glue unpacking, so check the packed glue decodes as expected. */
-  @ParameterizedTest
-  @ValueSource(strings = {"sun/misc", "jdk/internal/misc"})
+  @TableTest({
+    "unsafeNamespace    ",
+    "'sun/misc'         ",
+    "'jdk/internal/misc'"
+  })
   void packedGlueUnpacksToGeneratedBytecode(String unsafeNamespace) {
     byte[] originalBytecode = DefineClassGlueGenerator.generateBytecode(unsafeNamespace);
     String packedBytecode =

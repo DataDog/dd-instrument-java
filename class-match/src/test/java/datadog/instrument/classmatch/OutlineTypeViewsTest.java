@@ -10,13 +10,17 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 /** Descriptor views beyond the boundary regressions owned by PR #144. */
 class OutlineTypeViewsTest {
-  @ParameterizedTest
-  @ValueSource(strings = {"A", "java/lang/String", "sample/Outer$Inner", "例/型"})
+  @TableTest({
+    "name                ",
+    "'A'                 ",
+    "'java/lang/String'  ",
+    "'sample/Outer$Inner'",
+    "'例/型'             "
+  })
   void fieldParameterAndReturnViewsHaveStringContentAndHashes(String name) {
     FieldOutline field = fieldOutline("L" + name + ";");
     // Keep an additional primitive parameter: final object parameter coverage is in PR #144.
@@ -32,8 +36,19 @@ class OutlineTypeViewsTest {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"Z", "B", "C", "D", "F", "I", "J", "S", "[I", "[[Ljava/lang/String;"})
+  @TableTest({
+    "descriptor            ",
+    "'Z'                   ",
+    "'B'                   ",
+    "'C'                   ",
+    "'D'                   ",
+    "'F'                   ",
+    "'I'                   ",
+    "'J'                   ",
+    "'S'                   ",
+    "'[I'                  ",
+    "'[[Ljava/lang/String;'"
+  })
   void primitiveAndArrayDescriptorsHaveNoObjectViews(String descriptor) {
     FieldOutline field = fieldOutline(descriptor);
     MethodOutline method = methodOutline("(" + descriptor + ")" + descriptor);
@@ -46,8 +61,12 @@ class OutlineTypeViewsTest {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(strings = {"()V", "(I)V", "(Ljava/lang/String;I)V"})
+  @TableTest({
+    "descriptor              ",
+    "'()V'                   ",
+    "'(I)V'                  ",
+    "'(Ljava/lang/String;I)V'"
+  })
   void voidReturnsAndMissingParametersHaveNoViews(String descriptor) {
     MethodOutline method = methodOutline(descriptor);
     assertNull(method.returnTypeString());

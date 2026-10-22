@@ -16,8 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 @SuppressFBWarnings("DM_GC")
 @SuppressWarnings({"UnusedAssignment", "ConstantValue"})
@@ -167,8 +166,11 @@ class ClassLoaderValueTest {
     visited.clear();
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
+  @TableTest({
+    "systemLoader",
+    "false       ",
+    "true        "
+  })
   void competingComputationsReturnTheInstalledValue(boolean systemLoader) throws Exception {
     ClassLoader loader = systemLoader ? ClassLoader.getSystemClassLoader() : null;
     int threadCount = 8;

@@ -19,13 +19,10 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
 import java.util.Collections;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 class MethodMatcherTest {
-  @ParameterizedTest
-  @MethodSource("datadog.instrument.classmatch.MatcherTestSupport#types")
+  @TableTest(resource = "types.table")
   void exactSignatureOverloads(String name, Class<?> type, String descriptor) {
     MethodOutline candidate = methodOutline("(" + descriptor + descriptor + ")" + descriptor);
     assertMatches(method("execute").parameters(name, name).returning(name), candidate, true);
@@ -43,8 +40,7 @@ class MethodMatcherTest {
     assertMatches(method().noParameters(), candidate, false);
   }
 
-  @ParameterizedTest
-  @MethodSource("datadog.instrument.classmatch.MatcherTestSupport#types")
+  @TableTest(resource = "types.table")
   void exactReturnTypesDistinguishArraysFromTheirComponents(
       String name, Class<?> type, String descriptor) {
     MethodOutline scalar = methodOutline("()" + descriptor);
@@ -121,9 +117,15 @@ class MethodMatcherTest {
     assertMatches(method().returning(type("java.lang.Object")), candidate, false);
   }
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {"()V", "()I", "()[I", "()[[Ljava/lang/String;", "(I)V", "([Ljava/lang/String;)V"})
+  @TableTest({
+    "descriptor              ",
+    "'()V'                   ",
+    "'()I'                   ",
+    "'()[I'                  ",
+    "'()[[Ljava/lang/String;'",
+    "'(I)V'                  ",
+    "'([Ljava/lang/String;)V'"
+  })
   void unsupportedOrAbsentTypesDoNotInvokeTypePredicates(String descriptor) {
     TypeMatcher unexpected =
         t -> {

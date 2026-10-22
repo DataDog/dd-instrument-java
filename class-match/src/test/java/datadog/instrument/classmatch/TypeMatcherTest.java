@@ -10,25 +10,24 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.tabletest.junit.TableTest;
 
 class TypeMatcherTest {
-  static Stream<Arguments> names() {
-    return Stream.of("java/lang/String", "sample/Outer$Inner", "例/型", "A", "")
-        .flatMap(name -> Stream.of(Arguments.of(name, name), Arguments.of(name, typeString(name))));
-  }
-
   private static TypeString typeString(String name) {
     return new TypeString("L" + name + ";", 1, name.length() + 1, name.hashCode());
   }
 
-  @ParameterizedTest
-  @MethodSource("names")
-  void exactNamesNormalizeFactoriesAndAcceptCharSequences(String name, CharSequence candidate) {
+  @TableTest({
+    "Name                 | Type string  ",
+    "'java/lang/String'   | {false, true}",
+    "'sample/Outer$Inner' | {false, true}",
+    "'例/型'              | {false, true}",
+    "'A'                  | {false, true}",
+    "''                   | {false, true}"
+  })
+  void exactNamesNormalizeFactoriesAndAcceptCharSequences(String name, boolean asTypeString) {
+    CharSequence candidate = asTypeString ? typeString(name) : name;
     assertMatches(type(name), candidate, true);
     assertMatches(type(name.replace('/', '.')), candidate, true);
     assertMatches(type("missing/Type"), candidate, false);
