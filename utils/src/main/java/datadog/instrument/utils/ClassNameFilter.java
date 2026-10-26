@@ -169,7 +169,8 @@ public final class ClassNameFilter {
     int end = name.length() - 1;
     // Keep the sign bit so a start beyond the end cannot match the encoded length.
     return (0x800000FF & (end - start)) == (0xFF & (code >> 8))
-        && (((name.charAt(start) ^ code >>> 16) | (name.charAt(end) ^ code >>> 24)) & 0xFF) == 0;
+        && (0xFF & name.charAt(start)) == (0xFF & (code >> 16))
+        && (0xFF & name.charAt(end)) == (0xFF & (code >> 24));
   }
 
   private static int rehash(int oldHash) {
