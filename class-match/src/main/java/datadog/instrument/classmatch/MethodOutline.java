@@ -6,7 +6,7 @@
 
 package datadog.instrument.classmatch;
 
-import java.util.BitSet;
+import java.util.Arrays;
 import javax.annotation.Nullable;
 
 /** Outlines a method; access modifiers, method name, descriptor, annotations. */
@@ -133,7 +133,8 @@ public final class MethodOutline {
     if (c == ')') {
       return NO_BOUNDARIES; // no parsing required
     }
-    BitSet partition = new BitSet();
+    int[] boundaries = NO_BOUNDARIES;
+    int count = 0;
     try {
       int i = 1;
       while (true) {
@@ -152,20 +153,24 @@ public final class MethodOutline {
         c = descriptor.charAt(++i);
         if (c == ')') {
           // record start of return descriptor
-          partition.set(++i);
-          break; // end of parameters
+          if (count == 0) {
+            return new int[] {i + 1};
+          }
+          if (count + 1 != boundaries.length) {
+            boundaries = Arrays.copyOf(boundaries, count + 1);
+          }
+          boundaries[count] = i + 1;
+          return boundaries;
         }
         // record start of next parameter descriptor
-        partition.set(i);
+        if (count == boundaries.length) {
+          boundaries = count == 0 ? new int[2] : Arrays.copyOf(boundaries, count * 2);
+        }
+        boundaries[count++] = i;
       }
     } catch (IndexOutOfBoundsException e) {
       // malformed descriptor; short-circuit parsing
     }
-    // flatten bit-set into primitive array of boundaries
-    int[] boundaries = new int[partition.cardinality()];
-    for (int i = 0, p = 0, len = boundaries.length; i < len; i++, p++) {
-      boundaries[i] = p = partition.nextSetBit(p);
-    }
-    return boundaries;
+    return count == boundaries.length ? boundaries : Arrays.copyOf(boundaries, count);
   }
 }
