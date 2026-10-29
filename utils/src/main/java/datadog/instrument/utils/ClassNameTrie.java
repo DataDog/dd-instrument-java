@@ -114,7 +114,7 @@ public final class ClassNameTrie {
   private static final char LONG_JUMP_MARKER = 0xF000; // 4096 long-jumps, each >= 61440
 
   /** Maximum number of entries in the long jump table. */
-  private static final int MAX_LONG_JUMPS = (char) ~LONG_JUMP_MARKER + 1;
+  private static final int MAX_LONG_JUMPS = 4096;
 
   /** A branch has at most 3 control characters: key, value, and optional jump offset/id. */
   private static final int BRANCH_CONTROL_CHARS = 3;

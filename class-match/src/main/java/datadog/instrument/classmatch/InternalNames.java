@@ -20,9 +20,9 @@ import java.util.NoSuchElementException;
  * <p>Queries may be any {@link CharSequence} with a {@link String}-compatible hash code.
  */
 final class InternalNames extends AbstractSet<String> {
-  private final int slotMask;
   private final int[] hashes;
   private final String[] table;
+  private final int slotMask;
 
   /**
    * Creates a new set of internal names containing the given types of interest.
@@ -33,22 +33,29 @@ final class InternalNames extends AbstractSet<String> {
     // At most 50% full, leaving empty slots to terminate probes.
     int tableSize = Math.max(8, types.size() * 2) - 1;
 
-    this.slotMask = -1 >>> Integer.numberOfLeadingZeros(tableSize);
-    this.hashes = new int[slotMask + 1];
-    this.table = new String[slotMask + 1];
+    int slotMask = -1 >>> Integer.numberOfLeadingZeros(tableSize);
+    int[] hashes = new int[slotMask + 1];
+    String[] table = new String[slotMask + 1];
 
     for (String type : types) {
-      final String name = internalName(type);
-      final int h = hash(name.hashCode());
+      final String internalName = internalName(type);
+      final int h = hash(internalName.hashCode());
 
       int hashed, slot = h & slotMask;
-      while ((hashed = hashes[slot]) != 0 && (hashed != h || !table[slot].equals(name))) {
+      while ((hashed = hashes[slot]) != 0) {
+        if (hashed == h && table[slot].equals(internalName)) {
+          break;
+        }
         slot = (slot + 1) & slotMask;
       }
 
       hashes[slot] = h;
-      table[slot] = name;
+      table[slot] = internalName;
     }
+
+    this.hashes = hashes;
+    this.table = table;
+    this.slotMask = slotMask;
   }
 
   /**
@@ -74,8 +81,8 @@ final class InternalNames extends AbstractSet<String> {
     return false;
   }
 
-  private static int hash(int h) {
-    return h != 0 ? h : 0xDD06; // reserve 0 for "no hash"
+  private static int hash(int hashCode) {
+    return hashCode != 0 ? hashCode : 0xDD06; // reserve 0 for "no hash"
   }
 
   // ----------------------------------------------------------------------------------------------

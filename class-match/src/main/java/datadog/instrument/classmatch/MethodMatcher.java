@@ -13,6 +13,7 @@ import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotation;
 import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotationOneOf;
 import static datadog.instrument.classmatch.InternalMatchers.descriptor;
 import static datadog.instrument.classmatch.InternalMatchers.hasParamDescriptor;
+import static datadog.instrument.classmatch.InternalMatchers.hasReturnDescriptor;
 import static java.util.Arrays.asList;
 
 import java.util.Collection;
@@ -186,8 +187,8 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods returning the same type
    */
   default MethodMatcher returning(String returnType) {
-    String returnSuffix = ')' + descriptor(returnType);
-    return and(m -> m.descriptor.endsWith(returnSuffix));
+    String returnDescriptor = descriptor(returnType);
+    return and(m -> hasReturnDescriptor(m.descriptor, returnDescriptor));
   }
 
   /**
@@ -197,8 +198,8 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods returning the same type
    */
   default MethodMatcher returning(Class<?> returnType) {
-    String returnSuffix = ')' + descriptor(returnType);
-    return and(m -> m.descriptor.endsWith(returnSuffix));
+    String returnDescriptor = descriptor(returnType);
+    return and(m -> hasReturnDescriptor(m.descriptor, returnDescriptor));
   }
 
   /**
