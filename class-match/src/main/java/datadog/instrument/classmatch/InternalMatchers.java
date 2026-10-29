@@ -49,6 +49,14 @@ final class InternalMatchers {
         && method.descriptor.startsWith(paramDescriptor, boundaries[paramIndex - 1]);
   }
 
+  /** Does the method's descriptor end with the exact return descriptor? */
+  static boolean hasReturnDescriptor(String methodDescriptor, String returnDescriptor) {
+    int returnStart = methodDescriptor.length() - returnDescriptor.length();
+    return returnStart > 0
+        && methodDescriptor.charAt(returnStart - 1) == ')'
+        && methodDescriptor.endsWith(returnDescriptor);
+  }
+
   /** Returns the descriptor for the given type. */
   static String descriptor(String type) {
     if (type.endsWith("[]")) {
