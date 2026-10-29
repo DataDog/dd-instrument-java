@@ -116,10 +116,11 @@ public final class ClassInjector {
   private ClassInjector() {}
 
   private static BiFunction classDefiner() {
-    if (defineClassGlue == null) {
+    BiFunction glue = defineClassGlue;
+    if (glue == null) {
       throw new IllegalStateException("Class injection not enabled");
     }
-    return defineClassGlue;
+    return glue;
   }
 
   private static volatile BiFunction defineClassGlue;

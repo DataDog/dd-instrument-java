@@ -271,6 +271,8 @@ public final class ClassFile {
       fields = NO_FIELDS;
     }
 
+    final Map<UtfKey, String> ofInterest = annotationsOfInterest;
+
     // optional list of methods
     MethodOutline[] methods;
     int methodsCount = u2(bytecode, cursor);
@@ -293,7 +295,7 @@ public final class ClassFile {
                 : utf(bytecode, descriptorOffset);
         cursor += 2;
         String[] annotations = NO_ANNOTATIONS;
-        Map<UtfKey, String> ofInterest = annotationsOfInterest;
+        boolean scanAnnotations = ofInterest != null;
         int attributesCount = u2(bytecode, cursor);
         cursor += 2;
         for (int j = 0; j < attributesCount; j++) {
@@ -302,9 +304,9 @@ public final class ClassFile {
           int attributeLength = u4(bytecode, cursor);
           cursor += 4;
           // only interested in the attribute that lists runtime visible annotations
-          if (ofInterest != null && utfEquals(bytecode, cp[nameIndex], RUNTIME_ANNOTATIONS)) {
+          if (scanAnnotations && utfEquals(bytecode, cp[nameIndex], RUNTIME_ANNOTATIONS)) {
             annotations = parseAnnotations(ofInterest, bytecode, cursor, cp);
-            ofInterest = null; // there's at most one of these attributes per-table
+            scanAnnotations = false; // there's at most one of these attributes per-table
           }
           cursor += attributeLength; // jump to end of attribute
         }
@@ -316,7 +318,7 @@ public final class ClassFile {
     }
 
     String[] annotations = NO_ANNOTATIONS;
-    Map<UtfKey, String> ofInterest = annotationsOfInterest;
+    boolean scanAnnotations = ofInterest != null;
     int attributesCount = u2(bytecode, cursor);
     cursor += 2;
     for (int j = 0; j < attributesCount; j++) {
@@ -325,9 +327,9 @@ public final class ClassFile {
       int attributeLength = u4(bytecode, cursor);
       cursor += 4;
       // only interested in the attribute that lists runtime visible annotations
-      if (ofInterest != null && utfEquals(bytecode, cp[nameIndex], RUNTIME_ANNOTATIONS)) {
+      if (scanAnnotations && utfEquals(bytecode, cp[nameIndex], RUNTIME_ANNOTATIONS)) {
         annotations = parseAnnotations(ofInterest, bytecode, cursor, cp);
-        ofInterest = null; // there's at most one of these attributes per-table
+        scanAnnotations = false; // there's at most one of these attributes per-table
       }
       cursor += attributeLength; // jump to end of attribute
     }

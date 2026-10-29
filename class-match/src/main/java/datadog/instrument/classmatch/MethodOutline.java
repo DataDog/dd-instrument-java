@@ -99,13 +99,14 @@ public final class MethodOutline {
 
   /** Gets a previously cached {@link TypeString} hash; otherwise computes and caches a new hash. */
   private int getHash(int typeStringIndex, int start, int end) {
-    if (typeStringHashes == null) {
+    int[] hashes = typeStringHashes;
+    if (hashes == null) {
       // allow for one hash per parameter, plus one for return type
-      typeStringHashes = new int[descriptorBoundaries.length + 1];
+      typeStringHashes = hashes = new int[descriptorBoundaries.length + 1];
     }
-    int hash = typeStringHashes[typeStringIndex];
+    int hash = hashes[typeStringIndex];
     if (hash == 0) {
-      typeStringHashes[typeStringIndex] = hash = TypeString.computeHash(descriptor, start, end);
+      hashes[typeStringIndex] = hash = TypeString.computeHash(descriptor, start, end);
     }
     return hash;
   }
@@ -119,10 +120,11 @@ public final class MethodOutline {
    * parameters then the return descriptor always starts at index 2.)
    */
   int[] descriptorBoundaries() {
-    if (descriptorBoundaries == null) {
-      descriptorBoundaries = parseBoundaries(descriptor);
+    int[] boundaries = descriptorBoundaries;
+    if (boundaries == null) {
+      descriptorBoundaries = boundaries = parseBoundaries(descriptor);
     }
-    return descriptorBoundaries;
+    return boundaries;
   }
 
   /** Partitions method descriptor into boundaries between each parameter/return descriptor. */
