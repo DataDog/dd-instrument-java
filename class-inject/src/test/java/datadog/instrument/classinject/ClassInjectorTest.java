@@ -21,6 +21,24 @@ class ClassInjectorTest {
   }
 
   @Test
+  void repeatedEnablementPreservesClassInjection() throws Exception {
+    ClassLoader loader = newCL();
+    String name = "datadog.injected.RepeatedEnablementSample";
+    byte[] bytecode = sampleClass(name);
+    Class<?> injected = ClassInjector.injectClass(name, bytecode, loader);
+
+    ClassInjector.enableClassInjection(TestAgent.getInstrumentation());
+
+    assertThat(ClassInjector.injectClass(name, bytecode, loader)).isSameAs(injected);
+    assertThat(injected.getMethod("value").invoke(null)).isEqualTo(42);
+    ClassLoader anotherLoader = newCL();
+    Class<?> another = ClassInjector.injectClass(name, bytecode, anotherLoader);
+    assertThat(another).isNotSameAs(injected);
+    assertThat(another.getClassLoader()).isSameAs(anotherLoader);
+    assertThat(another.getMethod("value").invoke(null)).isEqualTo(42);
+  }
+
+  @Test
   void injectsBootClass() throws Exception {
     String name = "datadog.injected.BootSample";
     Class<?> injectedClass = ClassInjector.injectBootClass(name, sampleClass(name));

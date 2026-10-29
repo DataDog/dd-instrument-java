@@ -250,6 +250,43 @@ class ObjectStoreTest {
   }
 
   @Test
+  void equalKeysAreStoredByIdentity() {
+    char[] characters = {'k', 'e', 'y'};
+    String first = new String(characters);
+    String second = new String(characters);
+    assertThat(first).isEqualTo(second).isNotSameAs(second);
+
+    store.put(first, "first");
+    assertNull(store.get(second));
+    assertEquals("second", store.getOrPut(second, "second"));
+    assertEquals("first", store.get(first));
+    assertEquals("second", store.get(second));
+
+    assertEquals("first", store.remove(first));
+    assertNull(store.get(first));
+    assertEquals("second", store.get(second));
+    assertEquals("computed", store.getOrCompute(first, key -> "computed"));
+    assertEquals("computed", store.get(first));
+    assertEquals("second", store.get(second));
+  }
+
+  @Test
+  void sameKeyWithDifferentValueTypesIsIsolated() {
+    Object key = new Object();
+    ObjectStore<Object, String> strings = ObjectStore.of(Object.class, String.class);
+    ObjectStore<Object, Integer> integers = ObjectStore.of(Object.class, Integer.class);
+
+    strings.put(key, "string");
+    assertNull(integers.get(key));
+    assertEquals(42, integers.getOrCompute(key, ignored -> 42));
+    assertEquals("string", strings.get(key));
+    assertEquals(42, integers.remove(key));
+    assertNull(integers.get(key));
+    assertEquals("string", strings.get(key));
+    assertEquals("string", strings.remove(key));
+  }
+
+  @Test
   void sameKeyInDifferentStoresIsIsolated() {
     ObjectStore<Object, String> storeA = ObjectStore.of("test.IsolA.Key", "test.IsolA.Value");
     ObjectStore<Object, String> storeB = ObjectStore.of("test.IsolB.Key", "test.IsolB.Value");
