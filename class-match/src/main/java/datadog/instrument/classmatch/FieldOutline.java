@@ -50,9 +50,10 @@ public final class FieldOutline {
     }
     int start = 1;
     int end = descriptor.length() - 1;
-    if (typeStringHash == 0) {
-      typeStringHash = TypeString.computeHash(descriptor, start, end);
+    int hash = typeStringHash;
+    if (hash == 0) {
+      typeStringHash = hash = TypeString.computeHash(descriptor, start, end);
     }
-    return new TypeString(descriptor, start, end, typeStringHash);
+    return new TypeString(descriptor, start, end, hash);
   }
 }
