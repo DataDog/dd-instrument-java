@@ -3,9 +3,7 @@ package datadog.instrument.utils;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.openjdk.jmh.annotations.Mode.AverageTime;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import datadog.instrument.testing.SampleClasses;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -39,7 +37,7 @@ public class ClassNameTrieBuilderBenchmark {
   private int[] values;
 
   @Setup
-  public void setup() throws IOException {
+  public void setup() {
     List<String> names = new ArrayList<>();
     List<Integer> numbers = new ArrayList<>();
     switch (dataset) {
@@ -51,7 +49,7 @@ public class ClassNameTrieBuilderBenchmark {
             });
         break;
       case "classNames":
-        names.addAll(Files.readAllLines(Paths.get("src/test/resources/sample_class_names.txt")));
+        names.addAll(SampleClasses.loadClassNames());
         break;
       case "longJumps":
         char[] chars = new char[7700];
