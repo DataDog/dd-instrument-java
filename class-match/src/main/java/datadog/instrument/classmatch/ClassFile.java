@@ -37,6 +37,10 @@ public final class ClassFile {
   private static final int ACC_INTERFACE = 0x0200;
   private static final int ACC_MODULE = 0x8000;
 
+  private static final byte[] JAVA_LANG_OBJECT_BYTES = JAVA_LANG_OBJECT.getBytes(US_ASCII);
+  private static final byte[] CONSTRUCTOR_BYTES = CONSTRUCTOR.getBytes(US_ASCII);
+  private static final byte[] SIMPLE_CALL_BYTES = SIMPLE_CALL.getBytes(US_ASCII);
+
   // attribute header for annotations that are visible at runtime
   private static final byte[] RUNTIME_ANNOTATIONS = "RuntimeVisibleAnnotations".getBytes(US_ASCII);
 
@@ -210,10 +214,11 @@ public final class ClassFile {
     if ((access & ACC_INTERFACE) != 0) {
       superName = JAVA_LANG_OBJECT;
     } else if (access != ACC_MODULE) {
-      superName = utf(bytecode, cp[cp[u2(bytecode, cursor)]]);
-      if (JAVA_LANG_OBJECT.equals(superName)) {
-        superName = JAVA_LANG_OBJECT;
-      }
+      int superNameOffset = cp[cp[u2(bytecode, cursor)]];
+      superName =
+          utfEquals(bytecode, superNameOffset, JAVA_LANG_OBJECT_BYTES)
+              ? JAVA_LANG_OBJECT
+              : utf(bytecode, superNameOffset);
     } else {
       superName = null;
     }
@@ -275,15 +280,17 @@ public final class ClassFile {
       for (int i = 0; i < methodsCount; i++) {
         int methodAccess = u2(bytecode, cursor);
         cursor += 2;
-        String methodName = utf(bytecode, cp[u2(bytecode, cursor)]);
-        if (CONSTRUCTOR.equals(methodName)) {
-          methodName = CONSTRUCTOR;
-        }
+        int methodNameOffset = cp[u2(bytecode, cursor)];
+        String methodName =
+            utfEquals(bytecode, methodNameOffset, CONSTRUCTOR_BYTES)
+                ? CONSTRUCTOR
+                : utf(bytecode, methodNameOffset);
         cursor += 2;
-        String descriptor = utf(bytecode, cp[u2(bytecode, cursor)]);
-        if (SIMPLE_CALL.equals(descriptor)) {
-          descriptor = SIMPLE_CALL;
-        }
+        int descriptorOffset = cp[u2(bytecode, cursor)];
+        String descriptor =
+            utfEquals(bytecode, descriptorOffset, SIMPLE_CALL_BYTES)
+                ? SIMPLE_CALL
+                : utf(bytecode, descriptorOffset);
         cursor += 2;
         String[] annotations = NO_ANNOTATIONS;
         Map<UtfKey, String> ofInterest = annotationsOfInterest;
