@@ -104,12 +104,8 @@ public final class ClassFile {
       if (annotationKeys.containsKey(internalName)) {
         return; // already flagged as interesting
       }
-      Map<UtfKey, String> ofInterest = new HashMap<>();
-      if (annotationsOfInterest != null) {
-        ofInterest.putAll(annotationsOfInterest); // copy on write
-      }
-      ofInterest.put(
-          annotationKeys.computeIfAbsent(internalName, ClassFile::annotationKey), internalName);
+      Map<UtfKey, String> ofInterest = copyAnnotationsOfInterest();
+      registerAnnotation(ofInterest, internalName);
       annotationsOfInterest = ofInterest;
     }
   }
@@ -126,23 +122,34 @@ public final class ClassFile {
       if (annotationKeys.keySet().containsAll(internalNames)) {
         return; // already flagged as interesting
       }
-      Map<UtfKey, String> ofInterest = new HashMap<>();
-      if (annotationsOfInterest != null) {
-        ofInterest.putAll(annotationsOfInterest); // copy on write
-      }
+      Map<UtfKey, String> ofInterest = copyAnnotationsOfInterest();
       for (String internalName : internalNames) {
-        ofInterest.put(
-            annotationKeys.computeIfAbsent(internalName, ClassFile::annotationKey), internalName);
+        registerAnnotation(ofInterest, internalName);
       }
       annotationsOfInterest = ofInterest;
     }
   }
 
-  /** Create "modified-UTF8" key to make it easier to match annotations. */
-  private static UtfKey annotationKey(String internalName) {
+  /** Creates a writable copy of the published annotation snapshot. */
+  private static Map<UtfKey, String> copyAnnotationsOfInterest() {
+    Map<UtfKey, String> copy = new HashMap<>();
+    Map<UtfKey, String> existing = annotationsOfInterest;
+    if (existing != null) {
+      copy.putAll(existing);
+    }
+    return copy;
+  }
+
+  /** Registers both annotation mappings; callers must hold annotationsLock. */
+  private static void registerAnnotation(Map<UtfKey, String> ofInterest, String internalName) {
+    if (annotationKeys.containsKey(internalName)) {
+      return;
+    }
     // annotations are recorded in descriptor form in class-files
     byte[] descriptor = ('L' + internalName + ';').getBytes(US_ASCII);
-    return new UtfKey(descriptor);
+    UtfKey key = new UtfKey(descriptor);
+    annotationKeys.put(internalName, key);
+    ofInterest.put(key, internalName);
   }
 
   /** Parse class-file content, skipping over uninteresting sections, */
