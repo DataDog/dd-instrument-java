@@ -22,7 +22,7 @@ public class ClassHeader {
   /** Internal name of this class. */
   public final String className;
 
-  /** Internal name of the super-class declared by this class; {@code null} for modules. */
+  /** Internal name of the super-class; {@code null} for {@code java.lang.Object} and modules. */
   @Nullable public final String superName;
 
   /** Internal names of the interfaces declared by this class. */
