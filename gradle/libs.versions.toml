@@ -1,5 +1,6 @@
 [versions]
 asm = "9.11.1"
+byte-buddy = "1.18.16"
 junit-jupiter = "5.14.4"
 junit-platform = "1.14.4"
 tabletest = "1.2.2"
@@ -12,6 +13,7 @@ nexus-publish = "2.0.0"
 jmh-plugin = "0.7.3"
 
 [libraries]
+byte-buddy = { module = "net.bytebuddy:byte-buddy", version.ref = "byte-buddy" }
 asm = { module = "org.ow2.asm:asm", version.ref = "asm" }
 asm-commons = { module = "org.ow2.asm:asm-commons", version.ref = "asm" }
 asm-util = { module = "org.ow2.asm:asm-util", version.ref = "asm" }
