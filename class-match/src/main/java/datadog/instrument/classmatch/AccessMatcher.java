@@ -16,54 +16,154 @@ import java.util.function.IntPredicate;
 @FunctionalInterface
 public interface AccessMatcher extends IntPredicate {
 
+  // Use anonymous classes to reduce cold-start lambda linkage cost.
+
+  // Keep a separate class per matcher so the JIT can specialize by matcher type; avoid
+  // replacing these with a shared class holding a mask field as it slows down matching.
+
   /** Matches public access. */
-  AccessMatcher PUBLIC = Modifier::isPublic;
+  AccessMatcher PUBLIC =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return Modifier.isPublic(acc);
+        }
+      };
 
   /** Matches private access. */
-  AccessMatcher PRIVATE = Modifier::isPrivate;
+  AccessMatcher PRIVATE =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return Modifier.isPrivate(acc);
+        }
+      };
 
   /** Matches protected access. */
-  AccessMatcher PROTECTED = Modifier::isProtected;
+  AccessMatcher PROTECTED =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return Modifier.isProtected(acc);
+        }
+      };
 
   /** Matches package-private access. */
   AccessMatcher PACKAGE_PRIVATE =
-      acc -> (acc & (Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE)) == 0;
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return (acc & (Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE)) == 0;
+        }
+      };
 
   /** Matches static methods/fields. */
-  AccessMatcher STATIC = Modifier::isStatic;
+  AccessMatcher STATIC =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return Modifier.isStatic(acc);
+        }
+      };
 
   /** Matches non-static methods/fields. */
-  AccessMatcher INSTANCE = acc -> (acc & Modifier.STATIC) == 0;
+  AccessMatcher INSTANCE =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return (acc & Modifier.STATIC) == 0;
+        }
+      };
 
   /** Matches final classes/methods/fields. */
-  AccessMatcher FINAL = Modifier::isFinal;
+  AccessMatcher FINAL =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return Modifier.isFinal(acc);
+        }
+      };
 
   /** Matches non-final classes/methods/fields. */
-  AccessMatcher NON_FINAL = acc -> (acc & Modifier.FINAL) == 0;
+  AccessMatcher NON_FINAL =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return (acc & Modifier.FINAL) == 0;
+        }
+      };
 
   /** Matches synchronized methods. */
-  AccessMatcher SYNCHRONIZED = Modifier::isSynchronized;
+  AccessMatcher SYNCHRONIZED =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return Modifier.isSynchronized(acc);
+        }
+      };
 
   /** Matches varargs methods. */
-  AccessMatcher VARARGS = acc -> (acc & 0x0080) != 0;
+  AccessMatcher VARARGS =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return (acc & 0x0080) != 0;
+        }
+      };
 
   /** Matches volatile fields. */
-  AccessMatcher VOLATILE = Modifier::isVolatile;
+  AccessMatcher VOLATILE =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return Modifier.isVolatile(acc);
+        }
+      };
 
   /** Matches transient fields. */
-  AccessMatcher TRANSIENT = Modifier::isTransient;
+  AccessMatcher TRANSIENT =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return Modifier.isTransient(acc);
+        }
+      };
 
   /** Matches interface classes. */
-  AccessMatcher INTERFACE = Modifier::isInterface;
+  AccessMatcher INTERFACE =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return Modifier.isInterface(acc);
+        }
+      };
 
   /** Matches non-interface classes. */
-  AccessMatcher CLASS = acc -> (acc & Modifier.INTERFACE) == 0;
+  AccessMatcher CLASS =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return (acc & Modifier.INTERFACE) == 0;
+        }
+      };
 
   /** Matches abstract classes/methods. */
-  AccessMatcher ABSTRACT = Modifier::isAbstract;
+  AccessMatcher ABSTRACT =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return Modifier.isAbstract(acc);
+        }
+      };
 
   /** Matches non-abstract classes/methods. */
-  AccessMatcher CONCRETE = acc -> (acc & Modifier.ABSTRACT) == 0;
+  AccessMatcher CONCRETE =
+      new AccessMatcher() {
+        @Override
+        public boolean test(int acc) {
+          return (acc & Modifier.ABSTRACT) == 0;
+        }
+      };
 
   /**
    * Conjunction of this matcher AND another.
