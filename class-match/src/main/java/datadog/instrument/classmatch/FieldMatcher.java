@@ -21,7 +21,7 @@ public interface FieldMatcher extends Predicate<FieldOutline> {
    * @return matcher of fields with the same name
    */
   static FieldMatcher field(String name) {
-    return f -> name.equals(f.fieldName);
+    return new InternalMatchers.FieldNamed(name);
   }
 
   /**
@@ -51,8 +51,7 @@ public interface FieldMatcher extends Predicate<FieldOutline> {
    * @return matcher of fields with the same type
    */
   default FieldMatcher type(String type) {
-    String descriptor = descriptor(type);
-    return f -> test(f) && descriptor.equals(f.descriptor);
+    return new InternalMatchers.FieldDescriptor(this, descriptor(type));
   }
 
   /**
@@ -62,8 +61,7 @@ public interface FieldMatcher extends Predicate<FieldOutline> {
    * @return matcher of fields with the same type
    */
   default FieldMatcher type(Class<?> type) {
-    String descriptor = descriptor(type);
-    return f -> test(f) && descriptor.equals(f.descriptor);
+    return new InternalMatchers.FieldDescriptor(this, descriptor(type));
   }
 
   /**
