@@ -114,8 +114,8 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
     for (String paramType : paramTypes) {
       buf.append(descriptor(paramType));
     }
-    String prefix = buf.append(')').toString();
-    return and(m -> m.descriptor.startsWith(prefix));
+    String parameters = buf.append(')').toString();
+    return and(new InternalMatchers.ParameterDescriptors(parameters));
   }
 
   /**
@@ -129,8 +129,8 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
     for (Class<?> paramType : paramTypes) {
       buf.append(descriptor(paramType));
     }
-    String prefix = buf.append(')').toString();
-    return and(m -> m.descriptor.startsWith(prefix));
+    String parameters = buf.append(')').toString();
+    return and(new InternalMatchers.ParameterDescriptors(parameters));
   }
 
   /**

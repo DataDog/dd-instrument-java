@@ -468,6 +468,19 @@ final class InternalMatchers {
     }
   }
 
+  static final class ParameterDescriptors implements MethodMatcher {
+    private final String parameters;
+
+    ParameterDescriptors(String parameters) {
+      this.parameters = parameters;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return method.descriptor.startsWith(parameters);
+    }
+  }
+
   static final class ParameterType implements MethodMatcher {
     private final int index;
     private final TypeMatcher types;
