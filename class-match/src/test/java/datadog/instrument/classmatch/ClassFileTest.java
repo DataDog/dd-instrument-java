@@ -3,8 +3,11 @@ package datadog.instrument.classmatch;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import datadog.instrument.utils.JVM;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,6 +19,8 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.jar.JarFile;
 import org.junit.jupiter.api.Test;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.Opcodes;
 
 class ClassFileTest {
 
@@ -46,6 +51,41 @@ class ClassFileTest {
   @Test
   void header() {
     testParsing("asm-test.jar", ClassFile::header);
+  }
+
+  @Test
+  void objectParsing() throws IOException {
+    try (InputStream in = Object.class.getResourceAsStream("Object.class")) {
+      assertNotNull(in);
+      byte[] bytecode = JVM.readAllBytes(in);
+      for (ClassHeader header :
+          new ClassHeader[] {ClassFile.header(bytecode), ClassFile.outline(bytecode)}) {
+        assertEquals("java/lang/Object", header.className);
+        assertNull(header.superName);
+        assertArrayEquals(new String[0], header.interfaces);
+      }
+    }
+  }
+
+  @Test
+  void moduleParsing() throws IOException {
+    byte[] bytecode;
+    try (JarFile sample = new JarFile("build/sampleBytecode/asm-test.jar");
+        InputStream in = sample.getInputStream(sample.getEntry("jdk9/module-info.class"))) {
+      bytecode = JVM.readAllBytes(in);
+    }
+    // also check a module with extra access flags, such as ACC_SYNTHETIC
+    byte[] syntheticBytecode = bytecode.clone();
+    int accessOffset = new ClassReader(syntheticBytecode).header;
+    syntheticBytecode[accessOffset] |= (byte) (Opcodes.ACC_SYNTHETIC >> 8);
+    for (byte[] moduleBytecode : new byte[][] {bytecode, syntheticBytecode}) {
+      for (ClassHeader header :
+          new ClassHeader[] {ClassFile.header(moduleBytecode), ClassFile.outline(moduleBytecode)}) {
+        assertEquals("module-info", header.className);
+        assertNull(header.superName);
+        assertArrayEquals(new String[0], header.interfaces);
+      }
+    }
   }
 
   @Test

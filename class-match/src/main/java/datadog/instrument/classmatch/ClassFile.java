@@ -35,7 +35,6 @@ public final class ClassFile {
   private static final String[] NO_ANNOTATIONS = {};
 
   private static final int ACC_INTERFACE = 0x0200;
-  private static final int ACC_MODULE = 0x8000;
 
   private static final byte[] JAVA_LANG_OBJECT_BYTES = JAVA_LANG_OBJECT.getBytes(US_ASCII);
   private static final byte[] CONSTRUCTOR_BYTES = CONSTRUCTOR.getBytes(US_ASCII);
@@ -213,14 +212,17 @@ public final class ClassFile {
     String superName;
     if ((access & ACC_INTERFACE) != 0) {
       superName = JAVA_LANG_OBJECT;
-    } else if (access != ACC_MODULE) {
-      int superNameOffset = cp[cp[u2(bytecode, cursor)]];
-      superName =
-          utfEquals(bytecode, superNameOffset, JAVA_LANG_OBJECT_BYTES)
-              ? JAVA_LANG_OBJECT
-              : utf(bytecode, superNameOffset);
     } else {
-      superName = null;
+      // java.lang.Object and modules have a zero super_class index (and therefore offset)
+      int superNameOffset = cp[cp[u2(bytecode, cursor)]];
+      if (superNameOffset != 0) {
+        superName =
+            utfEquals(bytecode, superNameOffset, JAVA_LANG_OBJECT_BYTES)
+                ? JAVA_LANG_OBJECT
+                : utf(bytecode, superNameOffset);
+      } else {
+        superName = null;
+      }
     }
     cursor += 2;
 
