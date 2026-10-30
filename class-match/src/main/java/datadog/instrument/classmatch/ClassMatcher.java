@@ -6,7 +6,6 @@
 
 package datadog.instrument.classmatch;
 
-import static datadog.instrument.classmatch.InternalMatchers.anyMatch;
 import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotation;
 import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotationOneOf;
 import static java.util.Arrays.asList;
@@ -25,7 +24,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * @return matcher of classes with a matching field
    */
   static ClassMatcher declares(FieldMatcher fieldMatcher) {
-    return c -> anyMatch(c.fields, fieldMatcher);
+    return new InternalMatchers.DeclaresField(fieldMatcher);
   }
 
   /**
@@ -36,8 +35,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * @return matcher of classes with a matching field
    */
   static ClassMatcher declares(AccessMatcher accessMatcher, FieldMatcher fieldMatcher) {
-    FieldMatcher combinedMatcher = fieldMatcher.access(accessMatcher);
-    return c -> anyMatch(c.fields, combinedMatcher);
+    return new InternalMatchers.DeclaresField(fieldMatcher.access(accessMatcher));
   }
 
   /**
@@ -47,7 +45,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * @return matcher of classes with a matching method
    */
   static ClassMatcher declares(MethodMatcher methodMatcher) {
-    return c -> anyMatch(c.methods, methodMatcher);
+    return new InternalMatchers.DeclaresMethod(methodMatcher);
   }
 
   /**
@@ -58,8 +56,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * @return matcher of classes with a matching method
    */
   static ClassMatcher declares(AccessMatcher accessMatcher, MethodMatcher methodMatcher) {
-    MethodMatcher combinedMatcher = methodMatcher.access(accessMatcher);
-    return c -> anyMatch(c.methods, combinedMatcher);
+    return new InternalMatchers.DeclaresMethod(methodMatcher.access(accessMatcher));
   }
 
   /**
@@ -69,8 +66,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * @return matcher of classes annotated with the type
    */
   static ClassMatcher annotatedWith(String annotationType) {
-    Predicate<String[]> annotationMatcher = declaresAnnotation(annotationType);
-    return c -> annotationMatcher.test(c.annotations);
+    return new InternalMatchers.AnnotatedClass(declaresAnnotation(annotationType));
   }
 
   /**
@@ -90,8 +86,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * @return matcher of classes annotated with one of the types
    */
   static ClassMatcher annotatedWith(Collection<String> annotationTypes) {
-    Predicate<String[]> annotationMatcher = declaresAnnotationOneOf(annotationTypes);
-    return c -> annotationMatcher.test(c.annotations);
+    return new InternalMatchers.AnnotatedClass(declaresAnnotationOneOf(annotationTypes));
   }
 
   /**

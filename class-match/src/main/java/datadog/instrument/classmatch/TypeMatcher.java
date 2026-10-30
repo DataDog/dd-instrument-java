@@ -23,7 +23,7 @@ public interface TypeMatcher extends Predicate<CharSequence> {
    * @return matcher of types with the same value
    */
   static TypeMatcher type(String type) {
-    return internalName(type)::contentEquals;
+    return new InternalMatchers.TypeNamed(internalName(type));
   }
 
   /**
@@ -43,7 +43,7 @@ public interface TypeMatcher extends Predicate<CharSequence> {
    * @return matcher of types from the given list
    */
   static TypeMatcher typeOneOf(Collection<String> types) {
-    return new InternalNames(types)::containsType;
+    return new InternalMatchers.TypesNamed(new InternalNames(types));
   }
 
   /**
@@ -53,8 +53,7 @@ public interface TypeMatcher extends Predicate<CharSequence> {
    * @return matcher of types starting with the prefix
    */
   static TypeMatcher typeStartsWith(String prefix) {
-    String internalPrefix = internalName(prefix);
-    return cs -> TypeString.startsWith(cs, internalPrefix);
+    return new InternalMatchers.TypePrefix(internalName(prefix));
   }
 
   /**
@@ -64,8 +63,7 @@ public interface TypeMatcher extends Predicate<CharSequence> {
    * @return matcher of types ending with the suffix
    */
   static TypeMatcher typeEndsWith(String suffix) {
-    String internalSuffix = internalName(suffix);
-    return cs -> TypeString.endsWith(cs, internalSuffix);
+    return new InternalMatchers.TypeSuffix(internalName(suffix));
   }
 
   /**

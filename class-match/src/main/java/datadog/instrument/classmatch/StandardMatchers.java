@@ -24,7 +24,7 @@ public final class StandardMatchers {
    * @return negation of the matcher
    */
   public static TypeMatcher not(TypeMatcher matcher) {
-    return cs -> !matcher.test(cs);
+    return new InternalMatchers.NotType(matcher);
   }
 
   /**
@@ -105,7 +105,7 @@ public final class StandardMatchers {
    * @return matcher of names from the given list
    */
   public static Predicate<String> namedOneOf(Collection<String> names) {
-    return new HashSet<>(names)::contains;
+    return new InternalMatchers.NameInSet(new HashSet<>(names));
   }
 
   /**
@@ -115,7 +115,7 @@ public final class StandardMatchers {
    * @return matcher of names starting with the prefix
    */
   public static Predicate<String> nameStartsWith(String prefix) {
-    return s -> s.startsWith(prefix);
+    return new InternalMatchers.NamePrefix(prefix);
   }
 
   /**
