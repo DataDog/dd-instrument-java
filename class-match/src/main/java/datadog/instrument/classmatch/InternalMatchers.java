@@ -32,9 +32,7 @@ final class InternalMatchers {
     InternalNames internalNames = new InternalNames(types);
     // note these annotations are of interest when parsing
     ClassFile.annotationsOfInterest(internalNames);
-    // performance tip: capture this method-ref outside the lambda
-    Predicate<String> annotationNamedOneOf = internalNames::containsType;
-    return annotations -> anyMatch(annotations, annotationNamedOneOf);
+    return new AnnotationNames(internalNames);
   }
 
   /**
@@ -311,6 +309,25 @@ final class InternalMatchers {
       }
 
       this.matchers = matchers;
+    }
+  }
+
+  /** Matches when at least one annotation has one of the given internal names. */
+  static final class AnnotationNames implements Predicate<String[]> {
+    private final InternalNames names;
+
+    AnnotationNames(InternalNames names) {
+      this.names = names;
+    }
+
+    @Override
+    public boolean test(String[] annotations) {
+      for (String annotation : annotations) {
+        if (names.containsType(annotation)) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 }
