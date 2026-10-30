@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /** Internally shared matchers, not part of the public API. */
@@ -22,9 +23,7 @@ final class InternalMatchers {
     String internalName = internalName(type);
     // note this annotation is of interest when parsing
     ClassFile.annotationOfInterest(internalName);
-    // performance tip: capture this method-ref outside the lambda
-    Predicate<String> annotationNamed = internalName::equals;
-    return annotations -> anyMatch(annotations, annotationNamed);
+    return new AnnotationNamed(internalName);
   }
 
   /** Matches when at least one annotation has one of the given types. */
@@ -309,6 +308,236 @@ final class InternalMatchers {
       }
 
       this.matchers = matchers;
+    }
+  }
+
+  // Class matchers
+
+  static final class AnnotatedClass implements ClassMatcher {
+    private final Predicate<String[]> annotations;
+
+    AnnotatedClass(Predicate<String[]> annotations) {
+      this.annotations = annotations;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      return annotations.test(outline.annotations);
+    }
+  }
+
+  static final class DeclaresField implements ClassMatcher {
+    private final FieldMatcher fields;
+
+    DeclaresField(FieldMatcher fields) {
+      this.fields = fields;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      return InternalMatchers.anyMatch(outline.fields, fields);
+    }
+  }
+
+  static final class DeclaresMethod implements ClassMatcher {
+    private final MethodMatcher methods;
+
+    DeclaresMethod(MethodMatcher methods) {
+      this.methods = methods;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      return InternalMatchers.anyMatch(outline.methods, methods);
+    }
+  }
+
+  // Field matchers
+
+  static final class FieldDescriptor implements FieldMatcher {
+    private final FieldMatcher matcher;
+    private final String descriptor;
+
+    FieldDescriptor(FieldMatcher matcher, String descriptor) {
+      this.matcher = matcher;
+      this.descriptor = descriptor;
+    }
+
+    @Override
+    public boolean test(FieldOutline field) {
+      return matcher.test(field) && descriptor.equals(field.descriptor);
+    }
+  }
+
+  static final class FieldNamed implements FieldMatcher {
+    private final String name;
+
+    FieldNamed(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public boolean test(FieldOutline field) {
+      return name.equals(field.fieldName);
+    }
+  }
+
+  // Method matchers
+
+  static final class AnnotatedMethod implements MethodMatcher {
+    private final Predicate<String[]> annotations;
+
+    AnnotatedMethod(Predicate<String[]> annotations) {
+      this.annotations = annotations;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return annotations.test(method.annotations);
+    }
+  }
+
+  static final MethodMatcher CONSTRUCTOR = new MethodNamed(ClassFile.CONSTRUCTOR);
+  static final MethodMatcher STATIC_INITIALIZER = new MethodNamed(ClassFile.STATIC_INITIALIZER);
+
+  static final class MethodNamed implements MethodMatcher {
+    private final String name;
+
+    MethodNamed(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return name.equals(method.methodName);
+    }
+  }
+
+  static final class MethodNameMatching implements MethodMatcher {
+    private final Predicate<String> names;
+
+    MethodNameMatching(Predicate<String> names) {
+      this.names = names;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return names.test(method.methodName);
+    }
+  }
+
+  // Type matchers
+
+  static final class NotType implements TypeMatcher {
+    private final TypeMatcher matcher;
+
+    NotType(TypeMatcher matcher) {
+      this.matcher = matcher;
+    }
+
+    @Override
+    public boolean test(CharSequence type) {
+      return !matcher.test(type);
+    }
+  }
+
+  static final class TypeNamed implements TypeMatcher {
+    private final String name;
+
+    TypeNamed(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public boolean test(CharSequence type) {
+      return name.contentEquals(type);
+    }
+  }
+
+  static final class TypePrefix implements TypeMatcher {
+    private final String prefix;
+
+    TypePrefix(String prefix) {
+      this.prefix = prefix;
+    }
+
+    @Override
+    public boolean test(CharSequence type) {
+      return TypeString.startsWith(type, prefix);
+    }
+  }
+
+  static final class TypesNamed implements TypeMatcher {
+    private final InternalNames names;
+
+    TypesNamed(InternalNames names) {
+      this.names = names;
+    }
+
+    @Override
+    public boolean test(CharSequence candidate) {
+      return names.containsType(candidate);
+    }
+  }
+
+  static final class TypeSuffix implements TypeMatcher {
+    private final String suffix;
+
+    TypeSuffix(String suffix) {
+      this.suffix = suffix;
+    }
+
+    @Override
+    public boolean test(CharSequence type) {
+      return TypeString.endsWith(type, suffix);
+    }
+  }
+
+  // Name predicates
+
+  static final class NameInSet implements Predicate<String> {
+    private final Set<String> names;
+
+    NameInSet(Set<String> names) {
+      this.names = names;
+    }
+
+    @Override
+    public boolean test(String candidate) {
+      return names.contains(candidate);
+    }
+  }
+
+  static final class NamePrefix implements Predicate<String> {
+    private final String prefix;
+
+    NamePrefix(String prefix) {
+      this.prefix = prefix;
+    }
+
+    @Override
+    public boolean test(String candidate) {
+      return candidate.startsWith(prefix);
+    }
+  }
+
+  // Annotation predicates
+
+  static final class AnnotationNamed implements Predicate<String[]> {
+    private final String name;
+
+    AnnotationNamed(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public boolean test(String[] annotations) {
+      for (String annotation : annotations) {
+        if (name.equals(annotation)) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 

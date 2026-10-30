@@ -6,9 +6,9 @@
 
 package datadog.instrument.classmatch;
 
-import static datadog.instrument.classmatch.ClassFile.CONSTRUCTOR;
-import static datadog.instrument.classmatch.ClassFile.STATIC_INITIALIZER;
 import static datadog.instrument.classmatch.InternalMatchers.ALL_METHODS;
+import static datadog.instrument.classmatch.InternalMatchers.CONSTRUCTOR;
+import static datadog.instrument.classmatch.InternalMatchers.STATIC_INITIALIZER;
 import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotation;
 import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotationOneOf;
 import static datadog.instrument.classmatch.InternalMatchers.descriptor;
@@ -39,7 +39,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods with the same name
    */
   static MethodMatcher method(String name) {
-    return m -> name.equals(m.methodName);
+    return new InternalMatchers.MethodNamed(name);
   }
 
   /**
@@ -49,7 +49,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods with a matching name
    */
   static MethodMatcher method(Predicate<String> nameMatcher) {
-    return m -> nameMatcher.test(m.methodName);
+    return new InternalMatchers.MethodNameMatching(nameMatcher);
   }
 
   /**
@@ -58,7 +58,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of constructor methods
    */
   static MethodMatcher constructor() {
-    return m -> CONSTRUCTOR.equals(m.methodName);
+    return CONSTRUCTOR;
   }
 
   /**
@@ -67,7 +67,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of static-initializer methods
    */
   static MethodMatcher staticInitializer() {
-    return m -> STATIC_INITIALIZER.equals(m.methodName);
+    return STATIC_INITIALIZER;
   }
 
   /**
@@ -223,8 +223,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods annotated with the same type
    */
   default MethodMatcher annotatedWith(String annotationType) {
-    Predicate<String[]> annotationMatcher = declaresAnnotation(annotationType);
-    return and(m -> annotationMatcher.test(m.annotations));
+    return and(new InternalMatchers.AnnotatedMethod(declaresAnnotation(annotationType)));
   }
 
   /**
@@ -244,8 +243,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods annotated with one of the types
    */
   default MethodMatcher annotatedWith(Collection<String> annotationTypes) {
-    Predicate<String[]> annotationMatcher = declaresAnnotationOneOf(annotationTypes);
-    return and(m -> annotationMatcher.test(m.annotations));
+    return and(new InternalMatchers.AnnotatedMethod(declaresAnnotationOneOf(annotationTypes)));
   }
 
   /**
