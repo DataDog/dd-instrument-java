@@ -8,12 +8,12 @@ package datadog.instrument.classmatch;
 
 import static datadog.instrument.classmatch.InternalMatchers.ALL_METHODS;
 import static datadog.instrument.classmatch.InternalMatchers.CONSTRUCTOR;
+import static datadog.instrument.classmatch.InternalMatchers.NO_PARAMETERS;
 import static datadog.instrument.classmatch.InternalMatchers.STATIC_INITIALIZER;
 import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotation;
 import static datadog.instrument.classmatch.InternalMatchers.declaresAnnotationOneOf;
 import static datadog.instrument.classmatch.InternalMatchers.descriptor;
-import static datadog.instrument.classmatch.InternalMatchers.hasParamDescriptor;
-import static datadog.instrument.classmatch.InternalMatchers.hasReturnDescriptor;
+import static datadog.instrument.classmatch.InternalMatchers.parameterDescriptor;
 import static java.util.Arrays.asList;
 
 import java.util.Collection;
@@ -26,7 +26,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
   /**
    * Matches all methods, excluding constructors and static initializers.
    *
-   * @return matcher of all methods
+   * @return matcher of all methods, excluding constructors and static initializers
    */
   static MethodMatcher method() {
     return ALL_METHODS;
@@ -86,7 +86,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods with no parameters
    */
   default MethodMatcher noParameters() {
-    return and(m -> m.descriptor.charAt(1) == ')');
+    return and(NO_PARAMETERS);
   }
 
   /**
@@ -99,7 +99,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
     if (paramCount == 0) {
       return noParameters();
     } else {
-      return and(m -> m.parameterCount() == paramCount);
+      return and(new InternalMatchers.ParameterCount(paramCount));
     }
   }
 
@@ -141,12 +141,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods with the same parameter type at the same position
    */
   default MethodMatcher parameter(int paramIndex, String paramType) {
-    String paramDescriptor = descriptor(paramType);
-    if (paramIndex == 0) {
-      return and(m -> m.descriptor.startsWith(paramDescriptor, 1));
-    } else {
-      return and(m -> hasParamDescriptor(m, paramIndex, paramDescriptor));
-    }
+    return and(parameterDescriptor(paramIndex, descriptor(paramType)));
   }
 
   /**
@@ -157,12 +152,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods with the same parameter type at the same position
    */
   default MethodMatcher parameter(int paramIndex, Class<?> paramType) {
-    String paramDescriptor = descriptor(paramType);
-    if (paramIndex == 0) {
-      return and(m -> m.descriptor.startsWith(paramDescriptor, 1));
-    } else {
-      return and(m -> hasParamDescriptor(m, paramIndex, paramDescriptor));
-    }
+    return and(parameterDescriptor(paramIndex, descriptor(paramType)));
   }
 
   /**
@@ -173,11 +163,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods with a matching parameter type
    */
   default MethodMatcher parameter(int paramIndex, TypeMatcher typeMatcher) {
-    return and(
-        m -> {
-          TypeString paramType = m.parameterTypeString(paramIndex);
-          return paramType != null && typeMatcher.test(paramType);
-        });
+    return and(new InternalMatchers.ParameterType(paramIndex, typeMatcher));
   }
 
   /**
@@ -187,8 +173,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods returning the same type
    */
   default MethodMatcher returning(String returnType) {
-    String returnDescriptor = descriptor(returnType);
-    return and(m -> hasReturnDescriptor(m.descriptor, returnDescriptor));
+    return and(new InternalMatchers.ReturnDescriptor(descriptor(returnType)));
   }
 
   /**
@@ -198,8 +183,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods returning the same type
    */
   default MethodMatcher returning(Class<?> returnType) {
-    String returnDescriptor = descriptor(returnType);
-    return and(m -> hasReturnDescriptor(m.descriptor, returnDescriptor));
+    return and(new InternalMatchers.ReturnDescriptor(descriptor(returnType)));
   }
 
   /**
@@ -209,11 +193,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods with a matching return type
    */
   default MethodMatcher returning(TypeMatcher typeMatcher) {
-    return and(
-        m -> {
-          TypeString returnType = m.returnTypeString();
-          return returnType != null && typeMatcher.test(returnType);
-        });
+    return and(new InternalMatchers.ReturnType(typeMatcher));
   }
 
   /**

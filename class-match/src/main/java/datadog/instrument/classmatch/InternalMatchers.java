@@ -34,26 +34,6 @@ final class InternalMatchers {
     return new AnnotationNames(internalNames);
   }
 
-  /**
-   * Does the method's descriptor contain the parameter descriptor at the given index?
-   *
-   * <p>Only for indices of 1 or above; index 0 uses a separate (faster) approach.
-   */
-  static boolean hasParamDescriptor(MethodOutline method, int paramIndex, String paramDescriptor) {
-    // boundaries covers start of second parameter, to start of return descriptor
-    int[] boundaries = method.descriptorBoundaries();
-    return paramIndex < boundaries.length // ignore return descriptor boundary
-        && method.descriptor.startsWith(paramDescriptor, boundaries[paramIndex - 1]);
-  }
-
-  /** Does the method's descriptor end with the exact return descriptor? */
-  static boolean hasReturnDescriptor(String methodDescriptor, String returnDescriptor) {
-    int returnStart = methodDescriptor.length() - returnDescriptor.length();
-    return returnStart > 0
-        && methodDescriptor.charAt(returnStart - 1) == ')'
-        && methodDescriptor.endsWith(returnDescriptor);
-  }
-
   /** Returns the descriptor for the given type. */
   static String descriptor(String type) {
     if (type.endsWith("[]")) {
@@ -397,6 +377,19 @@ final class InternalMatchers {
     }
   }
 
+  static final class FirstParameter implements MethodMatcher {
+    private final String descriptor;
+
+    FirstParameter(String descriptor) {
+      this.descriptor = descriptor;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return method.descriptor.startsWith(descriptor, 1);
+    }
+  }
+
   static final MethodMatcher CONSTRUCTOR = new MethodNamed(ClassFile.CONSTRUCTOR);
   static final MethodMatcher STATIC_INITIALIZER = new MethodNamed(ClassFile.STATIC_INITIALIZER);
 
@@ -423,6 +416,102 @@ final class InternalMatchers {
     @Override
     public boolean test(MethodOutline method) {
       return names.test(method.methodName);
+    }
+  }
+
+  /** Matches methods with no parameters. */
+  static final MethodMatcher NO_PARAMETERS =
+      new MethodMatcher() {
+        @Override
+        public boolean test(MethodOutline method) {
+          return method.descriptor.charAt(1) == ')';
+        }
+      };
+
+  /** Matches the parameter descriptor at the given index; index 0 uses a faster approach. */
+  static MethodMatcher parameterDescriptor(int index, String descriptor) {
+    if (index == 0) {
+      return new FirstParameter(descriptor);
+    } else {
+      return new ParameterDescriptor(index, descriptor);
+    }
+  }
+
+  static final class ParameterCount implements MethodMatcher {
+    private final int count;
+
+    ParameterCount(int count) {
+      this.count = count;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return method.parameterCount() == count;
+    }
+  }
+
+  static final class ParameterDescriptor implements MethodMatcher {
+    private final int index;
+    private final String descriptor;
+
+    ParameterDescriptor(int index, String descriptor) {
+      this.index = index;
+      this.descriptor = descriptor;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      // boundaries covers start of second parameter, to start of return descriptor
+      int[] boundaries = method.descriptorBoundaries();
+      return index < boundaries.length // ignore return descriptor boundary
+          && method.descriptor.startsWith(descriptor, boundaries[index - 1]);
+    }
+  }
+
+  static final class ParameterType implements MethodMatcher {
+    private final int index;
+    private final TypeMatcher types;
+
+    ParameterType(int index, TypeMatcher types) {
+      this.index = index;
+      this.types = types;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      TypeString type = method.parameterTypeString(index);
+      return type != null && types.test(type);
+    }
+  }
+
+  static final class ReturnDescriptor implements MethodMatcher {
+    private final String descriptor;
+
+    ReturnDescriptor(String descriptor) {
+      this.descriptor = descriptor;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      String methodDescriptor = method.descriptor;
+      int returnStart = methodDescriptor.length() - descriptor.length();
+      return returnStart > 0
+          && methodDescriptor.charAt(returnStart - 1) == ')'
+          && methodDescriptor.endsWith(descriptor);
+    }
+  }
+
+  static final class ReturnType implements MethodMatcher {
+    private final TypeMatcher types;
+
+    ReturnType(TypeMatcher types) {
+      this.types = types;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      TypeString type = method.returnTypeString();
+      return type != null && types.test(type);
     }
   }
 
