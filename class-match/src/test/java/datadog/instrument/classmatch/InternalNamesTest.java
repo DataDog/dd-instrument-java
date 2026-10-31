@@ -143,6 +143,8 @@ class InternalNamesTest {
     assertThrows(NoSuchElementException.class, iterator::next);
     assertFalse(names.contains(null));
     assertFalse(names.contains(123));
+    assertFalse(names.contains("pkg/Missing"));
+    assertFalse(names.contains(query("pkg/Missing")));
   }
 
   private static InternalNames checkNames(List<String> types) {
