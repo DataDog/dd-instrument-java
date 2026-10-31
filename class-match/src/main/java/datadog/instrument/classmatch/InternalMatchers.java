@@ -109,7 +109,7 @@ final class InternalMatchers {
 
   /** Matches regular methods that also match the (optional) given matcher. */
   static final class RegularMethod implements MethodMatcher {
-    @Nullable private final MethodMatcher matcher;
+    @Nullable final MethodMatcher matcher;
 
     RegularMethod(@Nullable MethodMatcher matcher) {
       this.matcher = matcher;
@@ -318,6 +318,10 @@ final class InternalMatchers {
     } else if (methods instanceof MethodNameMatching) {
       MethodNameMatching matching = (MethodNameMatching) methods;
       return new DeclaresMatchingMethod(matching.names, matching.matcher);
+    } else if (methods instanceof RegularMethod
+        && ((RegularMethod) methods).matcher instanceof AnnotatedMethod) {
+      AnnotatedMethod annotated = (AnnotatedMethod) ((RegularMethod) methods).matcher;
+      return new DeclaresAnnotatedMethod(annotated.annotations);
     } else {
       return new DeclaresMethod(methods);
     }
@@ -413,6 +417,28 @@ final class InternalMatchers {
     }
   }
 
+  /** Matches classes that declare a regular method with matching annotations. */
+  static final class DeclaresAnnotatedMethod implements ClassMatcher {
+    private final Predicate<String[]> annotations;
+
+    DeclaresAnnotatedMethod(Predicate<String[]> annotations) {
+      this.annotations = annotations;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      for (MethodOutline method : outline.methods) {
+        // most methods have no annotations of interest, so check that first
+        if (method.annotations.length > 0
+            && method.methodName.charAt(0) != '<'
+            && annotations.test(method.annotations)) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
   // Field matchers
 
   static final class FieldDescriptor implements FieldMatcher {
@@ -446,7 +472,7 @@ final class InternalMatchers {
   // Method matchers
 
   static final class AnnotatedMethod implements MethodMatcher {
-    private final Predicate<String[]> annotations;
+    final Predicate<String[]> annotations;
 
     AnnotatedMethod(Predicate<String[]> annotations) {
       this.annotations = annotations;
