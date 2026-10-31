@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import javax.annotation.Nullable;
 
 /** Internally shared matchers, not part of the public API. */
 final class InternalMatchers {
@@ -104,35 +105,25 @@ final class InternalMatchers {
   }
 
   /** Matches all methods, excluding {@code <init>} and {@code <clinit>}. */
-  static final MethodMatcher ALL_METHODS =
-      new MethodMatcher() {
-        @Override
-        public boolean test(MethodOutline outline) {
-          return outline.methodName.charAt(0) != '<';
-        }
+  static final MethodMatcher ALL_METHODS = new RegularMethod(null);
 
-        @Override
-        public MethodMatcher and(MethodMatcher other) {
-          return new RegularMethod(other); // make it easier to inline name check
-        }
-      };
-
-  /** Matches regular methods that also match the given matcher. */
+  /** Matches regular methods that also match the (optional) given matcher. */
   static final class RegularMethod implements MethodMatcher {
-    private final MethodMatcher matcher;
+    @Nullable private final MethodMatcher matcher;
 
-    RegularMethod(MethodMatcher matcher) {
+    RegularMethod(@Nullable MethodMatcher matcher) {
       this.matcher = matcher;
     }
 
     @Override
     public boolean test(MethodOutline outline) {
-      return outline.methodName.charAt(0) != '<' && matcher.test(outline);
+      return outline.methodName.charAt(0) != '<' && (matcher == null || matcher.test(outline));
     }
 
     @Override
     public MethodMatcher and(MethodMatcher other) {
-      return new RegularMethod(matcher.and(other));
+      // make it easier to inline name check
+      return new RegularMethod(matcher == null ? other : matcher.and(other));
     }
   }
 
@@ -393,81 +384,55 @@ final class InternalMatchers {
   static final MethodMatcher CONSTRUCTOR = new MethodNamed(ClassFile.CONSTRUCTOR);
   static final MethodMatcher STATIC_INITIALIZER = new MethodNamed(ClassFile.STATIC_INITIALIZER);
 
+  /** Matches methods with the given name that also match the (optional) given matcher. */
   static final class MethodNamed implements MethodMatcher {
     private final String name;
+    @Nullable private final MethodMatcher matcher;
 
     MethodNamed(String name) {
-      this.name = name;
+      this(name, null);
     }
 
-    @Override
-    public boolean test(MethodOutline method) {
-      return name.equals(method.methodName);
-    }
-
-    @Override
-    public MethodMatcher and(MethodMatcher other) {
-      return new NamedMethod(name, other); // make it easier to inline name check
-    }
-  }
-
-  /** Matches methods with the given name that also match the given matcher. */
-  static final class NamedMethod implements MethodMatcher {
-    private final String name;
-    private final MethodMatcher matcher;
-
-    NamedMethod(String name, MethodMatcher matcher) {
+    private MethodNamed(String name, @Nullable MethodMatcher matcher) {
       this.name = name;
       this.matcher = matcher;
     }
 
     @Override
     public boolean test(MethodOutline method) {
-      return name.equals(method.methodName) && matcher.test(method);
+      return name.equals(method.methodName) && (matcher == null || matcher.test(method));
     }
 
     @Override
     public MethodMatcher and(MethodMatcher other) {
-      return new NamedMethod(name, matcher.and(other));
+      // make it easier to inline name check
+      return new MethodNamed(name, matcher == null ? other : matcher.and(other));
     }
   }
 
+  /** Matches methods with a matching name that also match the (optional) given matcher. */
   static final class MethodNameMatching implements MethodMatcher {
     private final Predicate<String> names;
+    @Nullable private final MethodMatcher matcher;
 
     MethodNameMatching(Predicate<String> names) {
-      this.names = names;
+      this(names, null);
     }
 
-    @Override
-    public boolean test(MethodOutline method) {
-      return names.test(method.methodName);
-    }
-
-    @Override
-    public MethodMatcher and(MethodMatcher other) {
-      return new MatchingMethod(names, other); // make it easier to inline name check
-    }
-  }
-
-  /** Matches methods with a matching name that also match the given matcher. */
-  static final class MatchingMethod implements MethodMatcher {
-    private final Predicate<String> names;
-    private final MethodMatcher matcher;
-
-    MatchingMethod(Predicate<String> names, MethodMatcher matcher) {
+    private MethodNameMatching(Predicate<String> names, @Nullable MethodMatcher matcher) {
       this.names = names;
       this.matcher = matcher;
     }
 
     @Override
     public boolean test(MethodOutline method) {
-      return names.test(method.methodName) && matcher.test(method);
+      return names.test(method.methodName) && (matcher == null || matcher.test(method));
     }
 
     @Override
     public MethodMatcher and(MethodMatcher other) {
-      return new MatchingMethod(names, matcher.and(other));
+      // make it easier to inline name check
+      return new MethodNameMatching(names, matcher == null ? other : matcher.and(other));
     }
   }
 
