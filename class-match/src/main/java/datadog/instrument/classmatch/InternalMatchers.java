@@ -404,6 +404,32 @@ final class InternalMatchers {
     public boolean test(MethodOutline method) {
       return name.equals(method.methodName);
     }
+
+    @Override
+    public MethodMatcher and(MethodMatcher other) {
+      return new NamedMethod(name, other); // make it easier to inline name check
+    }
+  }
+
+  /** Matches methods with the given name that also match the given matcher. */
+  static final class NamedMethod implements MethodMatcher {
+    private final String name;
+    private final MethodMatcher matcher;
+
+    NamedMethod(String name, MethodMatcher matcher) {
+      this.name = name;
+      this.matcher = matcher;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return name.equals(method.methodName) && matcher.test(method);
+    }
+
+    @Override
+    public MethodMatcher and(MethodMatcher other) {
+      return new NamedMethod(name, matcher.and(other));
+    }
   }
 
   static final class MethodNameMatching implements MethodMatcher {
