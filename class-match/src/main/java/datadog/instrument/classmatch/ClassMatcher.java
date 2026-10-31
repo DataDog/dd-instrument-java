@@ -24,7 +24,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * @return matcher of classes with a matching field
    */
   static ClassMatcher declares(FieldMatcher fieldMatcher) {
-    return new InternalMatchers.DeclaresField(fieldMatcher);
+    return InternalMatchers.declaresField(fieldMatcher);
   }
 
   /**
@@ -35,7 +35,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * @return matcher of classes with a matching field
    */
   static ClassMatcher declares(AccessMatcher accessMatcher, FieldMatcher fieldMatcher) {
-    return new InternalMatchers.DeclaresField(fieldMatcher.access(accessMatcher));
+    return InternalMatchers.declaresField(fieldMatcher.access(accessMatcher));
   }
 
   /**
@@ -45,7 +45,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * @return matcher of classes with a matching method
    */
   static ClassMatcher declares(MethodMatcher methodMatcher) {
-    return new InternalMatchers.DeclaresMethod(methodMatcher);
+    return InternalMatchers.declaresMethod(methodMatcher);
   }
 
   /**
@@ -56,7 +56,7 @@ public interface ClassMatcher extends Predicate<ClassOutline> {
    * @return matcher of classes with a matching method
    */
   static ClassMatcher declares(AccessMatcher accessMatcher, MethodMatcher methodMatcher) {
-    return new InternalMatchers.DeclaresMethod(methodMatcher.access(accessMatcher));
+    return InternalMatchers.declaresMethod(methodMatcher.access(accessMatcher));
   }
 
   /**
