@@ -229,6 +229,38 @@ class ClassMatcherTest {
   }
 
   @Test
+  void annotatedMethodDeclarationsExcludeConstructorsAndStaticInitializers() {
+    String[] annotations = {"sample/Marker"};
+    MethodOutline init = new MethodOutline(0, "<init>", "()V", annotations);
+    MethodOutline clinit = new MethodOutline(Modifier.STATIC, "<clinit>", "()V", annotations);
+    MethodOutline ordinary = new MethodOutline(0, "execute", "()V", annotations);
+    ClassOutline initializersOnly =
+        classOutline(
+            new FieldOutline[0],
+            new MethodOutline[] {
+              init,
+              clinit,
+              methodOutline(0, "unmarked", "()V"),
+              new MethodOutline(0, "unrelated", "()V", new String[] {"sample/Other"})
+            });
+    ClassOutline annotatedMethod =
+        classOutline(
+            new FieldOutline[0],
+            new MethodOutline[] {initializersOnly.methods[3], init, clinit, ordinary});
+
+    assertMatches(declares(method()), initializersOnly, true);
+    assertMatches(declares(method().noParameters()), initializersOnly, true);
+    for (ClassMatcher matcher :
+        new ClassMatcher[] {
+          declares(method().annotatedWith("sample.Marker")),
+          declares(method().annotatedWith(Collections.singletonList("sample.Marker")))
+        }) {
+      assertMatches(matcher, initializersOnly, false);
+      assertMatches(matcher, annotatedMethod, true);
+    }
+  }
+
+  @Test
   void annotationFactoryOverloadsRegisterInterestForParsing() {
     ClassMatcher varargs = annotatedWith("missing.Annotation", VarargsMarker.class.getName());
     ClassMatcher collection =
