@@ -297,6 +297,32 @@ final class InternalMatchers {
     }
   }
 
+  /** Matches classes that declare a field matching the given criteria. */
+  static ClassMatcher declaresField(FieldMatcher fields) {
+    if (fields instanceof FieldNamed) {
+      return new DeclaresNamedField(((FieldNamed) fields).name, null);
+    } else if (fields instanceof FieldDescriptor) {
+      FieldDescriptor typed = (FieldDescriptor) fields;
+      if (typed.matcher instanceof FieldNamed) {
+        return new DeclaresNamedField(((FieldNamed) typed.matcher).name, typed.descriptor);
+      }
+    }
+    return new DeclaresField(fields);
+  }
+
+  /** Matches classes that declare a method matching the given criteria. */
+  static ClassMatcher declaresMethod(MethodMatcher methods) {
+    if (methods instanceof MethodNamed) {
+      MethodNamed named = (MethodNamed) methods;
+      return new DeclaresNamedMethod(named.name, named.matcher);
+    } else if (methods instanceof MethodNameMatching) {
+      MethodNameMatching matching = (MethodNameMatching) methods;
+      return new DeclaresMatchingMethod(matching.names, matching.matcher);
+    } else {
+      return new DeclaresMethod(methods);
+    }
+  }
+
   static final class DeclaresField implements ClassMatcher {
     private final FieldMatcher fields;
 
@@ -323,11 +349,75 @@ final class InternalMatchers {
     }
   }
 
+  /** Matches classes that declare a field with the given name and (optional) descriptor. */
+  static final class DeclaresNamedField implements ClassMatcher {
+    private final String name;
+    @Nullable private final String descriptor;
+
+    DeclaresNamedField(String name, @Nullable String descriptor) {
+      this.name = name;
+      this.descriptor = descriptor;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      for (FieldOutline field : outline.fields) {
+        if (name.equals(field.fieldName)
+            && (descriptor == null || descriptor.equals(field.descriptor))) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  /** Matches classes that declare a method with the given name and (optional) criteria. */
+  static final class DeclaresNamedMethod implements ClassMatcher {
+    private final String name;
+    @Nullable private final MethodMatcher matcher;
+
+    DeclaresNamedMethod(String name, @Nullable MethodMatcher matcher) {
+      this.name = name;
+      this.matcher = matcher;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      for (MethodOutline method : outline.methods) {
+        if (name.equals(method.methodName) && (matcher == null || matcher.test(method))) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  /** Matches classes that declare a method with a matching name and (optional) criteria. */
+  static final class DeclaresMatchingMethod implements ClassMatcher {
+    private final Predicate<String> names;
+    @Nullable private final MethodMatcher matcher;
+
+    DeclaresMatchingMethod(Predicate<String> names, @Nullable MethodMatcher matcher) {
+      this.names = names;
+      this.matcher = matcher;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      for (MethodOutline method : outline.methods) {
+        if (names.test(method.methodName) && (matcher == null || matcher.test(method))) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
   // Field matchers
 
   static final class FieldDescriptor implements FieldMatcher {
-    private final FieldMatcher matcher;
-    private final String descriptor;
+    final FieldMatcher matcher;
+    final String descriptor;
 
     FieldDescriptor(FieldMatcher matcher, String descriptor) {
       this.matcher = matcher;
@@ -341,7 +431,7 @@ final class InternalMatchers {
   }
 
   static final class FieldNamed implements FieldMatcher {
-    private final String name;
+    final String name;
 
     FieldNamed(String name) {
       this.name = name;
@@ -386,8 +476,8 @@ final class InternalMatchers {
 
   /** Matches methods with the given name that also match the (optional) given matcher. */
   static final class MethodNamed implements MethodMatcher {
-    private final String name;
-    @Nullable private final MethodMatcher matcher;
+    final String name;
+    @Nullable final MethodMatcher matcher;
 
     MethodNamed(String name) {
       this(name, null);
@@ -412,8 +502,8 @@ final class InternalMatchers {
 
   /** Matches methods with a matching name that also match the (optional) given matcher. */
   static final class MethodNameMatching implements MethodMatcher {
-    private final Predicate<String> names;
-    @Nullable private final MethodMatcher matcher;
+    final Predicate<String> names;
+    @Nullable final MethodMatcher matcher;
 
     MethodNameMatching(Predicate<String> names) {
       this(names, null);
