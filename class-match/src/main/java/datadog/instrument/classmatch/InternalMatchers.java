@@ -443,6 +443,32 @@ final class InternalMatchers {
     public boolean test(MethodOutline method) {
       return names.test(method.methodName);
     }
+
+    @Override
+    public MethodMatcher and(MethodMatcher other) {
+      return new MatchingMethod(names, other); // make it easier to inline name check
+    }
+  }
+
+  /** Matches methods with a matching name that also match the given matcher. */
+  static final class MatchingMethod implements MethodMatcher {
+    private final Predicate<String> names;
+    private final MethodMatcher matcher;
+
+    MatchingMethod(Predicate<String> names, MethodMatcher matcher) {
+      this.names = names;
+      this.matcher = matcher;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return names.test(method.methodName) && matcher.test(method);
+    }
+
+    @Override
+    public MethodMatcher and(MethodMatcher other) {
+      return new MatchingMethod(names, matcher.and(other));
+    }
   }
 
   /** Matches methods with no parameters. */
