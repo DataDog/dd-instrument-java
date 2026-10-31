@@ -1,5 +1,6 @@
 package datadog.instrument.utils;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.singletonList;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
@@ -26,7 +27,9 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -176,6 +179,106 @@ class ClassNameTrieTest {
         assertEquals(-1, apply.invoke(null, key));
         assertEquals(-1, applyFromIndex.invoke(null, "prefix/" + key, 7));
       }
+    }
+  }
+
+  @Test
+  void generateLargeJavaSource(@TempDir File directory) throws Exception {
+    File trieDir = new File(directory, "input");
+    File javaDir = new File(directory, "output");
+    Files.createDirectories(new File(trieDir, "example").toPath());
+    Files.createDirectories(javaDir.toPath());
+    Map<String, Integer> mappings = largeTrieMappings();
+    List<String> lines = new ArrayList<>();
+    mappings.forEach((key, value) -> lines.add(value + " " + key));
+    lines.add("default.Value"); // omitted values default to one
+    Files.write(new File(trieDir, "example/large_names.trie").toPath(), lines, UTF_8);
+
+    ClassNameTrie.JavaGenerator.main(
+        new String[] {trieDir.toString(), javaDir.toString(), "example/large_names.trie"});
+
+    assertEquals(
+        0,
+        getSystemJavaCompiler()
+            .run(
+                null,
+                null,
+                null,
+                "-d",
+                javaDir.toString(),
+                new File(javaDir, "example/LargeNamesTrie.java").toString()));
+
+    try (URLClassLoader cl = URLClassLoader.newInstance(new URL[] {javaDir.toURI().toURL()})) {
+      Class<?> trieClass = cl.loadClass("example.LargeNamesTrie");
+      Method apply = trieClass.getMethod("apply", String.class);
+      Method applyFromIndex = trieClass.getMethod("apply", String.class, int.class);
+      for (Map.Entry<String, Integer> entry : mappings.entrySet()) {
+        assertEquals(entry.getValue(), apply.invoke(null, entry.getKey()));
+        assertEquals(entry.getValue(), applyFromIndex.invoke(null, "prefix/" + entry.getKey(), 7));
+      }
+      assertEquals(1, apply.invoke(null, "default.Value"));
+      assertEquals(-1, apply.invoke(null, "missing.Type"));
+      assertEquals(-1, applyFromIndex.invoke(null, "prefix/missing.Type", 7));
+    }
+  }
+
+  @Test
+  void roundTripWithLongJumps() throws IOException {
+    Map<String, Integer> mappings = largeTrieMappings();
+    ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
+    mappings.forEach(builder::put);
+
+    ClassNameTrie restored =
+        ClassNameTrie.readFrom(new DataInputStream(new ByteArrayInputStream(serialize(builder))));
+
+    for (Map.Entry<String, Integer> entry : mappings.entrySet()) {
+      assertEquals(entry.getValue(), restored.apply(entry.getKey()));
+      assertEquals(entry.getValue(), restored.apply("prefix/" + entry.getKey(), 7));
+    }
+    assertEquals(-1, restored.apply("missing.Type"));
+    assertEquals(-1, restored.apply("aaa"));
+  }
+
+  private static Map<String, Integer> largeTrieMappings() {
+    Map<String, Integer> mappings = new LinkedHashMap<>();
+    // The first subtree exceeds the short-jump range and the Java string chunk size.
+    String padding = padding(7700);
+    for (char branch = 'a'; branch <= 'h'; branch++) {
+      mappings.put("aa" + branch + padding, branch - 'a' + 1);
+    }
+    for (char branch = 'b'; branch <= 'q'; branch++) {
+      mappings.put("a" + branch, branch - 'a' + 10);
+    }
+    return mappings;
+  }
+
+  @TableTest({
+    "Scenario                      | First | Second | Third",
+    "shorten a leaf segment        | abc   | ab     | a    ",
+    "prefix at a branch boundary   | abc   | abd    | ab   ",
+    "diverge left at the last char | abc   | abb    | a    ",
+    "extend a left branch          | abc   | abbx   | ab   ",
+    "extend then shorten a segment | abc   | abcd   | ab   ",
+    "prefix before a short leaf    | ab    | a      | ac   ",
+    "diverge right at last char    | abc   | abx    | aby  ",
+    "prefix before longer branches | abxyz | abqrs  | ab   "
+  })
+  void insertingPrefixesAndDivergingKeysPreservesMappings(String first, String second, String third)
+      throws IOException {
+    ClassNameTrie.Builder builder = new ClassNameTrie.Builder();
+    String[] keys = {first, second, third};
+    for (int i = 0; i < keys.length; i++) {
+      builder.put(keys[i], i + 1);
+      ClassNameTrie trie = builder.buildTrie();
+      ClassNameTrie restored =
+          ClassNameTrie.readFrom(new DataInputStream(new ByteArrayInputStream(serialize(builder))));
+      for (int j = 0; j <= i; j++) {
+        assertEquals(j + 1, builder.apply(keys[j]));
+        assertEquals(j + 1, trie.apply(keys[j]));
+        assertEquals(j + 1, restored.apply(keys[j]));
+      }
+      assertEquals(-1, trie.apply("missing"));
+      assertEquals(-1, trie.apply(keys[i] + "missing"));
     }
   }
 
