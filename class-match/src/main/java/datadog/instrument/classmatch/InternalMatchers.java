@@ -104,9 +104,9 @@ final class InternalMatchers {
     return false;
   }
 
-  /** Matches the presence or absence of access flags selected by a mask. */
+  /** Positive masks test for any selected flag; complemented masks test for their absence. */
   static final class AccessMask implements AccessMatcher {
-    // JVM access flags use only the low 16 bits; complemented masks encode absence checks.
+    // JVM access flags use only the low 16 bits, leaving the sign bit free for absence checks.
     final int mask;
 
     AccessMask(int mask) {
@@ -138,7 +138,6 @@ final class InternalMatchers {
   /** Matches all methods, excluding {@code <init>} and {@code <clinit>}. */
   static final MethodMatcher ALL_METHODS = new RegularMethod(null);
 
-  /** Matches regular methods that also match the (optional) given matcher. */
   static final class RegularMethod implements MethodMatcher {
     @Nullable final MethodMatcher matcher;
 
@@ -153,7 +152,7 @@ final class InternalMatchers {
 
     @Override
     public MethodMatcher and(MethodMatcher other) {
-      // make it easier to inline name check
+      // make it easier to inline the name check
       return new RegularMethod(matcher == null ? other : matcher.and(other));
     }
   }
@@ -331,11 +330,11 @@ final class InternalMatchers {
   /** Matches classes that declare a field matching the given criteria. */
   static ClassMatcher declaresField(FieldMatcher fields) {
     if (fields instanceof FieldNamed) {
-      return new DeclaresNamedField(((FieldNamed) fields).name, null);
+      return new DeclaresFieldNamed(((FieldNamed) fields).name, null);
     } else if (fields instanceof FieldDescriptor) {
       FieldDescriptor typed = (FieldDescriptor) fields;
       if (typed.matcher instanceof FieldNamed) {
-        return new DeclaresNamedField(((FieldNamed) typed.matcher).name, typed.descriptor);
+        return new DeclaresFieldNamed(((FieldNamed) typed.matcher).name, typed.descriptor);
       }
     }
     return new DeclaresField(fields);
@@ -345,10 +344,10 @@ final class InternalMatchers {
   static ClassMatcher declaresMethod(MethodMatcher methods) {
     if (methods instanceof MethodNamed) {
       MethodNamed named = (MethodNamed) methods;
-      return new DeclaresNamedMethod(named.name, named.matcher);
-    } else if (methods instanceof MethodNameMatching) {
-      MethodNameMatching matching = (MethodNameMatching) methods;
-      return new DeclaresMatchingMethod(matching.names, matching.matcher);
+      return new DeclaresMethodNamed(named.name, named.matcher);
+    } else if (methods instanceof MethodNames) {
+      MethodNames matching = (MethodNames) methods;
+      return new DeclaresMethodNames(matching.names, matching.matcher);
     } else if (methods instanceof RegularMethod
         && ((RegularMethod) methods).matcher instanceof AnnotatedMethod) {
       AnnotatedMethod annotated = (AnnotatedMethod) ((RegularMethod) methods).matcher;
@@ -384,12 +383,11 @@ final class InternalMatchers {
     }
   }
 
-  /** Matches classes that declare a field with the given name and (optional) descriptor. */
-  static final class DeclaresNamedField implements ClassMatcher {
+  static final class DeclaresFieldNamed implements ClassMatcher {
     private final String name;
     @Nullable private final String descriptor;
 
-    DeclaresNamedField(String name, @Nullable String descriptor) {
+    DeclaresFieldNamed(String name, @Nullable String descriptor) {
       this.name = name;
       this.descriptor = descriptor;
     }
@@ -406,12 +404,11 @@ final class InternalMatchers {
     }
   }
 
-  /** Matches classes that declare a method with the given name and (optional) criteria. */
-  static final class DeclaresNamedMethod implements ClassMatcher {
+  static final class DeclaresMethodNamed implements ClassMatcher {
     private final String name;
     @Nullable private final MethodMatcher matcher;
 
-    DeclaresNamedMethod(String name, @Nullable MethodMatcher matcher) {
+    DeclaresMethodNamed(String name, @Nullable MethodMatcher matcher) {
       this.name = name;
       this.matcher = matcher;
     }
@@ -427,12 +424,11 @@ final class InternalMatchers {
     }
   }
 
-  /** Matches classes that declare a method with a matching name and (optional) criteria. */
-  static final class DeclaresMatchingMethod implements ClassMatcher {
+  static final class DeclaresMethodNames implements ClassMatcher {
     private final Predicate<String> names;
     @Nullable private final MethodMatcher matcher;
 
-    DeclaresMatchingMethod(Predicate<String> names, @Nullable MethodMatcher matcher) {
+    DeclaresMethodNames(Predicate<String> names, @Nullable MethodMatcher matcher) {
       this.names = names;
       this.matcher = matcher;
     }
@@ -448,7 +444,6 @@ final class InternalMatchers {
     }
   }
 
-  /** Matches classes that declare a regular method with matching annotations. */
   static final class DeclaresAnnotatedMethod implements ClassMatcher {
     private final Predicate<String[]> annotations;
 
@@ -531,7 +526,6 @@ final class InternalMatchers {
   static final MethodMatcher CONSTRUCTOR = new MethodNamed(ClassFile.CONSTRUCTOR);
   static final MethodMatcher STATIC_INITIALIZER = new MethodNamed(ClassFile.STATIC_INITIALIZER);
 
-  /** Matches methods with the given name that also match the (optional) given matcher. */
   static final class MethodNamed implements MethodMatcher {
     final String name;
     @Nullable final MethodMatcher matcher;
@@ -552,21 +546,20 @@ final class InternalMatchers {
 
     @Override
     public MethodMatcher and(MethodMatcher other) {
-      // make it easier to inline name check
+      // make it easier to inline the name check
       return new MethodNamed(name, matcher == null ? other : matcher.and(other));
     }
   }
 
-  /** Matches methods with a matching name that also match the (optional) given matcher. */
-  static final class MethodNameMatching implements MethodMatcher {
+  static final class MethodNames implements MethodMatcher {
     final Predicate<String> names;
     @Nullable final MethodMatcher matcher;
 
-    MethodNameMatching(Predicate<String> names) {
+    MethodNames(Predicate<String> names) {
       this(names, null);
     }
 
-    private MethodNameMatching(Predicate<String> names, @Nullable MethodMatcher matcher) {
+    private MethodNames(Predicate<String> names, @Nullable MethodMatcher matcher) {
       this.names = names;
       this.matcher = matcher;
     }
@@ -578,12 +571,11 @@ final class InternalMatchers {
 
     @Override
     public MethodMatcher and(MethodMatcher other) {
-      // make it easier to inline name check
-      return new MethodNameMatching(names, matcher == null ? other : matcher.and(other));
+      // make it easier to inline the name check
+      return new MethodNames(names, matcher == null ? other : matcher.and(other));
     }
   }
 
-  /** Matches methods with no parameters. */
   static final MethodMatcher NO_PARAMETERS =
       new MethodMatcher() {
         @Override
@@ -592,10 +584,10 @@ final class InternalMatchers {
         }
       };
 
-  /** Matches the parameter descriptor at the given index; index 0 uses a faster approach. */
+  /** Matches the parameter descriptor at the given index. */
   static MethodMatcher parameterDescriptor(int index, String descriptor) {
     if (index == 0) {
-      return new FirstParameter(descriptor);
+      return new FirstParameter(descriptor); // shortcut for index 0
     } else {
       return new ParameterDescriptor(index, descriptor);
     }
@@ -807,7 +799,6 @@ final class InternalMatchers {
     }
   }
 
-  /** Matches when at least one annotation has one of the given internal names. */
   static final class AnnotationNames implements Predicate<String[]> {
     private final InternalNames names;
 

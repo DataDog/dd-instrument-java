@@ -49,7 +49,7 @@ public interface MethodMatcher extends Predicate<MethodOutline> {
    * @return matcher of methods with a matching name
    */
   static MethodMatcher method(Predicate<String> nameMatcher) {
-    return new InternalMatchers.MethodNameMatching(nameMatcher);
+    return new InternalMatchers.MethodNames(nameMatcher);
   }
 
   /**

@@ -130,7 +130,6 @@ public final class ClassFile {
     }
   }
 
-  /** Creates a writable copy of the published annotation snapshot. */
   private static Map<UtfKey, String> copyAnnotationsOfInterest() {
     Map<UtfKey, String> copy = new HashMap<>();
     Map<UtfKey, String> existing = annotationsOfInterest;
@@ -140,7 +139,7 @@ public final class ClassFile {
     return copy;
   }
 
-  /** Registers both annotation mappings; callers must hold annotationsLock. */
+  /** Callers must hold {@code annotationsLock}. */
   private static void registerAnnotation(Map<UtfKey, String> ofInterest, String internalName) {
     if (annotationKeys.containsKey(internalName)) {
       return;
