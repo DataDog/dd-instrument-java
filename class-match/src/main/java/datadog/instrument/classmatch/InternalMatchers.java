@@ -104,6 +104,37 @@ final class InternalMatchers {
     return false;
   }
 
+  /** Matches the presence or absence of access flags selected by a mask. */
+  static final class AccessMask implements AccessMatcher {
+    // JVM access flags use only the low 16 bits; complemented masks encode absence checks.
+    final int mask;
+
+    AccessMask(int mask) {
+      this.mask = mask;
+    }
+
+    @Override
+    public AccessMatcher and(AccessMatcher other) {
+      if (mask < 0 && other instanceof AccessMask && ((AccessMask) other).mask < 0) {
+        return new AccessMask(mask & ((AccessMask) other).mask); // compatible checks
+      }
+      return AccessMatcher.super.and(other);
+    }
+
+    @Override
+    public AccessMatcher or(AccessMatcher other) {
+      if (mask >= 0 && other instanceof AccessMask && ((AccessMask) other).mask >= 0) {
+        return new AccessMask(mask | ((AccessMask) other).mask); // compatible checks
+      }
+      return AccessMatcher.super.or(other);
+    }
+
+    @Override
+    public boolean test(int acc) {
+      return mask >= 0 ? (acc & mask) != 0 : (acc & ~mask) == 0;
+    }
+  }
+
   /** Matches all methods, excluding {@code <init>} and {@code <clinit>}. */
   static final MethodMatcher ALL_METHODS = new RegularMethod(null);
 

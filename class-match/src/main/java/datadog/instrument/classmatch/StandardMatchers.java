@@ -64,6 +64,9 @@ public final class StandardMatchers {
    * @return negation of the matcher
    */
   public static AccessMatcher not(AccessMatcher matcher) {
+    if (matcher instanceof InternalMatchers.AccessMask) {
+      return new InternalMatchers.AccessMask(~((InternalMatchers.AccessMask) matcher).mask);
+    }
     return acc -> !matcher.test(acc);
   }
 

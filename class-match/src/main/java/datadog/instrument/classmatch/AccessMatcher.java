@@ -16,154 +16,54 @@ import java.util.function.IntPredicate;
 @FunctionalInterface
 public interface AccessMatcher extends IntPredicate {
 
-  // Use anonymous classes to reduce cold-start lambda linkage cost.
-
-  // Keep a separate class per matcher so the JIT can specialize by matcher type; avoid
-  // replacing these with a shared class holding a mask field as it slows down matching.
-
   /** Matches public access. */
-  AccessMatcher PUBLIC =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isPublic(acc);
-        }
-      };
+  AccessMatcher PUBLIC = new InternalMatchers.AccessMask(Modifier.PUBLIC);
 
   /** Matches private access. */
-  AccessMatcher PRIVATE =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isPrivate(acc);
-        }
-      };
+  AccessMatcher PRIVATE = new InternalMatchers.AccessMask(Modifier.PRIVATE);
 
   /** Matches protected access. */
-  AccessMatcher PROTECTED =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isProtected(acc);
-        }
-      };
+  AccessMatcher PROTECTED = new InternalMatchers.AccessMask(Modifier.PROTECTED);
 
   /** Matches package-private access. */
   AccessMatcher PACKAGE_PRIVATE =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return (acc & (Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE)) == 0;
-        }
-      };
+      new InternalMatchers.AccessMask(~(Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE));
 
   /** Matches static methods/fields. */
-  AccessMatcher STATIC =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isStatic(acc);
-        }
-      };
+  AccessMatcher STATIC = new InternalMatchers.AccessMask(Modifier.STATIC);
 
   /** Matches non-static methods/fields. */
-  AccessMatcher INSTANCE =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return (acc & Modifier.STATIC) == 0;
-        }
-      };
+  AccessMatcher INSTANCE = new InternalMatchers.AccessMask(~Modifier.STATIC);
 
   /** Matches final classes/methods/fields. */
-  AccessMatcher FINAL =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isFinal(acc);
-        }
-      };
+  AccessMatcher FINAL = new InternalMatchers.AccessMask(Modifier.FINAL);
 
   /** Matches non-final classes/methods/fields. */
-  AccessMatcher NON_FINAL =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return (acc & Modifier.FINAL) == 0;
-        }
-      };
+  AccessMatcher NON_FINAL = new InternalMatchers.AccessMask(~Modifier.FINAL);
 
   /** Matches synchronized methods. */
-  AccessMatcher SYNCHRONIZED =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isSynchronized(acc);
-        }
-      };
+  AccessMatcher SYNCHRONIZED = new InternalMatchers.AccessMask(Modifier.SYNCHRONIZED);
 
   /** Matches varargs methods. */
-  AccessMatcher VARARGS =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return (acc & 0x0080) != 0;
-        }
-      };
+  AccessMatcher VARARGS = new InternalMatchers.AccessMask(0x0080);
 
   /** Matches volatile fields. */
-  AccessMatcher VOLATILE =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isVolatile(acc);
-        }
-      };
+  AccessMatcher VOLATILE = new InternalMatchers.AccessMask(Modifier.VOLATILE);
 
   /** Matches transient fields. */
-  AccessMatcher TRANSIENT =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isTransient(acc);
-        }
-      };
+  AccessMatcher TRANSIENT = new InternalMatchers.AccessMask(Modifier.TRANSIENT);
 
   /** Matches interface classes. */
-  AccessMatcher INTERFACE =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isInterface(acc);
-        }
-      };
+  AccessMatcher INTERFACE = new InternalMatchers.AccessMask(Modifier.INTERFACE);
 
   /** Matches non-interface classes. */
-  AccessMatcher CLASS =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return (acc & Modifier.INTERFACE) == 0;
-        }
-      };
+  AccessMatcher CLASS = new InternalMatchers.AccessMask(~Modifier.INTERFACE);
 
   /** Matches abstract classes/methods. */
-  AccessMatcher ABSTRACT =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isAbstract(acc);
-        }
-      };
+  AccessMatcher ABSTRACT = new InternalMatchers.AccessMask(Modifier.ABSTRACT);
 
   /** Matches non-abstract classes/methods. */
-  AccessMatcher CONCRETE =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return (acc & Modifier.ABSTRACT) == 0;
-        }
-      };
+  AccessMatcher CONCRETE = new InternalMatchers.AccessMask(~Modifier.ABSTRACT);
 
   /**
    * Conjunction of this matcher AND another.
