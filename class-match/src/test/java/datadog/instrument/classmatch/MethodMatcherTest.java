@@ -171,6 +171,23 @@ class MethodMatcherTest {
   }
 
   @Test
+  void namedMatchersPreserveChainedConstraintsAndShortCircuit() {
+    MethodOutline candidate = methodOutline(Modifier.PUBLIC, "execute", "()V");
+    MethodMatcher unexpected =
+        m -> {
+          throw new AssertionError("earlier criteria should short circuit");
+        };
+    for (MethodMatcher named :
+        new MethodMatcher[] {method("execute"), method(namedOneOf("execute", "run"))}) {
+      assertMatches(named.access(STATIC), candidate, false);
+      assertMatches(named.access(PUBLIC).noParameters().returning(void.class), candidate, true);
+      assertMatches(named.access(PUBLIC).parameters(1).and(unexpected), candidate, false);
+      assertMatches(named.access(STATIC).and(unexpected), candidate, false);
+      assertMatches(named.and(unexpected), methodOutline(0, "other", "()V"), false);
+    }
+  }
+
+  @Test
   void annotationOverloadsNormalizeAndHandleEmptyAnnotations() {
     MethodOutline candidate =
         new MethodOutline(0, "execute", "()V", new String[] {"sample/Other", "sample/Marker"});

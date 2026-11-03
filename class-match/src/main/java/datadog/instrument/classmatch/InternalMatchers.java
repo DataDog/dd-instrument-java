@@ -10,7 +10,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
+import javax.annotation.Nullable;
 
 /** Internally shared matchers, not part of the public API. */
 final class InternalMatchers {
@@ -22,9 +24,7 @@ final class InternalMatchers {
     String internalName = internalName(type);
     // note this annotation is of interest when parsing
     ClassFile.annotationOfInterest(internalName);
-    // performance tip: capture this method-ref outside the lambda
-    Predicate<String> annotationNamed = internalName::equals;
-    return annotations -> anyMatch(annotations, annotationNamed);
+    return new AnnotationNamed(internalName);
   }
 
   /** Matches when at least one annotation has one of the given types. */
@@ -32,29 +32,7 @@ final class InternalMatchers {
     InternalNames internalNames = new InternalNames(types);
     // note these annotations are of interest when parsing
     ClassFile.annotationsOfInterest(internalNames);
-    // performance tip: capture this method-ref outside the lambda
-    Predicate<String> annotationNamedOneOf = internalNames::containsType;
-    return annotations -> anyMatch(annotations, annotationNamedOneOf);
-  }
-
-  /**
-   * Does the method's descriptor contain the parameter descriptor at the given index?
-   *
-   * <p>Only for indices of 1 or above; index 0 uses a separate (faster) approach.
-   */
-  static boolean hasParamDescriptor(MethodOutline method, int paramIndex, String paramDescriptor) {
-    // boundaries covers start of second parameter, to start of return descriptor
-    int[] boundaries = method.descriptorBoundaries();
-    return paramIndex < boundaries.length // ignore return descriptor boundary
-        && method.descriptor.startsWith(paramDescriptor, boundaries[paramIndex - 1]);
-  }
-
-  /** Does the method's descriptor end with the exact return descriptor? */
-  static boolean hasReturnDescriptor(String methodDescriptor, String returnDescriptor) {
-    int returnStart = methodDescriptor.length() - returnDescriptor.length();
-    return returnStart > 0
-        && methodDescriptor.charAt(returnStart - 1) == ')'
-        && methodDescriptor.endsWith(returnDescriptor);
+    return new AnnotationNames(internalNames);
   }
 
   /** Returns the descriptor for the given type. */
@@ -126,36 +104,56 @@ final class InternalMatchers {
     return false;
   }
 
+  /** Positive masks test for any selected flag; complemented masks test for their absence. */
+  static final class AccessMask implements AccessMatcher {
+    // JVM access flags use only the low 16 bits, leaving the sign bit free for absence checks.
+    final int mask;
+
+    AccessMask(int mask) {
+      this.mask = mask;
+    }
+
+    @Override
+    public AccessMatcher and(AccessMatcher other) {
+      if (mask < 0 && other instanceof AccessMask && ((AccessMask) other).mask < 0) {
+        return new AccessMask(mask & ((AccessMask) other).mask); // compatible checks
+      }
+      return AccessMatcher.super.and(other);
+    }
+
+    @Override
+    public AccessMatcher or(AccessMatcher other) {
+      if (mask >= 0 && other instanceof AccessMask && ((AccessMask) other).mask >= 0) {
+        return new AccessMask(mask | ((AccessMask) other).mask); // compatible checks
+      }
+      return AccessMatcher.super.or(other);
+    }
+
+    @Override
+    public boolean test(int acc) {
+      return mask >= 0 ? (acc & mask) != 0 : (acc & ~mask) == 0;
+    }
+  }
+
   /** Matches all methods, excluding {@code <init>} and {@code <clinit>}. */
-  static final MethodMatcher ALL_METHODS =
-      new MethodMatcher() {
-        @Override
-        public boolean test(MethodOutline outline) {
-          return outline.methodName.charAt(0) != '<';
-        }
+  static final MethodMatcher ALL_METHODS = new RegularMethod(null);
 
-        @Override
-        public MethodMatcher and(MethodMatcher other) {
-          return new RegularMethod(other); // make it easier to inline name check
-        }
-      };
-
-  /** Matches regular methods that also match the given matcher. */
   static final class RegularMethod implements MethodMatcher {
-    private final MethodMatcher matcher;
+    @Nullable final MethodMatcher matcher;
 
-    RegularMethod(MethodMatcher matcher) {
+    RegularMethod(@Nullable MethodMatcher matcher) {
       this.matcher = matcher;
     }
 
     @Override
     public boolean test(MethodOutline outline) {
-      return outline.methodName.charAt(0) != '<' && matcher.test(outline);
+      return outline.methodName.charAt(0) != '<' && (matcher == null || matcher.test(outline));
     }
 
     @Override
     public MethodMatcher and(MethodMatcher other) {
-      return new RegularMethod(matcher.and(other));
+      // make it easier to inline the name check
+      return new RegularMethod(matcher == null ? other : matcher.and(other));
     }
   }
 
@@ -311,6 +309,511 @@ final class InternalMatchers {
       }
 
       this.matchers = matchers;
+    }
+  }
+
+  // Class matchers
+
+  static final class AnnotatedClass implements ClassMatcher {
+    private final Predicate<String[]> annotations;
+
+    AnnotatedClass(Predicate<String[]> annotations) {
+      this.annotations = annotations;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      return annotations.test(outline.annotations);
+    }
+  }
+
+  /** Matches classes that declare a field matching the given criteria. */
+  static ClassMatcher declaresField(FieldMatcher fields) {
+    if (fields instanceof FieldNamed) {
+      return new DeclaresFieldNamed(((FieldNamed) fields).name, null);
+    } else if (fields instanceof FieldDescriptor) {
+      FieldDescriptor typed = (FieldDescriptor) fields;
+      if (typed.matcher instanceof FieldNamed) {
+        return new DeclaresFieldNamed(((FieldNamed) typed.matcher).name, typed.descriptor);
+      }
+    }
+    return new DeclaresField(fields);
+  }
+
+  /** Matches classes that declare a method matching the given criteria. */
+  static ClassMatcher declaresMethod(MethodMatcher methods) {
+    if (methods instanceof MethodNamed) {
+      MethodNamed named = (MethodNamed) methods;
+      return new DeclaresMethodNamed(named.name, named.matcher);
+    } else if (methods instanceof MethodNames) {
+      MethodNames matching = (MethodNames) methods;
+      return new DeclaresMethodNames(matching.names, matching.matcher);
+    } else if (methods instanceof RegularMethod
+        && ((RegularMethod) methods).matcher instanceof AnnotatedMethod) {
+      AnnotatedMethod annotated = (AnnotatedMethod) ((RegularMethod) methods).matcher;
+      return new DeclaresAnnotatedMethod(annotated.annotations);
+    } else {
+      return new DeclaresMethod(methods);
+    }
+  }
+
+  static final class DeclaresField implements ClassMatcher {
+    private final FieldMatcher fields;
+
+    DeclaresField(FieldMatcher fields) {
+      this.fields = fields;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      return anyMatch(outline.fields, fields);
+    }
+  }
+
+  static final class DeclaresMethod implements ClassMatcher {
+    private final MethodMatcher methods;
+
+    DeclaresMethod(MethodMatcher methods) {
+      this.methods = methods;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      return anyMatch(outline.methods, methods);
+    }
+  }
+
+  static final class DeclaresFieldNamed implements ClassMatcher {
+    private final String name;
+    @Nullable private final String descriptor;
+
+    DeclaresFieldNamed(String name, @Nullable String descriptor) {
+      this.name = name;
+      this.descriptor = descriptor;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      for (FieldOutline field : outline.fields) {
+        if (name.equals(field.fieldName)
+            && (descriptor == null || descriptor.equals(field.descriptor))) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  static final class DeclaresMethodNamed implements ClassMatcher {
+    private final String name;
+    @Nullable private final MethodMatcher matcher;
+
+    DeclaresMethodNamed(String name, @Nullable MethodMatcher matcher) {
+      this.name = name;
+      this.matcher = matcher;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      for (MethodOutline method : outline.methods) {
+        if (name.equals(method.methodName) && (matcher == null || matcher.test(method))) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  static final class DeclaresMethodNames implements ClassMatcher {
+    private final Predicate<String> names;
+    @Nullable private final MethodMatcher matcher;
+
+    DeclaresMethodNames(Predicate<String> names, @Nullable MethodMatcher matcher) {
+      this.names = names;
+      this.matcher = matcher;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      for (MethodOutline method : outline.methods) {
+        if (names.test(method.methodName) && (matcher == null || matcher.test(method))) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  static final class DeclaresAnnotatedMethod implements ClassMatcher {
+    private final Predicate<String[]> annotations;
+
+    DeclaresAnnotatedMethod(Predicate<String[]> annotations) {
+      this.annotations = annotations;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      for (MethodOutline method : outline.methods) {
+        // most methods have no annotations of interest, so check that first
+        if (method.annotations.length > 0
+            && method.methodName.charAt(0) != '<'
+            && annotations.test(method.annotations)) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  // Field matchers
+
+  static final class FieldDescriptor implements FieldMatcher {
+    final FieldMatcher matcher;
+    final String descriptor;
+
+    FieldDescriptor(FieldMatcher matcher, String descriptor) {
+      this.matcher = matcher;
+      this.descriptor = descriptor;
+    }
+
+    @Override
+    public boolean test(FieldOutline field) {
+      return matcher.test(field) && descriptor.equals(field.descriptor);
+    }
+  }
+
+  static final class FieldNamed implements FieldMatcher {
+    final String name;
+
+    FieldNamed(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public boolean test(FieldOutline field) {
+      return name.equals(field.fieldName);
+    }
+  }
+
+  // Method matchers
+
+  static final class AnnotatedMethod implements MethodMatcher {
+    final Predicate<String[]> annotations;
+
+    AnnotatedMethod(Predicate<String[]> annotations) {
+      this.annotations = annotations;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return annotations.test(method.annotations);
+    }
+  }
+
+  static final class FirstParameter implements MethodMatcher {
+    private final String descriptor;
+
+    FirstParameter(String descriptor) {
+      this.descriptor = descriptor;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return method.descriptor.startsWith(descriptor, 1);
+    }
+  }
+
+  static final MethodMatcher CONSTRUCTOR = new MethodNamed(ClassFile.CONSTRUCTOR);
+  static final MethodMatcher STATIC_INITIALIZER = new MethodNamed(ClassFile.STATIC_INITIALIZER);
+
+  static final class MethodNamed implements MethodMatcher {
+    final String name;
+    @Nullable final MethodMatcher matcher;
+
+    MethodNamed(String name) {
+      this(name, null);
+    }
+
+    private MethodNamed(String name, @Nullable MethodMatcher matcher) {
+      this.name = name;
+      this.matcher = matcher;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return name.equals(method.methodName) && (matcher == null || matcher.test(method));
+    }
+
+    @Override
+    public MethodMatcher and(MethodMatcher other) {
+      // make it easier to inline the name check
+      return new MethodNamed(name, matcher == null ? other : matcher.and(other));
+    }
+  }
+
+  static final class MethodNames implements MethodMatcher {
+    final Predicate<String> names;
+    @Nullable final MethodMatcher matcher;
+
+    MethodNames(Predicate<String> names) {
+      this(names, null);
+    }
+
+    private MethodNames(Predicate<String> names, @Nullable MethodMatcher matcher) {
+      this.names = names;
+      this.matcher = matcher;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return names.test(method.methodName) && (matcher == null || matcher.test(method));
+    }
+
+    @Override
+    public MethodMatcher and(MethodMatcher other) {
+      // make it easier to inline the name check
+      return new MethodNames(names, matcher == null ? other : matcher.and(other));
+    }
+  }
+
+  static final MethodMatcher NO_PARAMETERS =
+      new MethodMatcher() {
+        @Override
+        public boolean test(MethodOutline method) {
+          return method.descriptor.charAt(1) == ')';
+        }
+      };
+
+  /** Matches the parameter descriptor at the given index. */
+  static MethodMatcher parameterDescriptor(int index, String descriptor) {
+    if (index == 0) {
+      return new FirstParameter(descriptor); // shortcut for index 0
+    } else {
+      return new ParameterDescriptor(index, descriptor);
+    }
+  }
+
+  static final class ParameterCount implements MethodMatcher {
+    private final int count;
+
+    ParameterCount(int count) {
+      this.count = count;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return method.parameterCount() == count;
+    }
+  }
+
+  static final class ParameterDescriptor implements MethodMatcher {
+    private final int index;
+    private final String descriptor;
+
+    ParameterDescriptor(int index, String descriptor) {
+      this.index = index;
+      this.descriptor = descriptor;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      // boundaries covers start of second parameter, to start of return descriptor
+      int[] boundaries = method.descriptorBoundaries();
+      return index < boundaries.length // ignore return descriptor boundary
+          && method.descriptor.startsWith(descriptor, boundaries[index - 1]);
+    }
+  }
+
+  static final class ParameterList implements MethodMatcher {
+    private final String parameters;
+
+    ParameterList(String parameters) {
+      this.parameters = parameters;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      return method.descriptor.startsWith(parameters);
+    }
+  }
+
+  static final class ParameterType implements MethodMatcher {
+    private final int index;
+    private final TypeMatcher types;
+
+    ParameterType(int index, TypeMatcher types) {
+      this.index = index;
+      this.types = types;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      TypeString type = method.parameterTypeString(index);
+      return type != null && types.test(type);
+    }
+  }
+
+  static final class ReturnDescriptor implements MethodMatcher {
+    private final String descriptor;
+
+    ReturnDescriptor(String descriptor) {
+      this.descriptor = descriptor;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      String methodDescriptor = method.descriptor;
+      int returnStart = methodDescriptor.length() - descriptor.length();
+      return returnStart > 0
+          && methodDescriptor.charAt(returnStart - 1) == ')'
+          && methodDescriptor.endsWith(descriptor);
+    }
+  }
+
+  static final class ReturnType implements MethodMatcher {
+    private final TypeMatcher types;
+
+    ReturnType(TypeMatcher types) {
+      this.types = types;
+    }
+
+    @Override
+    public boolean test(MethodOutline method) {
+      TypeString type = method.returnTypeString();
+      return type != null && types.test(type);
+    }
+  }
+
+  // Type matchers
+
+  static final class NotType implements TypeMatcher {
+    private final TypeMatcher matcher;
+
+    NotType(TypeMatcher matcher) {
+      this.matcher = matcher;
+    }
+
+    @Override
+    public boolean test(CharSequence type) {
+      return !matcher.test(type);
+    }
+  }
+
+  static final class TypeNamed implements TypeMatcher {
+    private final String name;
+
+    TypeNamed(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public boolean test(CharSequence type) {
+      return name.contentEquals(type);
+    }
+  }
+
+  static final class TypePrefix implements TypeMatcher {
+    private final String prefix;
+
+    TypePrefix(String prefix) {
+      this.prefix = prefix;
+    }
+
+    @Override
+    public boolean test(CharSequence type) {
+      return TypeString.startsWith(type, prefix);
+    }
+  }
+
+  static final class TypesNamed implements TypeMatcher {
+    private final InternalNames names;
+
+    TypesNamed(InternalNames names) {
+      this.names = names;
+    }
+
+    @Override
+    public boolean test(CharSequence candidate) {
+      return names.containsType(candidate);
+    }
+  }
+
+  static final class TypeSuffix implements TypeMatcher {
+    private final String suffix;
+
+    TypeSuffix(String suffix) {
+      this.suffix = suffix;
+    }
+
+    @Override
+    public boolean test(CharSequence type) {
+      return TypeString.endsWith(type, suffix);
+    }
+  }
+
+  // Name predicates
+
+  static final class NameInSet implements Predicate<String> {
+    private final Set<String> names;
+
+    NameInSet(Set<String> names) {
+      this.names = names;
+    }
+
+    @Override
+    public boolean test(String candidate) {
+      return names.contains(candidate);
+    }
+  }
+
+  static final class NamePrefix implements Predicate<String> {
+    private final String prefix;
+
+    NamePrefix(String prefix) {
+      this.prefix = prefix;
+    }
+
+    @Override
+    public boolean test(String candidate) {
+      return candidate.startsWith(prefix);
+    }
+  }
+
+  // Annotation predicates
+
+  static final class AnnotationNamed implements Predicate<String[]> {
+    private final String name;
+
+    AnnotationNamed(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public boolean test(String[] annotations) {
+      for (String annotation : annotations) {
+        if (name.equals(annotation)) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  static final class AnnotationNames implements Predicate<String[]> {
+    private final InternalNames names;
+
+    AnnotationNames(InternalNames names) {
+      this.names = names;
+    }
+
+    @Override
+    public boolean test(String[] annotations) {
+      for (String annotation : annotations) {
+        if (names.containsType(annotation)) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 }

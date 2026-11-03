@@ -69,6 +69,70 @@ class ClassMatcherTest {
   }
 
   @Test
+  void typedFieldDeclarationsKeepNameTypeAndAccessOnTheSameField() {
+    ClassOutline candidate =
+        classOutline(
+            new FieldOutline[] {
+              fieldOutline(Modifier.PRIVATE, "value", "I"),
+              fieldOutline(Modifier.PUBLIC, "other", "Ljava/lang/String;")
+            },
+            new MethodOutline[0]);
+    assertMatches(declares(field("value").type(int.class)), candidate, true);
+    assertMatches(declares(field("value").type(String.class)), candidate, false);
+    assertMatches(declares(field("missing").type(int.class)), candidate, false);
+    assertMatches(declares(field("value").access(PRIVATE).type(int.class)), candidate, true);
+    assertMatches(declares(field("value").access(PUBLIC).type(int.class)), candidate, false);
+    assertMatches(
+        declares(field(StandardMatchers.namedOneOf("value", "missing")).type(int.class)),
+        candidate,
+        true);
+    assertMatches(
+        declares(field(StandardMatchers.namedOneOf("value", "missing")).type(String.class)),
+        candidate,
+        false);
+    ClassOutline laterMatch =
+        classOutline(
+            new FieldOutline[] {
+              fieldOutline(0, "value", "Ljava/lang/String;"), fieldOutline(0, "value", "I"), null
+            },
+            new MethodOutline[0]);
+    assertMatches(declares(field("value").type(int.class)), laterMatch, true);
+  }
+
+  @Test
+  void namePredicateMethodDeclarationsSearchUntilAllCriteriaMatch() {
+    MethodMatcher named = method(StandardMatchers.namedOneOf("execute", "run"));
+    MethodMatcher constrained = named.access(PUBLIC).noParameters();
+    ClassOutline misses =
+        classOutline(
+            new FieldOutline[0],
+            new MethodOutline[] {
+              methodOutline(Modifier.PUBLIC, "other", "()V"),
+              methodOutline(Modifier.PRIVATE, "execute", "()V"),
+              methodOutline(Modifier.PUBLIC, "run", "(I)V")
+            });
+    assertMatches(declares(named), misses, true);
+    assertMatches(declares(constrained), misses, false);
+    assertMatches(declares(named), emptyClass(), false);
+    assertMatches(
+        declares(named),
+        classOutline(new FieldOutline[0], new MethodOutline[] {methodOutline(0, "other", "()V")}),
+        false);
+    ClassOutline laterMatch =
+        classOutline(
+            new FieldOutline[0],
+            new MethodOutline[] {
+              misses.methods[0],
+              misses.methods[1],
+              misses.methods[2],
+              methodOutline(Modifier.PUBLIC, "execute", "()V"),
+              null
+            });
+    assertMatches(declares(named), laterMatch, true);
+    assertMatches(declares(constrained), laterMatch, true);
+  }
+
+  @Test
   void accessAndSignatureMustMatchTheSameMember() {
     ClassOutline candidate =
         classOutline(
@@ -162,6 +226,38 @@ class ClassMatcherTest {
             .findFirst()
             .get();
     assertArrayEquals(new String[] {markerName}, execute.annotations);
+  }
+
+  @Test
+  void annotatedMethodDeclarationsExcludeConstructorsAndStaticInitializers() {
+    String[] annotations = {"sample/Marker"};
+    MethodOutline init = new MethodOutline(0, "<init>", "()V", annotations);
+    MethodOutline clinit = new MethodOutline(Modifier.STATIC, "<clinit>", "()V", annotations);
+    MethodOutline ordinary = new MethodOutline(0, "execute", "()V", annotations);
+    ClassOutline initializersOnly =
+        classOutline(
+            new FieldOutline[0],
+            new MethodOutline[] {
+              init,
+              clinit,
+              methodOutline(0, "unmarked", "()V"),
+              new MethodOutline(0, "unrelated", "()V", new String[] {"sample/Other"})
+            });
+    ClassOutline annotatedMethod =
+        classOutline(
+            new FieldOutline[0],
+            new MethodOutline[] {initializersOnly.methods[3], init, clinit, ordinary});
+
+    assertMatches(declares(method()), initializersOnly, true);
+    assertMatches(declares(method().noParameters()), initializersOnly, true);
+    for (ClassMatcher matcher :
+        new ClassMatcher[] {
+          declares(method().annotatedWith("sample.Marker")),
+          declares(method().annotatedWith(Collections.singletonList("sample.Marker")))
+        }) {
+      assertMatches(matcher, initializersOnly, false);
+      assertMatches(matcher, annotatedMethod, true);
+    }
   }
 
   @Test

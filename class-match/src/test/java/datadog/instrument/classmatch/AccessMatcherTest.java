@@ -5,6 +5,7 @@ import static datadog.instrument.classmatch.AccessMatcher.PUBLIC;
 import static datadog.instrument.classmatch.AccessMatcher.STATIC;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -65,5 +66,55 @@ class AccessMatcherTest {
         };
     assertFalse(PUBLIC.and(unexpected).test(0));
     assertTrue(PUBLIC.or(unexpected).test(1));
+  }
+
+  @TableTest({
+    "Left            | Right     | FoldAnd | FoldOr",
+    "PUBLIC          | PROTECTED | false   | true  ",
+    "PUBLIC          | STATIC    | false   | true  ",
+    "INSTANCE        | NON_FINAL | true    | false ",
+    "PACKAGE_PRIVATE | INSTANCE  | true    | false ",
+    "PACKAGE_PRIVATE | PRIVATE   | false   | false ",
+    "PUBLIC          | INSTANCE  | false   | false ",
+    "INSTANCE        | PUBLIC    | false   | false "
+  })
+  void maskComposition(AccessMatcher left, AccessMatcher right, boolean foldAnd, boolean foldOr) {
+    AccessMatcher conjunction = left.and(right);
+    AccessMatcher disjunction = left.or(right);
+    assertEquals(foldAnd, conjunction instanceof InternalMatchers.AccessMask);
+    assertEquals(foldOr, disjunction instanceof InternalMatchers.AccessMask);
+    for (int access = 0; access <= 0xffff; access++) {
+      if (conjunction.test(access) != (left.test(access) && right.test(access))
+          || disjunction.test(access) != (left.test(access) || right.test(access))) {
+        fail("incorrect composition for access " + access);
+      }
+    }
+  }
+
+  @Test
+  void maskNegationAndChaining() {
+    AccessMatcher positive = PUBLIC.or(AccessMatcher.PROTECTED).or(PRIVATE);
+    AccessMatcher negative =
+        AccessMatcher.INSTANCE.and(AccessMatcher.NON_FINAL).and(AccessMatcher.CONCRETE);
+    assertInstanceOf(InternalMatchers.AccessMask.class, positive);
+    assertInstanceOf(InternalMatchers.AccessMask.class, negative);
+    AccessMatcher notPositive = StandardMatchers.not(positive);
+    AccessMatcher notNegative = StandardMatchers.not(negative);
+    assertInstanceOf(InternalMatchers.AccessMask.class, notPositive);
+    assertInstanceOf(InternalMatchers.AccessMask.class, notNegative);
+    for (int access = 0; access <= 0xffff; access++) {
+      if (positive.test(access) != ((access & 0x0007) != 0)
+          || negative.test(access) != ((access & 0x0418) == 0)
+          || notPositive.test(access) != !positive.test(access)
+          || notNegative.test(access) != !negative.test(access)) {
+        fail("incorrect mask composition or negation for access " + access);
+      }
+    }
+    AccessMatcher custom = access -> (access & 3) == 3;
+    for (int access = 0; access < 32; access++) {
+      assertEquals(!custom.test(access), StandardMatchers.not(custom).test(access));
+      assertEquals(PUBLIC.test(access) && custom.test(access), PUBLIC.and(custom).test(access));
+      assertEquals(PUBLIC.test(access) || custom.test(access), PUBLIC.or(custom).test(access));
+    }
   }
 }
