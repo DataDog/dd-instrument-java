@@ -28,14 +28,14 @@ import org.openjdk.jmh.annotations.Warmup;
 @Warmup(iterations = 0)
 @Measurement(iterations = 1, batchSize = 1)
 public class PatternColdIndyBenchmark {
-  public Object sink;
-
   @Setup
   public void setup() {
     // initialize lambda metafactory / method-handle infrastructure with an unrelated lambda
     String captured = "x";
     Supplier<String> s = () -> captured + System.nanoTime();
-    sink = s.get();
+    if (s.get().isEmpty()) {
+      throw new IllegalStateException("unreachable: keeps the lambda result live");
+    }
   }
 
   @Benchmark

@@ -57,7 +57,7 @@ final class MemberPattern {
   final boolean field;
 
   /** Member names, or {@code null} for the {@code *} wildcard (regular methods only). */
-  final String[] names;
+  @Nullable final String[] names;
 
   /** Internal name of a required method annotation, or {@code null}. */
   @Nullable final String annotation;
@@ -65,17 +65,20 @@ final class MemberPattern {
   private final int requiredAccess;
   private final int forbiddenAccess;
   private final int kind;
+
+  @Nullable
   private final String literal; // EXACT/PARAMS/RETURN literal, or GENERAL pattern "(...)ret"
+
   private final int star; // index of '*' in literal (PREFIX/PREFIX_RETURN), else -1
 
   private MemberPattern(
       boolean field,
-      String[] names,
+      @Nullable String[] names,
       @Nullable String annotation,
       int requiredAccess,
       int forbiddenAccess,
       int kind,
-      String literal) {
+      @Nullable String literal) {
     this.field = field;
     this.names = names;
     this.annotation = annotation;
@@ -89,7 +92,7 @@ final class MemberPattern {
   /** Factory for build-time precompiled patterns (see {@link #toJava()}). */
   static MemberPattern of(
       boolean field,
-      String[] names,
+      @Nullable String[] names,
       @Nullable String annotation,
       int requiredAccess,
       int forbiddenAccess,
