@@ -92,6 +92,22 @@ class AccessMatcherTest {
   }
 
   @Test
+  void negativeMaskAndCustomMatcher() {
+    AccessMatcher custom = access -> (access & 3) == 3;
+    AccessMatcher conjunction = AccessMatcher.INSTANCE.and(custom);
+    for (int access = 0; access <= 0xffff; access++) {
+      assertEquals(
+          AccessMatcher.INSTANCE.test(access) && custom.test(access), conjunction.test(access));
+    }
+
+    AccessMatcher unexpected =
+        access -> {
+          throw new AssertionError("should short circuit");
+        };
+    assertFalse(AccessMatcher.INSTANCE.and(unexpected).test(0x0008));
+  }
+
+  @Test
   void maskNegationAndChaining() {
     AccessMatcher positive = PUBLIC.or(AccessMatcher.PROTECTED).or(PRIVATE);
     AccessMatcher negative =
