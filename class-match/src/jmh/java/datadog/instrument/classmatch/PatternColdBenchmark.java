@@ -106,6 +106,31 @@ public class PatternColdBenchmark {
     return hits;
   }
 
+  /** Build-step variant: patterns precompiled into generated code, no parsing at runtime. */
+  @Benchmark
+  public Object constructPrebuilt() {
+    return new PatternIndex(
+        DDTracePatterns.patterns(),
+        DDTracePatterns.fallbacks(),
+        DDTracePrecompiled.compiled(),
+        DDTracePatterns.annotations());
+  }
+
+  @Benchmark
+  public long firstUsePrebuilt() {
+    PatternIndex index =
+        new PatternIndex(
+            DDTracePatterns.patterns(),
+            DDTracePatterns.fallbacks(),
+            DDTracePrecompiled.compiled(),
+            DDTracePatterns.annotations());
+    long hits = 0;
+    for (byte[] b : bytecode) {
+      hits += index.countMatches(ClassFile.outline(b));
+    }
+    return hits;
+  }
+
   /** Parsing alone, to separate the shared parse cost from matching in first use. */
   @Benchmark
   public long firstUseParseOnly() {
