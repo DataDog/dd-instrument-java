@@ -85,6 +85,27 @@ public class PatternColdBenchmark {
     return hits;
   }
 
+  /** Flat matchers built through the fluent API (Flat entry points), slots merged on and(). */
+  @Benchmark
+  public Object constructFlat() {
+    return DDTraceFlatGraphs.branches();
+  }
+
+  @Benchmark
+  public long firstUseFlat() {
+    ClassMatcher[] branches = DDTraceFlatGraphs.branches();
+    long hits = 0;
+    for (byte[] b : bytecode) {
+      ClassOutline outline = ClassFile.outline(b);
+      for (ClassMatcher branch : branches) {
+        if (branch.test(outline)) {
+          hits++;
+        }
+      }
+    }
+    return hits;
+  }
+
   /** Parsing alone, to separate the shared parse cost from matching in first use. */
   @Benchmark
   public long firstUseParseOnly() {

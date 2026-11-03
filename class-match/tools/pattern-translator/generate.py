@@ -25,6 +25,12 @@ def statement(orig):
             return ' '.join(src[m.end():i].split())
         i += 1
 
+def group_key(orig):
+    """Instrumentation source file of result[orig], from the location comment above it."""
+    pos = re.search(r'result\[%d\] =' % orig, src).start()
+    comments = re.findall(r'^\s*// (\S+\.java):\d+$', src[:pos], flags=re.M)
+    return comments[-1]
+
 imports = re.findall(r'^import .*;$', src, flags=re.M)
 n = len(rows)
 CHUNK = 100
@@ -66,6 +72,14 @@ annotations = sorted({tok[1:] for r in rows if r[1] == 'PATTERNS' for p in r[2:]
 out.append('  /** Annotations the patterns need extracted when parsing (known at build time). */')
 out.append('  static String[] annotations() {')
 out.append('    return new String[] {%s};' % ', '.join('"%s"' % a for a in annotations))
+out.append('  }\n')
+keys = [group_key(int(r[0])) for r in rows]
+ids = {}
+for k in keys:
+    ids.setdefault(k, len(ids))
+out.append('  /** Instrumentation group of each selector (selectors from the same source file). */')
+out.append('  static int[] groups() {')
+out.append('    return new int[] {%s};' % ', '.join(str(ids[k]) for k in keys))
 out.append('  }\n')
 out.append('  /** Predicate fallbacks, only for selectors patterns can\'t express. */')
 out.append('  static ClassMatcher[] fallbacks() {')

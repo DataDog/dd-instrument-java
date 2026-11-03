@@ -19,10 +19,12 @@ import javax.annotation.Nullable;
  * <ul>
  *   <li>{@code names} is {@code name ('|' name)*}, or {@code *} for any regular method (excludes
  *       {@code <init>} and {@code <clinit>}).
- *   <li>{@code params} is a sequence of JVM type descriptors and {@code ?} (exactly one parameter
- *       of any type), optionally ending with {@code *} (zero or more remaining parameters). {@code
- *       *} is only allowed last, so matching is a single linear pass with no backtracking.
- *   <li>{@code return} is a JVM type descriptor; omitted or {@code *} matches any return type.
+ *   <li>{@code params} is a sequence of JVM type descriptors and {@code ?}, a hole for exactly one
+ *       type of any kind. Every token consumes exactly one type, so the arity is fixed.
+ *   <li>{@code return} is a JVM type descriptor or {@code ?} (any one type, including {@code V}).
+ *   <li><em>Legacy, for mechanically converted Byte Buddy selectors only:</em> a trailing {@code *}
+ *       parameter (zero or more remaining parameters), and an omitted or {@code *} return. New
+ *       patterns should pin the arity instead, e.g. {@code (??)?}.
  *   <li>Omitting the parameter list entirely matches any descriptor.
  * </ul>
  *
@@ -47,6 +49,8 @@ final class MemberPattern {
   private static final int PARAMS = 2; // descriptor starts with literal "(...)"
   private static final int RETURN = 3; // descriptor ends with literal return after ')'
   private static final int GENERAL = 4; // token walk
+  private static final int PREFIX = 5; // literal params then '*)': descriptor starts with "(..."
+  private static final int PREFIX_RETURN = 6; // "(...*)R": prefix check + literal return check
 
   private static final int PACKAGE_PRIVATE = -1; // pseudo-modifier
 
@@ -62,6 +66,7 @@ final class MemberPattern {
   private final int forbiddenAccess;
   private final int kind;
   private final String literal; // EXACT/PARAMS/RETURN literal, or GENERAL pattern "(...)ret"
+  private final int star; // index of '*' in literal (PREFIX/PREFIX_RETURN), else -1
 
   private MemberPattern(
       boolean field,
@@ -78,6 +83,39 @@ final class MemberPattern {
     this.forbiddenAccess = forbiddenAccess;
     this.kind = kind;
     this.literal = literal;
+    this.star = literal == null ? -1 : literal.indexOf('*');
+  }
+
+  /** Factory for build-time precompiled patterns (see {@link #toJava()}). */
+  static MemberPattern of(
+      boolean field,
+      String[] names,
+      @Nullable String annotation,
+      int requiredAccess,
+      int forbiddenAccess,
+      int kind,
+      @Nullable String literal) {
+    return new MemberPattern(
+        field, names, annotation, requiredAccess, forbiddenAccess, kind, literal);
+  }
+
+  /** Emits a Java expression that recreates this compiled pattern without parsing. */
+  String toJava() {
+    StringBuilder b = new StringBuilder("MemberPattern.of(").append(field).append(", ");
+    if (names == null) {
+      b.append("null");
+    } else {
+      b.append("new String[] {");
+      for (int i = 0; i < names.length; i++) {
+        b.append(i > 0 ? ", " : "").append('"').append(names[i]).append('"');
+      }
+      b.append('}');
+    }
+    b.append(", ").append(annotation == null ? "null" : '"' + annotation + '"');
+    b.append(", ").append(requiredAccess).append(", ").append(forbiddenAccess);
+    b.append(", ").append(kind).append(", ");
+    b.append(literal == null ? "null" : '"' + literal + '"').append(')');
+    return b.toString();
   }
 
   /** Field patterns always contain {@code ':'}; cheap check usable before compiling. */
@@ -159,7 +197,7 @@ final class MemberPattern {
     }
     String descriptor = pattern.substring(paren);
     int kind = classify(descriptor, pattern);
-    if (kind == PARAMS && descriptor.endsWith("*")) {
+    if (kind == PARAMS && (descriptor.endsWith("*") || descriptor.endsWith("?"))) {
       descriptor = descriptor.substring(0, descriptor.length() - 1); // "(..)*" -> prefix "(..)"
     }
     return new MemberPattern(
@@ -190,7 +228,8 @@ final class MemberPattern {
       throw new IllegalArgumentException("Missing ')': " + pattern);
     }
     String ret = desc.substring(i + 1);
-    boolean anyReturn = ret.isEmpty() || "*".equals(ret);
+    // '?' is a hole for exactly one type (any return, including V); omitted / '*' are legacy forms
+    boolean anyReturn = ret.isEmpty() || "?".equals(ret) || "*".equals(ret);
     if (!anyReturn && checkType(ret, 0, pattern) != ret.length()) {
       throw new IllegalArgumentException("Bad return type: " + pattern);
     }
@@ -202,6 +241,10 @@ final class MemberPattern {
     }
     if (!wildParams && trailingStar && anyReturn && i == 2) {
       return ANY; // "(*)" or "(*)*"
+    }
+    if (!wildParams && trailingStar) {
+      // literal types always end on a type boundary, so a plain prefix check is exact
+      return anyReturn ? PREFIX : PREFIX_RETURN; // "(L..;*)" / "(L..;*)R"
     }
     return GENERAL;
   }
@@ -349,6 +392,11 @@ final class MemberPattern {
         return descriptor.startsWith(literal);
       case RETURN:
         return endsWithReturn(descriptor, literal, 3); // literal is "(*)R"
+      case PREFIX:
+        return descriptor.regionMatches(0, literal, 0, star);
+      case PREFIX_RETURN:
+        return descriptor.regionMatches(0, literal, 0, star)
+            && endsWithReturn(descriptor, literal, star + 2); // skip "*)"
       default:
         return walk(literal, descriptor);
     }
@@ -400,6 +448,7 @@ final class MemberPattern {
     d++;
     int rest = pat.length() - p;
     return rest == 0
+        || pat.charAt(p) == '?'
         || pat.charAt(p) == '*'
         || (rest == desc.length() - d && desc.regionMatches(d, pat, p, rest));
   }

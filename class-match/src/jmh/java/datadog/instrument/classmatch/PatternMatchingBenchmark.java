@@ -37,6 +37,8 @@ public class PatternMatchingBenchmark {
   private ClassOutline[] outlines;
   private ClassMatcher[] branches;
   private ClassMatcher union;
+  private ClassMatcher[] flatBranches;
+  private ClassMatcher flatUnion;
   private PatternIndex index;
   private int cursor;
 
@@ -45,6 +47,8 @@ public class PatternMatchingBenchmark {
     // build before parsing, so outlines include every annotation of interest
     branches = DDTraceClassMatcherGraphs.branches();
     union = DDTraceClassMatcherGraphs.create();
+    flatBranches = DDTraceFlatGraphs.branches();
+    flatUnion = DDTraceFlatGraphs.create();
     index =
         new PatternIndex(
             DDTracePatterns.patterns(), DDTracePatterns.fallbacks(), DDTracePatterns.annotations());
@@ -77,7 +81,16 @@ public class PatternMatchingBenchmark {
         }
         branchHits += expected ? 1 : 0;
       }
+      for (int k = 0; k < branches.length; k++) {
+        if (flatBranches[k].test(outline) != branches[k].test(outline)) {
+          throw new IllegalStateException(
+              "Flat disagreement on " + outline.className + " selector " + k);
+        }
+      }
       boolean expectedUnion = union.test(outline);
+      if (flatUnion.test(outline) != expectedUnion) {
+        throw new IllegalStateException("Flat union disagreement on " + outline.className);
+      }
       if (index.matchesAny(outline) != expectedUnion) {
         throw new IllegalStateException("Union disagreement on " + outline.className);
       }
@@ -124,6 +137,23 @@ public class PatternMatchingBenchmark {
   @Benchmark
   public boolean unionClassMatcher() {
     return union.test(outlines[next()]);
+  }
+
+  @Benchmark
+  public int sweepFlat() {
+    ClassOutline outline = outlines[next()];
+    int hits = 0;
+    for (ClassMatcher branch : flatBranches) {
+      if (branch.test(outline)) {
+        hits++;
+      }
+    }
+    return hits;
+  }
+
+  @Benchmark
+  public boolean unionFlat() {
+    return flatUnion.test(outlines[next()]);
   }
 
   @Benchmark

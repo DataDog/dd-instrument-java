@@ -42,6 +42,7 @@ final class PatternIndex {
 
   private final String[][] selectorPatterns;
   private final ClassMatcher[] fallbacks;
+  @Nullable private final MemberPattern[] precompiled; // build-time compiled, in index order
 
   // built lazily on first match
   private boolean indexed;
@@ -70,8 +71,21 @@ final class PatternIndex {
    */
   PatternIndex(
       String[][] selectorPatterns, @Nullable ClassMatcher[] fallbacks, String... annotations) {
+    this(selectorPatterns, fallbacks, null, annotations);
+  }
+
+  /**
+   * Build-time variant: {@code precompiled} holds every pattern already compiled, in index order
+   * (selectors in order, alternatives in order), so first use does no pattern parsing.
+   */
+  PatternIndex(
+      String[][] selectorPatterns,
+      @Nullable ClassMatcher[] fallbacks,
+      @Nullable MemberPattern[] precompiled,
+      String... annotations) {
     this.selectorPatterns = selectorPatterns;
     this.fallbacks = fallbacks;
+    this.precompiled = precompiled;
     if (annotations.length > 0) {
       ClassFile.annotationsOfInterest(asList(annotations));
     }
@@ -99,7 +113,7 @@ final class PatternIndex {
     int n = patternList.size();
     patterns = patternList.toArray(new String[0]);
     patternSelector = new int[n];
-    compiled = new MemberPattern[n];
+    compiled = precompiled != null ? precompiled : new MemberPattern[n];
     Map<String, List<Integer>> methods = new HashMap<>();
     Map<String, List<Integer>> fields = new HashMap<>();
     Map<String, List<Integer>> annotated = new HashMap<>();

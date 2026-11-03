@@ -312,6 +312,9 @@ final class InternalMatchers {
 
   /** Matches classes that declare a method matching the given criteria. */
   static ClassMatcher declaresMethod(MethodMatcher methods) {
+    if (methods instanceof FlatMethodMatcher) {
+      return new DeclaresFlatMethod((FlatMethodMatcher) methods);
+    }
     if (methods instanceof MethodNamed) {
       MethodNamed named = (MethodNamed) methods;
       return new DeclaresNamedMethod(named.name, named.matcher);
@@ -350,6 +353,26 @@ final class InternalMatchers {
     @Override
     public boolean test(ClassOutline outline) {
       return anyMatch(outline.methods, methods);
+    }
+  }
+
+  /** Matches classes that declare a method matching a flat matcher (monomorphic call). */
+  static final class DeclaresFlatMethod implements ClassMatcher {
+    private final FlatMethodMatcher methods;
+
+    DeclaresFlatMethod(FlatMethodMatcher methods) {
+      this.methods = methods;
+    }
+
+    @Override
+    public boolean test(ClassOutline outline) {
+      FlatMethodMatcher m = methods;
+      for (MethodOutline method : outline.methods) {
+        if (m.test(method)) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 
@@ -677,7 +700,7 @@ final class InternalMatchers {
   }
 
   static final class TypeNamed implements TypeMatcher {
-    private final String name;
+    final String name;
 
     TypeNamed(String name) {
       this.name = name;
@@ -731,7 +754,7 @@ final class InternalMatchers {
   // Name predicates
 
   static final class NameInSet implements Predicate<String> {
-    private final Set<String> names;
+    final Set<String> names;
 
     NameInSet(Set<String> names) {
       this.names = names;

@@ -16,154 +16,58 @@ import java.util.function.IntPredicate;
 @FunctionalInterface
 public interface AccessMatcher extends IntPredicate {
 
-  // Use anonymous classes to reduce cold-start lambda linkage cost.
-
-  // Keep a separate class per matcher so the JIT can specialize by matcher type; avoid
-  // replacing these with a shared class holding a mask field as it slows down matching.
+  // Every constant is a single AccessMask: (access & mask) == expected. One class keeps the
+  // access call site monomorphic, loads one class instead of one per constant, and lets
+  // and() merge masks exactly (see AccessMask).
 
   /** Matches public access. */
-  AccessMatcher PUBLIC =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isPublic(acc);
-        }
-      };
+  AccessMatcher PUBLIC = new AccessMask(Modifier.PUBLIC, Modifier.PUBLIC);
 
   /** Matches private access. */
-  AccessMatcher PRIVATE =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isPrivate(acc);
-        }
-      };
+  AccessMatcher PRIVATE = new AccessMask(Modifier.PRIVATE, Modifier.PRIVATE);
 
   /** Matches protected access. */
-  AccessMatcher PROTECTED =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isProtected(acc);
-        }
-      };
+  AccessMatcher PROTECTED = new AccessMask(Modifier.PROTECTED, Modifier.PROTECTED);
 
   /** Matches package-private access. */
   AccessMatcher PACKAGE_PRIVATE =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return (acc & (Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE)) == 0;
-        }
-      };
+      new AccessMask(Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE, 0);
 
   /** Matches static methods/fields. */
-  AccessMatcher STATIC =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isStatic(acc);
-        }
-      };
+  AccessMatcher STATIC = new AccessMask(Modifier.STATIC, Modifier.STATIC);
 
   /** Matches non-static methods/fields. */
-  AccessMatcher INSTANCE =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return (acc & Modifier.STATIC) == 0;
-        }
-      };
+  AccessMatcher INSTANCE = new AccessMask(Modifier.STATIC, 0);
 
   /** Matches final classes/methods/fields. */
-  AccessMatcher FINAL =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isFinal(acc);
-        }
-      };
+  AccessMatcher FINAL = new AccessMask(Modifier.FINAL, Modifier.FINAL);
 
   /** Matches non-final classes/methods/fields. */
-  AccessMatcher NON_FINAL =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return (acc & Modifier.FINAL) == 0;
-        }
-      };
+  AccessMatcher NON_FINAL = new AccessMask(Modifier.FINAL, 0);
 
   /** Matches synchronized methods. */
-  AccessMatcher SYNCHRONIZED =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isSynchronized(acc);
-        }
-      };
+  AccessMatcher SYNCHRONIZED = new AccessMask(Modifier.SYNCHRONIZED, Modifier.SYNCHRONIZED);
 
   /** Matches varargs methods. */
-  AccessMatcher VARARGS =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return (acc & 0x0080) != 0;
-        }
-      };
+  AccessMatcher VARARGS = new AccessMask(0x0080, 0x0080);
 
   /** Matches volatile fields. */
-  AccessMatcher VOLATILE =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isVolatile(acc);
-        }
-      };
+  AccessMatcher VOLATILE = new AccessMask(Modifier.VOLATILE, Modifier.VOLATILE);
 
   /** Matches transient fields. */
-  AccessMatcher TRANSIENT =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isTransient(acc);
-        }
-      };
+  AccessMatcher TRANSIENT = new AccessMask(Modifier.TRANSIENT, Modifier.TRANSIENT);
 
   /** Matches interface classes. */
-  AccessMatcher INTERFACE =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isInterface(acc);
-        }
-      };
+  AccessMatcher INTERFACE = new AccessMask(Modifier.INTERFACE, Modifier.INTERFACE);
 
   /** Matches non-interface classes. */
-  AccessMatcher CLASS =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return (acc & Modifier.INTERFACE) == 0;
-        }
-      };
+  AccessMatcher CLASS = new AccessMask(Modifier.INTERFACE, 0);
 
   /** Matches abstract classes/methods. */
-  AccessMatcher ABSTRACT =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return Modifier.isAbstract(acc);
-        }
-      };
+  AccessMatcher ABSTRACT = new AccessMask(Modifier.ABSTRACT, Modifier.ABSTRACT);
 
   /** Matches non-abstract classes/methods. */
-  AccessMatcher CONCRETE =
-      new AccessMatcher() {
-        @Override
-        public boolean test(int acc) {
-          return (acc & Modifier.ABSTRACT) == 0;
-        }
-      };
+  AccessMatcher CONCRETE = new AccessMask(Modifier.ABSTRACT, 0);
 
   /**
    * Conjunction of this matcher AND another.
@@ -172,8 +76,7 @@ public interface AccessMatcher extends IntPredicate {
    * @return conjunction of both matchers
    */
   default AccessMatcher and(AccessMatcher other) {
-    // simple approach as we don't expect many access-matcher unions
-    return acc -> test(acc) && other.test(acc);
+    return new AccessMask.And(this, other);
   }
 
   /**
@@ -183,7 +86,6 @@ public interface AccessMatcher extends IntPredicate {
    * @return disjunction of both matchers
    */
   default AccessMatcher or(AccessMatcher other) {
-    // simple approach as we don't expect many access-matcher unions
-    return acc -> test(acc) || other.test(acc);
+    return new AccessMask.Or(this, other);
   }
 }

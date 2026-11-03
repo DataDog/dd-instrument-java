@@ -14,6 +14,8 @@ import java.util.TreeMap;
  * specs intersects their constraints; a contradiction marks the spec unsatisfiable.
  */
 final class Spec {
+  static final boolean STRICT = Boolean.getBoolean("strict");
+
   boolean field;
   Set<String> names; // null = any name
   boolean regularOnly; // method(): excludes <init>/<clinit>
@@ -131,6 +133,10 @@ final class Spec {
       out.add(mods + String.join("|", names) + ":" + (fieldType == null ? "*" : fieldType));
       return out;
     }
+    // STRICT: complete descriptors only ('?' = one type); open-ended arity goes to the slow path
+    if (STRICT && paramCount < 0 && (!params.isEmpty() || returnType != null)) {
+      return null;
+    }
     String desc = descriptor();
     if (names != null) {
       out.add(mods + String.join("|", names) + desc);
@@ -155,7 +161,7 @@ final class Spec {
     }
     if (paramCount < 0) b.append('*');
     b.append(')');
-    if (returnType != null) b.append(returnType);
+    b.append(returnType != null ? returnType : STRICT ? "?" : "");
     return b.toString();
   }
 
