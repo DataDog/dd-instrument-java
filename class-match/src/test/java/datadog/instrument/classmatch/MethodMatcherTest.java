@@ -153,11 +153,19 @@ class MethodMatcherTest {
     assertMatches(staticInitializer(), clinit, true);
     assertMatches(constructor(), clinit, false);
     assertMatches(staticInitializer(), init, false);
-    assertMatches(method(), init, true);
-    assertMatches(method(), clinit, true);
+    assertMatches(method(), ordinary, true);
+    assertMatches(method(), init, false);
+    assertMatches(method(), clinit, false);
+    assertMatches(method().noParameters(), init, false);
+    assertMatches(method().noParameters(), clinit, false);
+    assertMatches(method().and(constructor()), init, false);
+    assertMatches(method().or(constructor()), init, true);
+    assertMatches(method().or(constructor()), clinit, false);
+    assertMatches(method().or(staticInitializer()), clinit, true);
+    assertMatches(method().or(staticInitializer()), init, false);
     MethodMatcher unexpected =
         m -> {
-          throw new AssertionError("all methods should short circuit");
+          throw new AssertionError("ordinary methods should short circuit");
         };
     assertMatches(method().or(unexpected), ordinary, true);
   }

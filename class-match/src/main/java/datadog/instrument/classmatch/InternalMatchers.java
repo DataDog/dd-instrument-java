@@ -126,24 +126,38 @@ final class InternalMatchers {
     return false;
   }
 
-  /** Optimized for {@link MethodMatcher#method()} to avoid unnecessary object creation. */
+  /** Matches all methods, excluding {@code <init>} and {@code <clinit>}. */
   static final MethodMatcher ALL_METHODS =
       new MethodMatcher() {
         @Override
         public boolean test(MethodOutline outline) {
-          return true;
+          return outline.methodName.charAt(0) != '<';
         }
 
         @Override
         public MethodMatcher and(MethodMatcher other) {
-          return other; // no need for MethodConjunction
-        }
-
-        @Override
-        public MethodMatcher or(MethodMatcher other) {
-          return this; // no need for MethodDisjunction
+          return new RegularMethod(other); // make it easier to inline name check
         }
       };
+
+  /** Matches regular methods that also match the given matcher. */
+  static final class RegularMethod implements MethodMatcher {
+    private final MethodMatcher matcher;
+
+    RegularMethod(MethodMatcher matcher) {
+      this.matcher = matcher;
+    }
+
+    @Override
+    public boolean test(MethodOutline outline) {
+      return outline.methodName.charAt(0) != '<' && matcher.test(outline);
+    }
+
+    @Override
+    public MethodMatcher and(MethodMatcher other) {
+      return new RegularMethod(matcher.and(other));
+    }
+  }
 
   /** Logical AND of two {@link ClassMatcher}s; nested conjunctions will be collapsed. */
   static final class ClassConjunction extends MatcherUnion<ClassMatcher> implements ClassMatcher {

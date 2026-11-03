@@ -24,7 +24,7 @@ import java.util.function.Predicate;
 public interface MethodMatcher extends Predicate<MethodOutline> {
 
   /**
-   * Matches all methods.
+   * Matches all methods, excluding constructors and static initializers.
    *
    * @return matcher of all methods
    */
