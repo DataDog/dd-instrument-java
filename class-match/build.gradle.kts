@@ -15,7 +15,7 @@ dependencies {
   sampleBytecode("org.springframework:spring-beans:7.0.9")
   sampleBytecode("org.springframework:spring-context:7.0.9")
   sampleBytecode("org.springframework:spring-aop:7.0.9")
-  sampleBytecode("com.fasterxml.jackson.core:jackson-core:2.21.4")
+  sampleBytecode("com.fasterxml.jackson.core:jackson-core:2.21.7")
   sampleBytecode("com.fasterxml.jackson.core:jackson-databind:2.21.4")
   sampleBytecode("io.projectreactor:reactor-core:3.8.6")
   sampleBytecode("org.apache.tomcat.embed:tomcat-embed-core:11.0.26")
