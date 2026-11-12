@@ -1,6 +1,6 @@
 [versions]
 asm = "9.11.1"
-byte-buddy = "1.18.16"
+byte-buddy = "1.18.17"
 junit-jupiter = "5.14.4"
 junit-platform = "1.14.4"
 tabletest = "1.2.2"
