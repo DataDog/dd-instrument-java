@@ -5,12 +5,12 @@ junit-jupiter = "5.14.4"
 junit-platform = "1.14.4"
 tabletest = "1.2.2"
 assertj = "3.27.7"
-spotless = "8.10.4"
+spotless = "8.11.0"
 spotbugs = "6.5.13"
 spotbugs-annotations = "4.10.5"
 axion-release = "1.21.4"
 nexus-publish = "2.0.0"
-jmh-plugin = "0.7.3"
+jmh-plugin = "0.7.4"
 
 [libraries]
 byte-buddy = { module = "net.bytebuddy:byte-buddy", version.ref = "byte-buddy" }
