@@ -1,15 +1,27 @@
 package datadog.instrument.classinject;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.objectweb.asm.Opcodes.*;
 
+import datadog.instrument.glue.DefineClassGlue;
 import datadog.instrument.testing.TestAgent;
+import datadog.instrument.utils.JVM;
+import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.Instrumentation;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.security.ProtectionDomain;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 
@@ -17,7 +29,97 @@ class ClassInjectorTest {
 
   @BeforeAll
   static void enableClassInjection() {
-    ClassInjector.enableClassInjection(TestAgent.getInstrumentation());
+    Instrumentation inst = TestAgent.getInstrumentation();
+    AtomicInteger retransforms = new AtomicInteger();
+    ClassFileTransformer observer = observeRetransforms(retransforms);
+    inst.addTransformer(observer, true);
+    try {
+      ClassInjector.enableClassInjection(inst);
+      assertThat(retransforms.get()).isEqualTo(JVM.atLeastJava(15) ? 0 : 2);
+    } finally {
+      inst.removeTransformer(observer);
+    }
+  }
+
+  @Test
+  void glueIsNotDiscoverableByName() throws Exception {
+    assertThatThrownBy(() -> Class.forName(DefineClassGlue.ID, false, null))
+        .isInstanceOf(ClassNotFoundException.class);
+    Class<?> glue = glueClass(ClassInjector.class);
+    assertThat(glue.getClassLoader()).isNull();
+    assertThatThrownBy(() -> Class.forName(glue.getName(), false, null))
+        .isInstanceOf(ClassNotFoundException.class);
+    if (JVM.atLeastJava(15)) {
+      assertThat(Class.class.getMethod("isHidden").invoke(glue)).isEqualTo(true);
+    }
+  }
+
+  @Test
+  void independentLibraryCopyGetsItsOwnGlue() throws Exception {
+    try (URLClassLoader copy = isolatedLibrary()) {
+      Class<?> injector = copy.loadClass(ClassInjector.class.getName());
+      injector
+          .getMethod("enableClassInjection", Instrumentation.class)
+          .invoke(null, TestAgent.getInstrumentation());
+      assertThat(glueClass(injector)).isNotSameAs(glueClass(ClassInjector.class));
+      assertThat(injectSample(injector)).isEqualTo(42);
+    }
+  }
+
+  @Test
+  void fallsBackWhenModuleOpeningFails() throws Exception {
+    AtomicInteger moduleOpenAttempts = new AtomicInteger();
+    AtomicInteger retransforms = new AtomicInteger();
+    Instrumentation inst = TestAgent.getInstrumentation();
+    Instrumentation refusingModuleOpen =
+        (Instrumentation)
+            Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[] {Instrumentation.class},
+                (proxy, method, args) -> {
+                  if (method.getName().equals("redefineModule")) {
+                    moduleOpenAttempts.incrementAndGet();
+                    throw new UnsupportedOperationException("Module opening refused");
+                  }
+                  try {
+                    return method.invoke(inst, args);
+                  } catch (InvocationTargetException e) {
+                    throw e.getCause();
+                  }
+                });
+    ClassFileTransformer observer = observeRetransforms(retransforms);
+    inst.addTransformer(observer, true);
+    try (URLClassLoader copy = isolatedLibrary()) {
+      Class<?> injector = copy.loadClass(ClassInjector.class.getName());
+      injector
+          .getMethod("enableClassInjection", Instrumentation.class)
+          .invoke(null, refusingModuleOpen);
+      assertThat(moduleOpenAttempts.get()).isEqualTo(JVM.atLeastJava(15) ? 1 : 0);
+      assertThat(retransforms.get()).isEqualTo(2);
+      assertThat(injectSample(injector)).isEqualTo(42);
+    } finally {
+      inst.removeTransformer(observer);
+    }
+  }
+
+  @Test
+  @SuppressWarnings("Since15")
+  void onlyJavaLangInvokeIsOpenedToTheInjectorsModule() throws Exception {
+    if (JVM.atLeastJava(17)) {
+      try (URLClassLoader copy = isolatedLibrary();
+          URLClassLoader unrelated = URLClassLoader.newInstance(new URL[0], null)) {
+        Class<?> injector = copy.loadClass(ClassInjector.class.getName());
+        injector
+            .getMethod("enableClassInjection", Instrumentation.class)
+            .invoke(null, TestAgent.getInstrumentation());
+        assertThat(Object.class.getModule().isOpen("java.lang.invoke", injector.getModule()))
+            .isTrue();
+        assertThat(
+                Object.class.getModule().isOpen("java.lang.invoke", unrelated.getUnnamedModule()))
+            .isFalse();
+        assertThat(Object.class.getModule().isOpen("java.lang", injector.getModule())).isFalse();
+      }
+    }
   }
 
   @Test
@@ -121,6 +223,50 @@ class ClassInjectorTest {
     assertThat(injectedClasses).extracting(Class::getName).containsExactly(caller, callee);
     assertThat(injectedClasses).allSatisfy(c -> assertThat(c.getClassLoader()).isSameAs(loader));
     assertThat(injectedClasses.get(0).getMethod("value").invoke(null)).isEqualTo(42);
+  }
+
+  private static ClassFileTransformer observeRetransforms(AtomicInteger retransforms) {
+    return new ClassFileTransformer() {
+      @Override
+      public byte[] transform(
+          ClassLoader loader,
+          String name,
+          Class<?> redefined,
+          ProtectionDomain domain,
+          byte[] bytecode) {
+        if (redefined != null
+            && ("java/lang/ClassLoader".equals(name) || "java/lang/Class".equals(name))) {
+          retransforms.incrementAndGet();
+        }
+        return null;
+      }
+    };
+  }
+
+  private static URLClassLoader isolatedLibrary() {
+    return new URLClassLoader(
+        new URL[] {
+          ClassInjector.class.getProtectionDomain().getCodeSource().getLocation(),
+          JVM.class.getProtectionDomain().getCodeSource().getLocation(),
+          ClassReader.class.getProtectionDomain().getCodeSource().getLocation()
+        },
+        null);
+  }
+
+  private static Class<?> glueClass(Class<?> injector) throws Exception {
+    Field glue = injector.getDeclaredField("defineClassGlue");
+    glue.setAccessible(true);
+    return glue.get(null).getClass();
+  }
+
+  private static Object injectSample(Class<?> injector) throws Exception {
+    String name = "datadog.injected.IsolatedSample";
+    Class<?> sample =
+        (Class<?>)
+            injector
+                .getMethod("injectClass", String.class, byte[].class, ClassLoader.class)
+                .invoke(null, name, sampleClass(name), newCL());
+    return sample.getMethod("value").invoke(null);
   }
 
   private static ClassLoader newCL() {
