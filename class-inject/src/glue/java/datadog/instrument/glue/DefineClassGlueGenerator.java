@@ -28,9 +28,9 @@ import org.objectweb.asm.MethodVisitor;
  * the defined classes. The glue bytecode is encoded as an ISO-8859-1 string and written as a
  * constant inside a Java class at build-time.
  *
- * <p>At runtime the glue bytecode is decoded from the string and defined as a hidden/anonymous
- * class using instrumentation. This class provides access to {@code ClassLoader.defineClass}
- * without using unsafe reflection.
+ * <p>At runtime the glue bytecode is decoded from the string and defined in {@code java.lang} using
+ * instrumentation. This class provides access to {@code ClassLoader.defineClass} without using
+ * unsafe reflection.
  *
  * <p>Two versions of glue bytecode are generated: one for Java 8 and another for Java 9 and above.
  */

@@ -1,13 +1,20 @@
 package datadog.instrument.classinject;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.objectweb.asm.Opcodes.*;
 
+import datadog.instrument.glue.DefineClassGlue;
 import datadog.instrument.testing.TestAgent;
+import datadog.instrument.utils.JVM;
+import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.ClassWriter;
@@ -15,9 +22,32 @@ import org.objectweb.asm.MethodVisitor;
 
 class ClassInjectorTest {
 
+  private static final List<Class<?>> retransformedDuringEnablement = new CopyOnWriteArrayList<>();
+
   @BeforeAll
   static void enableClassInjection() {
-    ClassInjector.enableClassInjection(TestAgent.getInstrumentation());
+    Instrumentation inst = TestAgent.getInstrumentation();
+    ClassFileTransformer recorder =
+        new ClassFileTransformer() {
+          @Override
+          public byte[] transform(
+              ClassLoader loader,
+              String className,
+              Class<?> classBeingRedefined,
+              ProtectionDomain pd,
+              byte[] bytecode) {
+            if (classBeingRedefined != null) {
+              retransformedDuringEnablement.add(classBeingRedefined);
+            }
+            return null;
+          }
+        };
+    inst.addTransformer(recorder, true);
+    try {
+      ClassInjector.enableClassInjection(inst);
+    } finally {
+      inst.removeTransformer(recorder);
+    }
   }
 
   @Test
@@ -121,6 +151,15 @@ class ClassInjectorTest {
     assertThat(injectedClasses).extracting(Class::getName).containsExactly(caller, callee);
     assertThat(injectedClasses).allSatisfy(c -> assertThat(c.getClassLoader()).isSameAs(loader));
     assertThat(injectedClasses.get(0).getMethod("value").invoke(null)).isEqualTo(42);
+  }
+
+  @Test
+  void enablesInjectionWithLookupOnJava9Plus() throws Exception {
+    assumeTrue(JVM.atLeastJava(9));
+    assertThat(retransformedDuringEnablement).isEmpty();
+    assertThat(Class.forName(DefineClassGlue.ID, false, null).getClassLoader()).isNull();
+    assertThatThrownBy(() -> ClassInjector.injectViaLookup(TestAgent.getInstrumentation()))
+        .isInstanceOf(LinkageError.class);
   }
 
   private static ClassLoader newCL() {

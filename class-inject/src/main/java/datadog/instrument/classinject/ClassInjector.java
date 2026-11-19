@@ -7,6 +7,10 @@
 package datadog.instrument.classinject;
 
 import static java.lang.ClassLoader.getSystemClassLoader;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.emptySet;
+import static java.util.Collections.singleton;
 import static java.util.Collections.singletonMap;
 import static org.objectweb.asm.Opcodes.*;
 
@@ -14,9 +18,14 @@ import datadog.instrument.glue.DefineClassGlue;
 import datadog.instrument.utils.JVM;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -28,7 +37,7 @@ import org.objectweb.asm.Type;
 /**
  * Supports injection of auxiliary classes, even on the bootstrap classpath.
  *
- * <p>Uses {@link Instrumentation} to access {@code ClassLoader.defineClass} without reflection.
+ * <p>Uses {@link Instrumentation} to gain access to {@code ClassLoader.defineClass}.
  *
  * <ul>
  *   <li>To use this feature, first call {@link #enableClassInjection}
@@ -134,15 +143,63 @@ public final class ClassInjector {
   public static void enableClassInjection(Instrumentation inst) {
     if (defineClassGlue == null) {
       try {
-        defineClassGlue = injectViaLoadClass(inst); // faster, non-static approach
-      } catch (Throwable ignore) {
+        defineClassGlue = injectViaLookup(inst); // Java 9+, no retransformation
+      } catch (Throwable ignoreLookup) {
         try {
-          defineClassGlue = injectViaForName(inst); // slower, static approach
-        } catch (Throwable e) {
-          throw new UnsupportedOperationException("Class injection not available", e);
+          defineClassGlue = injectViaLoadClass(inst); // faster, non-static approach
+        } catch (Throwable ignore) {
+          try {
+            defineClassGlue = injectViaForName(inst); // slower, static approach
+          } catch (Throwable e) {
+            throw new UnsupportedOperationException("Class injection not available", e);
+          }
         }
       }
     }
+  }
+
+  /**
+   * Opens {@code java.lang} to this module and defines the glue there with a private lookup.
+   *
+   * @param inst the instrumentation instance
+   * @return glue that can access 'defineClass'
+   * @throws Throwable if the JVM doesn't support modules or the glue cannot be defined
+   */
+  static BiFunction injectViaLookup(Instrumentation inst) throws Throwable {
+    if (!JVM.atLeastJava(9)) {
+      throw new UnsupportedOperationException("Requires Java 9+");
+    }
+    Class<?> moduleClass = Class.forName("java.lang.Module");
+    Method getModule = Class.class.getMethod("getModule");
+    Object javaBase = getModule.invoke(ClassLoader.class);
+    Object self = getModule.invoke(ClassInjector.class);
+    Instrumentation.class
+        .getMethod(
+            "redefineModule", moduleClass, Set.class, Map.class, Map.class, Set.class, Map.class)
+        .invoke(
+            inst,
+            javaBase,
+            emptySet(),
+            emptyMap(),
+            singletonMap("java.lang", singleton(self)),
+            emptySet(),
+            emptyMap());
+    Lookup lookup =
+        (Lookup)
+            MethodHandles.class
+                .getMethod("privateLookupIn", Class.class, Lookup.class)
+                .invoke(null, ClassLoader.class, MethodHandles.lookup());
+    Class<?> glueClass;
+    try {
+      glueClass =
+          (Class<?>)
+              Lookup.class
+                  .getMethod("defineClass", byte[].class)
+                  .invoke(lookup, (Object) DefineClassGlue.V9.getBytes(ISO_8859_1));
+    } catch (InvocationTargetException e) {
+      throw e.getCause();
+    }
+    return (BiFunction) glueClass.getConstructor().newInstance();
   }
 
   /**
