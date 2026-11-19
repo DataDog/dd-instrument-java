@@ -1,5 +1,5 @@
 plugins {
-  id("java-common")
+  id("java-multiversion")
   id("instrument-glue")
   id("instrument-testing")
 }

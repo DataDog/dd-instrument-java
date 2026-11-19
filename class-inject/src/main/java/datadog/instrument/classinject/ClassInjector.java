@@ -7,6 +7,10 @@
 package datadog.instrument.classinject;
 
 import static java.lang.ClassLoader.getSystemClassLoader;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.emptySet;
+import static java.util.Collections.singleton;
 import static java.util.Collections.singletonMap;
 import static org.objectweb.asm.Opcodes.*;
 
@@ -14,6 +18,8 @@ import datadog.instrument.glue.DefineClassGlue;
 import datadog.instrument.utils.JVM;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
+import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.reflect.Constructor;
 import java.security.ProtectionDomain;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +34,7 @@ import org.objectweb.asm.Type;
 /**
  * Supports injection of auxiliary classes, even on the bootstrap classpath.
  *
- * <p>Uses {@link Instrumentation} to access {@code ClassLoader.defineClass} without reflection.
+ * <p>Uses {@link Instrumentation} to access {@code ClassLoader.defineClass}.
  *
  * <ul>
  *   <li>To use this feature, first call {@link #enableClassInjection}
@@ -133,6 +139,13 @@ public final class ClassInjector {
    */
   public static void enableClassInjection(Instrumentation inst) {
     if (defineClassGlue == null) {
+      if (JVM.atLeastJava(15)) {
+        try {
+          defineClassGlue = injectViaLookup(inst); // avoids any retransformation
+          return;
+        } catch (Throwable ignore) {
+        }
+      }
       try {
         defineClassGlue = injectViaLoadClass(inst); // faster, non-static approach
       } catch (Throwable ignore) {
@@ -143,6 +156,32 @@ public final class ClassInjector {
         }
       }
     }
+  }
+
+  /**
+   * Defines hidden glue using a full-privilege lookup, without retransforming JDK classes.
+   *
+   * @param inst the instrumentation instance
+   * @return glue that can access 'defineClass'
+   * @throws Exception if the lookup fails
+   */
+  @SuppressWarnings("Since15")
+  private static BiFunction injectViaLookup(Instrumentation inst) throws Exception {
+    // privateLookupIn across modules drops MODULE access and cannot define hidden classes
+    // this means we need to reflectively construct the lookup to enable defineHiddenClass
+    Constructor<Lookup> ctor = Lookup.class.getDeclaredConstructor(Class.class);
+    inst.redefineModule(
+        ClassLoader.class.getModule(),
+        emptySet(),
+        emptyMap(),
+        singletonMap("java.lang.invoke", singleton(ClassInjector.class.getModule())),
+        emptySet(),
+        emptyMap());
+    ctor.setAccessible(true);
+    Lookup lookup = ctor.newInstance(ClassLoader.class);
+    byte[] bytecode = DefineClassGlue.V9.getBytes(ISO_8859_1);
+    Class<?> glueClass = lookup.defineHiddenClass(bytecode, false).lookupClass();
+    return (BiFunction) glueClass.getConstructor().newInstance();
   }
 
   /**
