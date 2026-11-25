@@ -19,7 +19,6 @@ import datadog.instrument.utils.JVM;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.reflect.Constructor;
 import java.security.ProtectionDomain;
 import java.util.List;
 import java.util.Map;
@@ -167,18 +166,22 @@ public final class ClassInjector {
    */
   @SuppressWarnings("Since15")
   private static BiFunction injectViaLookup(Instrumentation inst) throws Exception {
-    // privateLookupIn across modules drops MODULE access and cannot define hidden classes
-    // this means we need to reflectively construct the lookup to enable defineHiddenClass
-    Constructor<Lookup> ctor = Lookup.class.getDeclaredConstructor(Class.class);
+    Class<?> lookupGlue =
+        new ClassLoader(null) {
+          Class<?> defineLookupGlue() {
+            byte[] bytecode = DefineClassGlue.LOOKUP.getBytes(ISO_8859_1);
+            return defineClass(
+                null, bytecode, 0, bytecode.length, ClassInjector.class.getProtectionDomain());
+          }
+        }.defineLookupGlue();
     inst.redefineModule(
         ClassLoader.class.getModule(),
         emptySet(),
         emptyMap(),
-        singletonMap("java.lang.invoke", singleton(ClassInjector.class.getModule())),
+        singletonMap("java.lang.invoke", singleton(lookupGlue.getModule())),
         emptySet(),
         emptyMap());
-    ctor.setAccessible(true);
-    Lookup lookup = ctor.newInstance(ClassLoader.class);
+    Lookup lookup = (Lookup) lookupGlue.getMethod("lookup").invoke(null);
     byte[] bytecode = DefineClassGlue.V9.getBytes(ISO_8859_1);
     Class<?> glueClass = lookup.defineHiddenClass(bytecode, false).lookupClass();
     return (BiFunction) glueClass.getConstructor().newInstance();

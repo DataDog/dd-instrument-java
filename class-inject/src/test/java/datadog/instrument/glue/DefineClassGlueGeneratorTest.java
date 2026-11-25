@@ -5,11 +5,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import org.junit.jupiter.api.Test;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.util.CheckClassAdapter;
 import org.tabletest.junit.TableTest;
 
 class DefineClassGlueGeneratorTest {
+
+  @Test
+  void lookupBytecodePassesVerification() {
+    assertVerifies(DefineClassGlueGenerator.generateLookup());
+  }
+
+  @Test
+  void packedLookupUnpacksToGeneratedBytecode() {
+    assertThat(DefineClassGlue.LOOKUP.getBytes(ISO_8859_1))
+        .isEqualTo(DefineClassGlueGenerator.generateLookup());
+  }
 
   @TableTest({
     "unsafeNamespace    ",
@@ -17,13 +29,7 @@ class DefineClassGlueGeneratorTest {
     "'jdk/internal/misc'"
   })
   void generatedBytecodePassesVerification(String unsafeNamespace) {
-    byte[] bytecode = DefineClassGlueGenerator.generateBytecode(unsafeNamespace);
-    StringWriter errors = new StringWriter();
-
-    // perform strict class verification, like -Xverify:all
-    CheckClassAdapter.verify(new ClassReader(bytecode), false, new PrintWriter(errors));
-
-    assertThat(errors.toString()).isEmpty();
+    assertVerifies(DefineClassGlueGenerator.generateBytecode(unsafeNamespace));
   }
 
   /** ClassInjector inlines the glue unpacking, so check the packed glue decodes as expected. */
@@ -41,5 +47,14 @@ class DefineClassGlueGeneratorTest {
     byte[] decodedBytecode = packedBytecode.getBytes(ISO_8859_1);
 
     assertThat(decodedBytecode).isEqualTo(originalBytecode);
+  }
+
+  private static void assertVerifies(byte[] bytecode) {
+    StringWriter errors = new StringWriter();
+
+    // perform strict class verification, like -Xverify:all
+    CheckClassAdapter.verify(new ClassReader(bytecode), false, new PrintWriter(errors));
+
+    assertThat(errors.toString()).isEmpty();
   }
 }
