@@ -1,5 +1,7 @@
 package datadog.instrument.classinject;
 
+import static datadog.instrument.classinject.ClassInjectorTestSupport.observeRetransforms;
+import static datadog.instrument.classinject.ClassInjectorTestSupport.sampleClass;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.objectweb.asm.Opcodes.*;
@@ -9,6 +11,7 @@ import datadog.instrument.testing.TestAgent;
 import datadog.instrument.utils.JVM;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
+import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
@@ -18,7 +21,9 @@ import java.security.ProtectionDomain;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.ClassReader;
@@ -103,21 +108,64 @@ class ClassInjectorTest {
   }
 
   @Test
-  @SuppressWarnings("Since15")
-  void onlyJavaLangInvokeIsOpenedToTheInjectorsModule() throws Exception {
+  @SuppressWarnings({"Since15", "unchecked"})
+  void onlyJavaLangInvokeIsOpenedToTheLookupHelpersModule() throws Exception {
     if (JVM.atLeastJava(17)) {
+      AtomicReference<Module> helperModule = new AtomicReference<>();
+      AtomicInteger retransforms = new AtomicInteger();
+      Instrumentation inst = TestAgent.getInstrumentation();
+      Instrumentation observingModuleOpen =
+          (Instrumentation)
+              Proxy.newProxyInstance(
+                  getClass().getClassLoader(),
+                  new Class<?>[] {Instrumentation.class},
+                  (proxy, method, args) -> {
+                    if (method.getName().equals("redefineModule")) {
+                      assertThat(args[0]).isSameAs(Object.class.getModule());
+                      Map<String, Set<Module>> extraOpens = (Map<String, Set<Module>>) args[3];
+                      assertThat(extraOpens).containsOnlyKeys("java.lang.invoke");
+                      assertThat(extraOpens.get("java.lang.invoke")).hasSize(1);
+                      helperModule.set(extraOpens.get("java.lang.invoke").iterator().next());
+                    } else if (method.getName().equals("retransformClasses")) {
+                      retransforms.incrementAndGet();
+                    }
+                    try {
+                      return method.invoke(inst, args);
+                    } catch (InvocationTargetException e) {
+                      throw e.getCause();
+                    }
+                  });
       try (URLClassLoader copy = isolatedLibrary();
           URLClassLoader unrelated = URLClassLoader.newInstance(new URL[0], null)) {
         Class<?> injector = copy.loadClass(ClassInjector.class.getName());
         injector
             .getMethod("enableClassInjection", Instrumentation.class)
-            .invoke(null, TestAgent.getInstrumentation());
-        assertThat(Object.class.getModule().isOpen("java.lang.invoke", injector.getModule()))
+            .invoke(null, observingModuleOpen);
+        assertThat(retransforms.get()).isZero();
+        assertThat(helperModule.get()).isNotNull().isNotSameAs(injector.getModule());
+        ClassLoader helperLoader = helperModule.get().getClassLoader();
+        assertThat(helperLoader).isNotNull().isNotSameAs(copy);
+        assertThat(helperLoader.getParent()).isNull();
+        assertThat(Object.class.getModule().isOpen("java.lang.invoke", helperModule.get()))
             .isTrue();
+        assertThat(Object.class.getModule().isOpen("java.lang.invoke", injector.getModule()))
+            .isFalse();
+        assertThat(Object.class.getModule().isOpen("java.lang.invoke", getClass().getModule()))
+            .isFalse();
         assertThat(
                 Object.class.getModule().isOpen("java.lang.invoke", unrelated.getUnnamedModule()))
             .isFalse();
-        assertThat(Object.class.getModule().isOpen("java.lang", injector.getModule())).isFalse();
+        assertThat(Object.class.getModule().isOpen("java.lang", helperModule.get())).isFalse();
+        assertThat(Lookup.class.getDeclaredConstructor(Class.class).trySetAccessible()).isFalse();
+
+        Class<?> helper =
+            helperLoader.loadClass("datadog.instrument.glue.$Datadog$ClassLoaderLookup");
+        assertThat(helper.getProtectionDomain()).isSameAs(injector.getProtectionDomain());
+        assertThat(helper.getDeclaredConstructors()).isEmpty();
+        Lookup lookup = (Lookup) helper.getMethod("lookup").invoke(null);
+        assertThat(lookup.lookupClass()).isSameAs(ClassLoader.class);
+        assertThat(lookup.hasFullPrivilegeAccess()).isTrue();
+        assertThat(injectSample(injector)).isEqualTo(42);
       }
     }
   }
@@ -225,24 +273,6 @@ class ClassInjectorTest {
     assertThat(injectedClasses.get(0).getMethod("value").invoke(null)).isEqualTo(42);
   }
 
-  private static ClassFileTransformer observeRetransforms(AtomicInteger retransforms) {
-    return new ClassFileTransformer() {
-      @Override
-      public byte[] transform(
-          ClassLoader loader,
-          String name,
-          Class<?> redefined,
-          ProtectionDomain domain,
-          byte[] bytecode) {
-        if (redefined != null
-            && ("java/lang/ClassLoader".equals(name) || "java/lang/Class".equals(name))) {
-          retransforms.incrementAndGet();
-        }
-        return null;
-      }
-    };
-  }
-
   private static URLClassLoader isolatedLibrary() {
     return new URLClassLoader(
         new URL[] {
@@ -271,20 +301,6 @@ class ClassInjectorTest {
 
   private static ClassLoader newCL() {
     return new ClassLoader(null) {};
-  }
-
-  /** Generates a class with a static {@code value()} method that returns 42. */
-  private static byte[] sampleClass(String name) {
-    ClassWriter writer = new ClassWriter(0);
-    writer.visit(V1_8, ACC_PUBLIC, name.replace('.', '/'), null, "java/lang/Object", null);
-    MethodVisitor method = writer.visitMethod(ACC_PUBLIC | ACC_STATIC, "value", "()I", null, null);
-    method.visitCode();
-    method.visitIntInsn(BIPUSH, 42);
-    method.visitInsn(IRETURN);
-    method.visitMaxs(1, 0);
-    method.visitEnd();
-    writer.visitEnd();
-    return writer.toByteArray();
   }
 
   /** Generates a class with a static {@code value()} method that delegates to the target. */

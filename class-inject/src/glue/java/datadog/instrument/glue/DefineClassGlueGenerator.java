@@ -21,6 +21,7 @@ import java.util.function.BiFunction;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Type;
 
 /**
  * Generates glue bytecode for a {@link BiFunction} around {@code ClassLoader.defineClass} that
@@ -37,6 +38,8 @@ import org.objectweb.asm.MethodVisitor;
 final class DefineClassGlueGenerator {
   // our glue must be located inside the java.lang namespace for accessibility reasons
   private static final String DEFINECLASSGLUE_CLASS = "java/lang/$Datadog$DefineClassGlue";
+  private static final String LOOKUPGLUE_CLASS =
+      "datadog/instrument/glue/$Datadog$ClassLoaderLookup";
 
   private static final String OBJECT_CLASS = "java/lang/Object";
   private static final String CLASS_CLASS = "java/lang/Class";
@@ -50,6 +53,8 @@ final class DefineClassGlueGenerator {
   private static final String BYTE_ARRAY = "[B";
 
   private static final String CLASSLOADER_CLASS = "java/lang/ClassLoader";
+  private static final String CONSTRUCTOR_CLASS = "java/lang/reflect/Constructor";
+  private static final String LOOKUP_CLASS = "java/lang/invoke/MethodHandles$Lookup";
   private static final String PROTECTIONDOMAIN_CLASS = "java/security/ProtectionDomain";
   private static final String BIFUNCTION_CLASS = "java/util/function/BiFunction";
 
@@ -106,8 +111,56 @@ final class DefineClassGlueGenerator {
     lines.add("  /** Packed Java 9+ bytecode */");
     lines.add("  String V9 =");
     packBytecode(lines, generateBytecode("jdk/internal/misc"));
+    lines.add("  /** Lookup helper */");
+    lines.add("  String LOOKUP =");
+    packBytecode(lines, generateLookup());
     lines.add("}");
     Files.write(defineClassGlue, lines, StandardCharsets.UTF_8);
+  }
+
+  /** Generates a static factory for a full-privilege ClassLoader lookup. */
+  static byte[] generateLookup() {
+    ClassWriter cw = new ClassWriter(0);
+    cw.visit(
+        V1_8, ACC_PUBLIC | ACC_FINAL | ACC_SYNTHETIC, LOOKUPGLUE_CLASS, null, OBJECT_CLASS, null);
+
+    // privateLookupIn across modules drops MODULE access and cannot define hidden classes.
+    MethodVisitor mv =
+        cw.visitMethod(ACC_PUBLIC | ACC_STATIC, "lookup", "()Ljava/lang/Object;", null, null);
+    mv.visitCode();
+    mv.visitLdcInsn(Type.getObjectType(LOOKUP_CLASS));
+    mv.visitInsn(ICONST_1);
+    mv.visitTypeInsn(ANEWARRAY, CLASS_CLASS);
+    mv.visitInsn(DUP);
+    mv.visitInsn(ICONST_0);
+    mv.visitLdcInsn(Type.getObjectType(CLASS_CLASS));
+    mv.visitInsn(AASTORE);
+    mv.visitMethodInsn(
+        INVOKEVIRTUAL,
+        CLASS_CLASS,
+        "getDeclaredConstructor",
+        "([L" + CLASS_CLASS + ";)L" + CONSTRUCTOR_CLASS + ";",
+        false);
+    mv.visitInsn(DUP);
+    mv.visitInsn(ICONST_1);
+    mv.visitMethodInsn(INVOKEVIRTUAL, CONSTRUCTOR_CLASS, "setAccessible", "(Z)V", false);
+    mv.visitInsn(ICONST_1);
+    mv.visitTypeInsn(ANEWARRAY, OBJECT_CLASS);
+    mv.visitInsn(DUP);
+    mv.visitInsn(ICONST_0);
+    mv.visitLdcInsn(Type.getObjectType(CLASSLOADER_CLASS));
+    mv.visitInsn(AASTORE);
+    mv.visitMethodInsn(
+        INVOKEVIRTUAL,
+        CONSTRUCTOR_CLASS,
+        "newInstance",
+        "([Ljava/lang/Object;)Ljava/lang/Object;",
+        false);
+    mv.visitInsn(ARETURN);
+    mv.visitMaxs(5, 0);
+    mv.visitEnd();
+    cw.visitEnd();
+    return cw.toByteArray();
   }
 
   /**
